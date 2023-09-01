@@ -1,0 +1,5 @@
+/bin/
+*/vendor/*
+*/build/*
+*/bin/*
+*/.gopath/*
