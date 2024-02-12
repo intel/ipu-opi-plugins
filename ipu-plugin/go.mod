@@ -1,6 +1,6 @@
 module github.com/intel/ipu-opi-plugins/ipu-plugin
 
-go 1.20
+go 1.21
 
 require (
 	github.com/ipdk-io/k8s-infra-offload v0.0.0-20230824210601-791f4fa3562a
