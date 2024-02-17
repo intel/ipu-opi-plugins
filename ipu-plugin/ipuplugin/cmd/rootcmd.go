@@ -57,6 +57,7 @@ var (
 		p4rtbin       string
 		portMuxVsi    int
 		verbosity     string
+		mode          string
 	}
 
 	rootCmd = &cobra.Command{
@@ -80,6 +81,7 @@ var (
 			bridgeType := viper.GetString("bridgeType")
 			p4rtbin := viper.GetString("p4rtbin")
 			portMuxVsi := viper.GetInt("portMuxVsi")
+			mode := viper.GetString("mode")
 
 			log.Info("Initializing IPU Manager")
 			log.WithFields(log.Fields{
@@ -91,12 +93,13 @@ var (
 				"bridgeType": bridgeType,
 				"p4rtbin":    p4rtbin,
 				"portMuxVsi": portMuxVsi,
+				"mode":       mode,
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridge, bridgeType, ovsCliDir)
 			p4Client := p4rtclient.NewP4RtClient(p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
 
-			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, host, defaultServingNet, bridge, intf, ovsCliDir)
+			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, host, defaultServingNet, bridge, intf, ovsCliDir, mode)
 			if err := mgr.Run(); err != nil {
 				exitWithError(err, 4)
 			}
@@ -132,6 +135,11 @@ func init() {
 		"The port mux VSI number. This must be for the same interface from --interface flags")
 	//Default Log level value is the warn level
 	rootCmd.PersistentFlags().StringVarP(&config.verbosity, "verbosity", "v", log.InfoLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
+	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU Manager daemon mode: host|ipu (required)")
+
+	if err := rootCmd.MarkPersistentFlagRequired("mode"); err != nil {
+		exitWithError(err, 1)
+	}
 
 	// Update below list of flags for any new flags added/updated above to bind them via Viper
 	flagList := []string{
@@ -145,6 +153,7 @@ func init() {
 		"p4rtbin",
 		"portMuxVsi",
 		"verbosity",
+		"mode",
 	}
 
 	for _, f := range flagList {
@@ -174,7 +183,9 @@ func initConfig() {
 }
 
 func validateConfigs() error {
-	// TO-DO implement config validation
+	if config.mode != "host" && config.mode != "ipu" {
+		return fmt.Errorf("invalid mode specified: %s", config.mode)
+	}
 	return nil
 }
 
