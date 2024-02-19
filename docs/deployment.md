@@ -33,12 +33,12 @@ P4 recipe: Linux Networking recipe (Deploy P4 Artifacts)
 ## Clone repository 
 
 ```bash
-git clone https://github.com/intel-collab/networking.ethernet.acceleration.mev.networksolutions.redhat.joint
+git clone https://github.com/intel/ipu-opi-plugins
 ```
 
 Set path to directory
 ```
-cd networking.ethernet.acceleration.mev.networksolutions.redhat.joint
+cd ipu-opi-plugins
 export ROOT_DIR=$(pwd)
 ```
 
@@ -753,7 +753,7 @@ Start Infrap4d on ACC
 On the host, build the IPU Manager as an arm64 binary and the copy the binary over to ACC.
 
 ```bash
-cd $ROOT_DIR
+cd $ROOT_DIR/ipu-plugin
 make
 scp bin/linux-arm64/ipuplugin 192.168.1.2:/root/
 ```
