@@ -8,7 +8,7 @@ IPU plugin implements OPI API for OPI DPU Daemon to communicate for Pod interfac
 make
 ```
 
-After a successfull build the binaries will be available in target platform specific directory:
+After a successful build the binaries will be available in target platform specific directory:
 
 ```
 # tree bin/
