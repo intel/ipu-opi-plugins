@@ -200,7 +200,6 @@ func logInit(logDir string, logLevel string) error {
 		return err
 	}
 	log.SetLevel(lgLvl)
-	//log.SetReportCaller(true)
 	log.SetFormatter(&log.TextFormatter{
 		PadLevelText:     true,
 		QuoteEmptyFields: true,
