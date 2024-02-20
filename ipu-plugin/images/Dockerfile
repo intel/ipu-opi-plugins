@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2024 Intel Corporation
 FROM golang:1.20-alpine as builder
 ARG TARGETOS
 ARG TARGETARCH
@@ -18,8 +20,4 @@ COPY --from=builder /usr/src/ipu-opi-plugin/bin/ipuplugin /usr/bin/
 WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
 
-#COPY ./images/entrypoint.sh /
-
 RUN rm -rf /var/cache/apk/*
-
-#ENTRYPOINT ["/entrypoint.sh"]
