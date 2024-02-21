@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apf-config
+  namespace: kube-system
+data:
+  config.json: |
+    {
+      "exclude": ["enp0s1f0", "enp0s1f0d2"]
+    }
