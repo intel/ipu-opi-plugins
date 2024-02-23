@@ -43,10 +43,11 @@ type server struct {
 	Ports           map[string]*pb.BridgePort
 	bridgeCtlr      types.BridgeController
 	p4RtClient      types.P4RTClient
+	mode            string
 }
 
 func NewIpuPlugin(port int, brCtlr types.BridgeController,
-	p4Client types.P4RTClient, host, net, bridge, intf, p4cpInstall string) types.Runnable {
+	p4Client types.P4RTClient, host, net, bridge, intf, p4cpInstall, mode string) types.Runnable {
 	return &server{
 		servingHost:     host,
 		servingPort:     port,
@@ -59,6 +60,7 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController,
 		Ports:           make(map[string]*pb.BridgePort),
 		bridgeCtlr:      brCtlr,
 		p4RtClient:      p4Client,
+		mode:            mode,
 	}
 }
 
