@@ -8,7 +8,7 @@ require (
 	github.com/onsi/gomega v1.30.0
 	github.com/opiproject/opi-api v0.0.0-20230831141553-56e46f754823
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.16.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	google.golang.org/grpc v1.57.1
