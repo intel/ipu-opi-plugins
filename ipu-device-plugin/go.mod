@@ -1,6 +1,8 @@
 module github.com/intel/ipu-device-plugin
 
-go 1.20
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
