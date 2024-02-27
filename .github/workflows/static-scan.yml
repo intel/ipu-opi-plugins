@@ -2,16 +2,18 @@ name: Go-static-analysis
 on: [push, pull_request]
 jobs:
   golangci:
-    name: Lint
+    name: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: "1.20"
-      - uses: actions/checkout@v3
-      - name: run make lint
-        run: make lint
+          go-version: '1.21'
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.54
 
   shellcheck:
     name: Shellcheck
