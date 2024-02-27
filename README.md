@@ -1,3 +1,5 @@
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/intel/ipu-opi-plugins/badge)](https://securityscorecards.dev/viewer/?uri=github.com/intel/ipu-opi-plugins) 
+
 # IPU OPI Plugins
 
 IPU OPI Plugins are a set of components that expose IPU offload capabilities in a K8s cluster.
