@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine@sha256:e47f121850f4e276b2b210c56df3fda9191278dd84a3a442bfe0b09934462a8f as builder
+FROM golang:1.22-alpine@sha256:8e96e6cff6a388c2f70f5f662b64120941fcd7d4b89d62fec87520323a316bd9 as builder
 COPY . /usr/src/ipu-device-plugin
 
 ENV HTTP_PROXY $http_proxy
