@@ -29,6 +29,8 @@ jobs:
   shellcheck:
     name: Shellcheck
     runs-on: ubuntu-latest
+    env:
+      SHELLCHECK_OPTS: -e SC3037 # disabled because of false issue in entrypoint.sh
     steps:
     - uses: actions/checkout@v3
     - name: Run ShellCheck
