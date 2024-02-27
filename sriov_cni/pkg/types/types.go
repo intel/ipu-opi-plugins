@@ -60,7 +60,7 @@ type NetConf struct {
 	RuntimeConfig struct {
 		Mac string `json:"mac,omitempty"`
 	} `json:"runtimeConfig,omitempty"`
-	IpuManagerAddress string `json:"ipu_manager_address,omitempty"`
-	LogLevel          string `json:"logLevel,omitempty"`
-	LogFile           string `json:"logFile,omitempty"`
+	DpuDaemonAddress string `json:"ipu_manager_address,omitempty"`
+	LogLevel         string `json:"logLevel,omitempty"`
+	LogFile          string `json:"logFile,omitempty"`
 }

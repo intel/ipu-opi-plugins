@@ -15,7 +15,7 @@ import (
 var (
 	// DefaultCNIDir used for caching NetConf
 	DefaultCNIDir = "/var/lib/cni/sriov"
-	addr          = "192.168.1.2:50151"
+	addr          = "localhost:50151"
 )
 
 // SetLogging sets global logging parameters.
@@ -36,8 +36,8 @@ func LoadConf(bytes []byte) (*sriovtypes.NetConf, error) {
 		return nil, fmt.Errorf("LoadConf(): failed to load netconf: %v", err)
 	}
 
-	if n.IpuManagerAddress == "" {
-		n.IpuManagerAddress = addr
+	if n.DpuDaemonAddress == "" {
+		n.DpuDaemonAddress = addr
 	}
 
 	// DeviceID takes precedence; if we are given a VF pciaddr then work from there

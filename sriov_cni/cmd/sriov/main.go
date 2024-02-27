@@ -212,7 +212,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("error saving the pci allocation for vf pci address %s: %v", netConf.DeviceID, err)
 	}
 
-	conn, err := grpc.Dial(netConf.IpuManagerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(netConf.DpuDaemonAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -336,7 +336,7 @@ func cmdDel(args *skel.CmdArgs) error {
 		return fmt.Errorf("error cleaning the pci allocation for vf pci address %s: %v", netConf.DeviceID, err)
 	}
 
-	conn, err := grpc.Dial(netConf.IpuManagerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(netConf.DpuDaemonAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
