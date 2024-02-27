@@ -50,5 +50,5 @@ google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp0
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.31.0 h1:g0LDEJHgrBl9N9r17Ru3sqWhkIx2NB67okBHPwC7hs8=
 google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
-k8s.io/kubelet v0.29.1 h1:cso8Dk8dymkj8q+EvW/aCbIYU2aOkH27gho48tYza/8=
-k8s.io/kubelet v0.29.1/go.mod h1:hTl/naFcCVG1Ku17fMgj/krbheBwBkf3gnFhaboMx7E=
+k8s.io/kubelet v0.29.2 h1:bQ2StqkUqPCFNLtGLsb3v3O2LKQHXNMju537zOGboRg=
+k8s.io/kubelet v0.29.2/go.mod h1:i5orNPqW/fAMrqptbCXFW/vLBBP12TZZc41IrrvF7SY=

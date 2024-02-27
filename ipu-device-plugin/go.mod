@@ -5,7 +5,7 @@ go 1.20
 require (
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
 	google.golang.org/grpc v1.58.3
-	k8s.io/kubelet v0.29.1
+	k8s.io/kubelet v0.29.2
 )
 
 require (
