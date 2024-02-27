@@ -5,8 +5,13 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: '1.21'
           cache: false
@@ -32,9 +37,14 @@ jobs:
     env:
       SHELLCHECK_OPTS: -e SC3037 # disabled because of false issue in entrypoint.sh
     steps:
-    - uses: actions/checkout@v4
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     - name: Run ShellCheck
-      uses: ludeeus/action-shellcheck@master
+      uses: ludeeus/action-shellcheck@cd81f4475ab741e097ec0fe73b692f3e49d66b8c # master
 
   hadolint:
     runs-on: ubuntu-latest
@@ -42,6 +52,11 @@ jobs:
     env:
       HADOLINT_RECURSIVE: "true"
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
     - uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
       name: Run Hadolint
