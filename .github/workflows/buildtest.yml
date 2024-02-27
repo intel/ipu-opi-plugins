@@ -12,8 +12,6 @@ jobs:
       matrix:
         go-version: [1.21.x]
         os: [ubuntu-latest]
-        goos: [linux]
-        goarch: [amd64, arm64]
         subproject: [ipu-plugin, ipu-device-plugin] # Add more subprojects as needed
     runs-on: ${{ matrix.os }}
     env:
