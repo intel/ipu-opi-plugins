@@ -31,6 +31,6 @@ jobs:
         run: |
           for subproject in ${{ matrix.subproject }}; do
             cd "$subproject"
-            make 
+            make build
             cd ..
           done
