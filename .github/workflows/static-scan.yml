@@ -11,10 +11,11 @@ jobs:
           go-version: '1.21'
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.54
-          args: ./...
+        run: |
+          args=$(go list -f '{{.Dir}}/...' -m)
+          golangci-lint run $args
+        env:
+          GO111MODULE: on
 
   shellcheck:
     name: Shellcheck
