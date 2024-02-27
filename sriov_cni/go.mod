@@ -11,7 +11,7 @@ require (
 	github.com/opiproject/opi-api v0.0.0-20240216141047-82ae5a5a6f1a
 	github.com/stretchr/testify v1.6.1
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230905152006-63484bbf69f8
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.21.0
 	google.golang.org/grpc v1.62.0
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/safchain/ethtool v0.2.0 // indirect
 	github.com/stretchr/objx v0.1.0 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
