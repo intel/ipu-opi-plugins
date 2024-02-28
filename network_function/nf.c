@@ -35,14 +35,14 @@ int main() {
         exit(1);
     }
     // Set the interface to receive packets
-    strncpy(ifr_in.ifr_name, "br-tap1", IFNAMSIZ);
+    strncpy(ifr_in.ifr_name, "net1", IFNAMSIZ);
     if (ioctl(rawSocket, SIOCGIFINDEX, &ifr_in) == -1) {
         perror("Failed to get interface index tap 1");
         close(rawSocket);
         exit(1);
     }
     // Set the interface to send packets
-    strncpy(ifr_out.ifr_name, "br-tap2", IFNAMSIZ);
+    strncpy(ifr_out.ifr_name, "net2", IFNAMSIZ);
     if (ioctl(rawSocket, SIOCGIFINDEX, &ifr_out) == -1) {
         perror("Failed to get interface index");
         close(rawSocket);
@@ -72,6 +72,11 @@ int main() {
 
         // Receive packet
         length = recvfrom(rawSocket, buffer, sizeof(buffer), 0, NULL, NULL);
+        if (length == -1) {
+            perror("Failed to receive packet");
+            close(rawSocket);
+            exit(1);
+
 	    i++;
         printf("received frame. Sent frame count %d\n", i);
         printf ("length = %d \n", length);
@@ -88,13 +93,7 @@ int main() {
         printf("Source MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
            sourceMac[0], sourceMac[1], sourceMac[2], sourceMac[3], sourceMac[4], sourceMac[5]);
 
-
-        if (length == -1) {
-            perror("Failed to receive packet");
-            close(rawSocket);
-            exit(1);
-        } 
-  
+        }   
 
       // Send packet
         if (sendto(rawSocket, buffer, length, 0, (struct sockaddr *)&sa_out, sizeof(struct sockaddr_ll)) == -1) {

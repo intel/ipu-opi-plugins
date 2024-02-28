@@ -1,10 +1,11 @@
 Network Function Skeleton Code
 
-This code attachs to an IPU network interface via a raw socket.
+This code attaches to an IPU network interface via a raw socket.
 All packets received on this interface are relayed unmodified 
 to a second IPU network interface. 
 This provides a "transparent pipe" which can be extended to
 provide true "bump in the wire" network functions.
+This code supports packets up to 64K.
 
 To compile 
 gcc -o nf nf.c
@@ -14,7 +15,7 @@ to run
 
 To set up the test environment
 
-Add a new nsamespace
+Add a new namespace
 ip netns add nfns
 ip netns add ns1
 ip netns add ns2
@@ -46,7 +47,7 @@ ip netns exec nfns ./nf br-tap1 br-tap2
 Run test:
 ip netns exec ns1 ping -c1 10.1.1.5
 
-Exspected Behavior
-packet could will increment, packet output to screen, source MAC printed.
+Expected Behavior
+packet will increment, packet output to screen, source MAC printed.
 packet relayed out second interface and visible via tcpdump command
 sudo ip netns exec ns2 tcpdump -vi tap2
