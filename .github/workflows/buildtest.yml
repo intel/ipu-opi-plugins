@@ -1,0 +1,42 @@
+name: Go-build-and-test
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 8 * * 0" # every sunday
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    strategy:
+      matrix:
+        go-version: [1.21.x]
+        os: [ubuntu-latest]
+        subproject: [ipu-plugin, ipu-device-plugin] # Add more subprojects as needed
+    runs-on: ${{ matrix.os }}
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Build each subproject
+        run: |
+          for subproject in ${{ matrix.subproject }}; do
+            cd "$subproject"
+            make build
+            cd ..
+          done

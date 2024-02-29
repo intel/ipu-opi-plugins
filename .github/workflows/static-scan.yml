@@ -1,5 +1,10 @@
 name: Go-static-analysis
+
 on: [push, pull_request]
+
+permissions:
+  contents: read
+
 jobs:
   golangci:
     name: lint
@@ -28,8 +33,6 @@ jobs:
           done
         env:
           GO111MODULE: on
-
-
 
   shellcheck:
     name: Shellcheck
