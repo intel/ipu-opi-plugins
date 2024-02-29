@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/ipdk-io/k8s-infra-offload v0.0.0-20230824210601-791f4fa3562a
 	github.com/onsi/ginkgo/v2 v2.15.0
-	github.com/onsi/gomega v1.30.0
+	github.com/onsi/gomega v1.31.1
 	github.com/opiproject/opi-api v0.0.0-20230831141553-56e46f754823
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
