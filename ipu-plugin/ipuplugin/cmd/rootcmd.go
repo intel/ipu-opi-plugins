@@ -42,6 +42,9 @@ const (
 	defaultOvsCliDir    = "/opt/p4/p4-cp-nws/bin"
 	defaultPortMuxVsi   = 0x0a
 	defaultP4BridgeName = "br0"
+	defaultDaemonHostIp = "192.168.1.1"
+	defaultDaemonIpuIp  = "192.168.1.2"
+	defaultDaemonPort   = 50151
 )
 
 var (
@@ -58,6 +61,9 @@ var (
 		portMuxVsi    int
 		verbosity     string
 		mode          string
+		daemonHostIp  string
+		daemonIpuIp   string
+		daemonPort    int
 	}
 
 	rootCmd = &cobra.Command{
@@ -82,24 +88,30 @@ var (
 			p4rtbin := viper.GetString("p4rtbin")
 			portMuxVsi := viper.GetInt("portMuxVsi")
 			mode := viper.GetString("mode")
+			daemonHostIp := viper.GetString("daemonHostIp")
+			daemonIpuIp := viper.GetString("daemonIpuIp")
+			daemonPort := viper.GetInt("daemonPort")
 
 			log.Info("Initializing IPU Manager")
 			log.WithFields(log.Fields{
-				"host":       host,
-				"port":       port,
-				"bridge":     bridge,
-				"interface":  intf,
-				"ovsCliDir":  ovsCliDir,
-				"bridgeType": bridgeType,
-				"p4rtbin":    p4rtbin,
-				"portMuxVsi": portMuxVsi,
-				"mode":       mode,
+				"host":         host,
+				"port":         port,
+				"bridge":       bridge,
+				"interface":    intf,
+				"ovsCliDir":    ovsCliDir,
+				"bridgeType":   bridgeType,
+				"p4rtbin":      p4rtbin,
+				"portMuxVsi":   portMuxVsi,
+				"mode":         mode,
+				"daemonHostIp": daemonHostIp,
+				"daemonIpuIp":  daemonIpuIp,
+				"daemonHost":   daemonPort,
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridge, bridgeType, ovsCliDir)
 			p4Client := p4rtclient.NewP4RtClient(p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
 
-			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, host, defaultServingNet, bridge, intf, ovsCliDir, mode)
+			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, host, defaultServingNet, bridge, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
 			if err := mgr.Run(); err != nil {
 				exitWithError(err, 4)
 			}
@@ -136,6 +148,9 @@ func init() {
 	//Default Log level value is the warn level
 	rootCmd.PersistentFlags().StringVarP(&config.verbosity, "verbosity", "v", log.InfoLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
 	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU Manager daemon mode: host|ipu (required)")
+	rootCmd.PersistentFlags().StringVar(&config.daemonHostIp, "daemonHostIp", defaultDaemonHostIp, fmt.Sprintf("Daemon address on host (default value: %s): ip", defaultDaemonHostIp))
+	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, fmt.Sprintf("Daemon address on ipu (default value: %s): ip", defaultDaemonIpuIp))
+	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, fmt.Sprintf("Daemon port (default value: %d): port", defaultDaemonPort))
 
 	if err := rootCmd.MarkPersistentFlagRequired("mode"); err != nil {
 		exitWithError(err, 1)
@@ -154,6 +169,9 @@ func init() {
 		"portMuxVsi",
 		"verbosity",
 		"mode",
+		"daemonHostIp",
+		"daemonIpuIp",
+		"daemonPort",
 	}
 
 	for _, f := range flagList {

@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -44,10 +45,13 @@ type server struct {
 	bridgeCtlr      types.BridgeController
 	p4RtClient      types.P4RTClient
 	mode            string
+	daemonHostIp    string
+	daemonIpuIp     string
+	daemonPort      int
 }
 
 func NewIpuPlugin(port int, brCtlr types.BridgeController,
-	p4Client types.P4RTClient, host, net, bridge, intf, p4cpInstall, mode string) types.Runnable {
+	p4Client types.P4RTClient, host, net, bridge, intf, p4cpInstall, mode, daemonHostIp, daemonIpuIp string, daemonPort int) types.Runnable {
 	return &server{
 		servingHost:     host,
 		servingPort:     port,
@@ -61,6 +65,9 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController,
 		bridgeCtlr:      brCtlr,
 		p4RtClient:      p4Client,
 		mode:            mode,
+		daemonHostIp:    daemonHostIp,
+		daemonIpuIp:     daemonIpuIp,
+		daemonPort:      daemonPort,
 	}
 }
 
@@ -81,6 +88,8 @@ func (s *server) Run() error {
 	}
 
 	pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
+	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode))
+
 	s.log.WithField("addr", listen.Addr().String()).Info("IPU Manager server listening on at:")
 	go func() {
 		if err = s.grpcSrvr.Serve(listen); err != nil {
