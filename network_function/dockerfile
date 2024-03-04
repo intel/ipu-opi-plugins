@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2024 Intel Corporation
+# Specify the base image
+FROM gcc:latest
+# Copy the program files
+COPY nf.c /app/
+# Set the working directory
+WORKDIR /app
+# Compile the program  
+RUN gcc -o nf nf.c && chmod +x nf
+# Set the entry point
+CMD ["./nf"]
