@@ -32,9 +32,9 @@ import (
 const (
 	configFilePath      = "/etc/ipu/"
 	cliName             = "ipuplugin"
-	defaultServingHost  = "localhost"
+	defaultServingAddr  = "/var/run/vendor-plugin.sock"
 	defaultServingPort  = 50152
-	defaultServingNet   = "tcp"
+	defaultServingProto = "unix"
 	tenantBridgeName    = "br-tenant"
 	defaultLogDir       = "/var/log/ipuplugin"
 	defaultBridge       = "linux"
@@ -51,7 +51,8 @@ var (
 	config struct {
 		cfgFile       string
 		port          int
-		host          string
+		servingAddr   string
+		servingProto  string
 		bridge        string
 		interfaceName string
 		logDir        string
@@ -68,8 +69,8 @@ var (
 
 	rootCmd = &cobra.Command{
 		Use:   cliName,
-		Short: "IPU Manager is a daemon that exposes a CNI gRPC backend for SR-IOV networking offload to Intel MEV.",
-		Long: `IPU Manager is a daemon that exposes a CNI gRPC backend for SR-IOV networking offload to Intel MEV.
+		Short: "IPU plugin is a daemon that exposes a CNI gRPC backend for SR-IOV networking offload to Intel MEV.",
+		Long: `IPU plugin is a daemon that exposes a CNI gRPC backend for SR-IOV networking offload to Intel MEV.
 		`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return validateConfigs()
@@ -79,7 +80,8 @@ var (
 				exitWithError(err, 3)
 			}
 
-			host := viper.GetString("host")
+			servingAddr := viper.GetString("servingAddr")
+			servingProto := viper.GetString("servingProto")
 			port := viper.GetInt("port")
 			bridge := viper.GetString("bridge")
 			intf := viper.GetString("interface")
@@ -92,9 +94,10 @@ var (
 			daemonIpuIp := viper.GetString("daemonIpuIp")
 			daemonPort := viper.GetInt("daemonPort")
 
-			log.Info("Initializing IPU Manager")
+			log.Info("Initializing IPU plugin")
 			log.WithFields(log.Fields{
-				"host":         host,
+				"servingAddr":  servingAddr,
+				"servingProto": servingProto,
 				"port":         port,
 				"bridge":       bridge,
 				"interface":    intf,
@@ -111,7 +114,7 @@ var (
 			brCtlr, brType := getBridgeController(bridge, bridgeType, ovsCliDir)
 			p4Client := p4rtclient.NewP4RtClient(p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
 
-			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, host, defaultServingNet, bridge, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
+			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, servingAddr, servingProto, bridge, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
 			if err := mgr.Run(); err != nil {
 				exitWithError(err, 4)
 			}
@@ -135,19 +138,20 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&config.cfgFile, "config", "", "config file (default is /etc/ipu/ipuplugin.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&config.logDir, "logDir", defaultLogDir, "IPU Manager log directory")
-	rootCmd.PersistentFlags().IntVar(&config.port, "port", defaultServingPort, "IPU Manager serving TCP port")
-	rootCmd.PersistentFlags().StringVar(&config.host, "host", defaultServingHost, "IPU Manager serving host")
+	rootCmd.PersistentFlags().StringVar(&config.logDir, "logDir", defaultLogDir, "IPU plugin log directory")
+	rootCmd.PersistentFlags().IntVar(&config.port, "port", defaultServingPort, "IPU plugin serving TCP port")
+	rootCmd.PersistentFlags().StringVar(&config.servingAddr, "servingAddr", defaultServingAddr, "IPU plugin serving host")
+	rootCmd.PersistentFlags().StringVar(&config.servingProto, "servingProto", defaultServingProto, "IPU plugin serving protocol: 'unix|tcp'")
 	rootCmd.PersistentFlags().StringVar(&config.interfaceName, "interface", "", "The uplink network interface name")
-	rootCmd.PersistentFlags().StringVar(&config.bridge, "bridge", tenantBridgeName, "The bridge name that IPU manager will manage")
+	rootCmd.PersistentFlags().StringVar(&config.bridge, "bridge", tenantBridgeName, "The bridge name that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.ovsCliDir, "ovsCliDir", defaultOvsCliDir, "The directory where the ovs-vsctl is located")
-	rootCmd.PersistentFlags().StringVar(&config.bridgeType, "bridgeType", defaultBridge, "The bridge type that IPU manager will manage")
+	rootCmd.PersistentFlags().StringVar(&config.bridgeType, "bridgeType", defaultBridge, "The bridge type that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.p4rtbin, "p4rtbin", defaultP4rtBin, "The directory where the p4rt-ctl binary is located")
 	rootCmd.PersistentFlags().IntVar(&config.portMuxVsi, "portMuxVsi", defaultPortMuxVsi,
 		"The port mux VSI number. This must be for the same interface from --interface flags")
 	//Default Log level value is the warn level
 	rootCmd.PersistentFlags().StringVarP(&config.verbosity, "verbosity", "v", log.InfoLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
-	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU Manager daemon mode: host|ipu (required)")
+	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU plugin daemon mode: host|ipu (required)")
 	rootCmd.PersistentFlags().StringVar(&config.daemonHostIp, "daemonHostIp", defaultDaemonHostIp, "Daemon address on host")
 	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, "Daemon address on ipu")
 	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, "Daemon port port")
@@ -160,7 +164,8 @@ func init() {
 	flagList := []string{
 		"logDir",
 		"port",
-		"host",
+		"servingAddr",
+		"servingProto",
 		"interface",
 		"bridge",
 		"ovsCliDir",
