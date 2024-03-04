@@ -1,4 +1,4 @@
-Network Function Skeleton Code
+# Network Function Skeleton Code
 
 This code attaches to an IPU network interface via a raw socket.
 All packets received on this interface are relayed unmodified 
@@ -7,7 +7,7 @@ This provides a "transparent pipe" which can be extended to
 provide true "bump in the wire" network functions.
 This code supports packets up to 64K.
 
-To compile 
+**To compile**
 gcc -o nf nf.c
 
 to run
@@ -41,10 +41,10 @@ ip netns exec nfns ip link set br-tap2 up
 ip netns exec ns1 ip link set tap1 up
 ip netns exec ns2 ip link set tap2 up
 
-Run code:
+**Run code:**
 ip netns exec nfns ./nf br-tap1 br-tap2
 
-Run test:
+**Run test:**
 ip netns exec ns1 ping -c1 10.1.1.5
 
 Expected Behavior
