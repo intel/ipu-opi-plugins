@@ -16,7 +16,7 @@ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes -c yes
 
 ### Extract IPU SDK source code
 ```
-cp zxvf intel-ipu-sdk-source-code-1.2.0.7550.tar.gz /tmp
+cp intel-ipu-sdk-source-code-1.2.0.7550.tar.gz /tmp
 cd /tmp
 tar zxvf intel-ipu-sdk-source-code-1.2.0.7550.tar.gz
 cd Intel_IPU_SDK-7550
