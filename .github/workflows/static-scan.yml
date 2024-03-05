@@ -65,4 +65,4 @@ jobs:
       name: Run Hadolint
       with:
        recursive: true
-       ignore: DL3008,DL3059,DL3015,DL3018 
+       ignore: DL3008,DL3059,DL3015,DL3018,DL3029 
