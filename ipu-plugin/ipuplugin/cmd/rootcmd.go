@@ -148,9 +148,9 @@ func init() {
 	//Default Log level value is the warn level
 	rootCmd.PersistentFlags().StringVarP(&config.verbosity, "verbosity", "v", log.InfoLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
 	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU Manager daemon mode: host|ipu (required)")
-	rootCmd.PersistentFlags().StringVar(&config.daemonHostIp, "daemonHostIp", defaultDaemonHostIp, fmt.Sprintf("Daemon address on host (default value: %s): ip", defaultDaemonHostIp))
-	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, fmt.Sprintf("Daemon address on ipu (default value: %s): ip", defaultDaemonIpuIp))
-	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, fmt.Sprintf("Daemon port (default value: %d): port", defaultDaemonPort))
+	rootCmd.PersistentFlags().StringVar(&config.daemonHostIp, "daemonHostIp", defaultDaemonHostIp, "Daemon address on host")
+	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, "Daemon address on ipu")
+	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, "Daemon port port")
 
 	if err := rootCmd.MarkPersistentFlagRequired("mode"); err != nil {
 		exitWithError(err, 1)
