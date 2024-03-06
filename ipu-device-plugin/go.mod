@@ -6,7 +6,7 @@ toolchain go1.21.1
 
 require (
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
-	google.golang.org/grpc v1.62.0
+	google.golang.org/grpc v1.62.1
 	k8s.io/kubelet v0.29.2
 )
 
