@@ -44,3 +44,8 @@ updates:
     directory: /sriov_cni
     schedule:
       interval: daily
+
+  - package-ecosystem: docker
+    directory: /p4sdk/images
+    schedule:
+      interval: daily
