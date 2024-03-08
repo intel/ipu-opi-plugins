@@ -15,7 +15,7 @@ jobs:
       matrix:
         go-version: [1.21.x]
         os: [ubuntu-latest]
-        subproject: [ipu-plugin, ipu-device-plugin, sriov_cni] # Add more subprojects as needed
+        subproject: [ipu-plugin, ipu-device-plugin, sriov_cni, network_function] # Add more subprojects as needed
     runs-on: ${{ matrix.os }}
     env:
       GO111MODULE: on
