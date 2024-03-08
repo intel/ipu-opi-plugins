@@ -18,7 +18,7 @@ ifdef HTTPS_PROXY
 	DOCKERARGS += --build-arg https_proxy=$(HTTPS_PROXY)
 endif
 
-all: build image push 
+all: image push 
 
 build: 
 	mkdir -p bin/
