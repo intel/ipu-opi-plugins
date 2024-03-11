@@ -1,4 +1,4 @@
-FROM ppc64le/golang:alpine@sha256:3d78a732cb4fdec6850a1be80fdfbbe9acf3a36ed92d95d344c6c2089e4703e2 as builder
+FROM ppc64le/golang:alpine@sha256:5ab9c0c1483583c17a90d40de7ef1f7e04430c018f2533498d509c6e5fb254ee as builder
 
 COPY . /usr/src/sriov-cni
 
