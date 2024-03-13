@@ -25,9 +25,11 @@ endif
 all: image
 
 image:
+	# Copy p4 files from parent dir first
+	cp -r ../e2e/artefacts/p4 $(CURDIR)
 	# $(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
-	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
-	$(IMGTOOL) image tag $(IMAGE_TAG_VERSION) $(IMAGE_TAG_LATEST)
+	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -t $(IMAGE_TAG_LATEST) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
+	rm -rf p4
 
 PLATFORMS ?= linux/arm64,linux/amd64
 # https://stackoverflow.com/questions/73210141/running-buildkit-using-docker-buildx-behind-a-proxy
