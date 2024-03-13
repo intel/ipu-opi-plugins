@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc/codes"
@@ -114,7 +115,7 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 		mac := linkList[i].Attrs().HardwareAddr.String()
 		octets := strings.Split(mac, ":")
 
-		if mode == "ipu" {
+		if mode == types.IpuMode {
 
 			// Check the 4th octet which is used to identify the PF
 			if octets[3] == accVportId {
@@ -226,7 +227,7 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 }
 
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
-	if in.DpuMode && s.mode != "ipu" || !in.DpuMode && s.mode != "host" {
+	if in.DpuMode && s.mode != types.IpuMode || !in.DpuMode && s.mode != types.HostMode {
 		return nil, status.Errorf(codes.Internal, "Ipu plugin running in %s mode", s.mode)
 	}
 

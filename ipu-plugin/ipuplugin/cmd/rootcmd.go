@@ -206,7 +206,7 @@ func initConfig() {
 }
 
 func validateConfigs() error {
-	if config.mode != "host" && config.mode != "ipu" {
+	if config.mode != types.HostMode && config.mode != types.IpuMode {
 		return fmt.Errorf("invalid mode specified: %s", config.mode)
 	}
 	return nil

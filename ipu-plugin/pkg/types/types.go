@@ -19,6 +19,8 @@ type BridgeType int
 const (
 	OvsBridge BridgeType = iota
 	LinuxBridge
+	HostMode = "host"
+	IpuMode  = "ipu"
 )
 
 func (b BridgeType) String() string {
