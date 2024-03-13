@@ -87,8 +87,10 @@ func (s *server) Run() error {
 		return fmt.Errorf("host bridge error")
 	}
 
-	pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode))
+	if s.mode == types.IpuMode {
+		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
+	}
 
 	s.log.WithField("addr", listen.Addr().String()).Info("IPU plugin server listening on at:")
 	go func() {
