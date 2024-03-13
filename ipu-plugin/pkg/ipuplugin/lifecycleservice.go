@@ -184,11 +184,7 @@ func getFilteredPFs(pfList *[]netlink.Link) error {
 	for i := 0; i < len(linkList); i++ {
 		result, err := isPF(linkList[i].Attrs().Name)
 
-		if err != nil {
-			return fmt.Errorf("unable to check if PF: %v", err)
-		}
-
-		if result {
+		if result && err == nil {
 			*pfList = append(*pfList, linkList[i])
 		}
 	}
