@@ -210,9 +210,9 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	var ip string
 
 	if mode == "ipu" {
-		ip = daemonHostIp
-	} else {
 		ip = daemonIpuIp
+	} else {
+		ip = daemonHostIp
 	}
 
 	if err := setIP(pf, ip); err != nil {
