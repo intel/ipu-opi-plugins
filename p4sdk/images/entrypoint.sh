@@ -21,6 +21,14 @@ export P4CP_INSTALL=/opt/p4/p4-cp-nws
 export DEPEND_INSTALL=$P4CP_INSTALL
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
+# Allow set_br_pipe on a separate process so that we can sleep 30s for infrap4d to come up
+func_set_br_pipe(){
+    # Wait for 30s
+    sleep 30
+    # Set the Forwarding pipeline
+    $P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 /root/linux_networking/linux_networking.pb.bin /root/linux_networking/linux_networking.p4info.txt
+}
+
 
 CPF_INFO_FILE=cpf_info_file.txt
 CONF_DIR=/usr/share/stratum/es2k
@@ -43,15 +51,7 @@ mkdir -p /dev/hugepages
 mount -t hugetlbfs -o pagesize=2M none /dev/hugepages || true
 echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 
-# Start Infrap4d 
-/opt/p4/p4-cp-nws/sbin/infrap4d -grpc_open_insecure_mode=true -nodetach -disable_krnlmon=true  > /tmp/infrap4d.log 2>&1 &
-
-# # Allow infrap4d to run
-sleep 30
-
-# Set the Forwarding pipeline
-$P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 /root/linux_networking/linux_networking.pb.bin /root/linux_networking/linux_networking.p4info.txt
-
-# Monitor infrap4d logs
-tail -f /tmp/infrap4d.log
-
+# Start Infrap4d
+touch /root/linux_networking/tofino.bin
+func_set_br_pipe &
+/opt/p4/p4-cp-nws/sbin/infrap4d -grpc_open_insecure_mode=true -nodetach -disable_krnlmon=true
