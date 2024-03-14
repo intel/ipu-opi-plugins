@@ -139,7 +139,7 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 	}
 
 	if pf == nil {
-		return nil, fmt.Errorf("unable to identify any PFs. Check that the idpf driver is available")
+		return nil, fmt.Errorf("check if the ip address already set")
 	}
 
 	return pf, nil
@@ -202,6 +202,11 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	}
 
 	pf, err := getCommPf(mode, pfList)
+
+	if pf == nil {
+		// Address already set - we don't proceed with setting the ip
+		return nil
+	}
 
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
