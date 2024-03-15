@@ -132,8 +132,11 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 
 			// Check the 4th octet which is used to identify the PF
 			if octets[3] == hostVportId {
-				pf = linkList[i]
-				break
+
+				if list, _ := networkHandler.AddrList(linkList[i], netlink.FAMILY_V4); len(list) == 0 {
+					pf = linkList[i]
+					break
+				}
 			}
 		}
 	}

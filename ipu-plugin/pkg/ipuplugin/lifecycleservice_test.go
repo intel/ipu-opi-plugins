@@ -71,13 +71,12 @@ var _ = Describe("basic functionality", Serial, func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Method added for test purposes"))
 			})
-			It("it should return an address already set error when the PF address is already set", func() {
+			It("it should return nil if the PF address is already set", func() {
 
 				networkHandler = &MockNetworkHandler2Impl{}
 
-				err := configureChannel("host", "192.168.1.2", "192.168.1.2")
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("address already set"))
+				err := configureChannel("host", "192.168.1.1", "192.168.1.2")
+				Expect(err).ToNot(HaveOccurred())
 
 				// reset the network handler
 				networkHandler = &MockNetworkHandlerImpl{}
