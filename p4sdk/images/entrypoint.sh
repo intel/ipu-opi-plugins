@@ -42,6 +42,7 @@ export CPF_BDF
 mkdir -p $CONF_DIR
 envsubst < $CONF_FILE.template > $CONF_DIR/$CONF_FILE
 
+touch /root/linux_networking/tofino.bin
 $P4CP_INSTALL/bin/tdi_pipeline_builder \
     --p4c_conf_file=/usr/share/stratum/es2k/es2k_skip_p4.conf \
     --bf_pipeline_config_binary_file=/root/linux_networking/linux_networking.pb.bin
@@ -52,6 +53,5 @@ mount -t hugetlbfs -o pagesize=2M none /dev/hugepages || true
 echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 
 # Start Infrap4d
-touch /root/linux_networking/tofino.bin
 func_set_br_pipe &
 /opt/p4/p4-cp-nws/sbin/infrap4d -grpc_open_insecure_mode=true -nodetach -disable_krnlmon=true
