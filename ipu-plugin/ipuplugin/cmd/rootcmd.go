@@ -32,7 +32,7 @@ import (
 const (
 	configFilePath      = "/etc/ipu/"
 	cliName             = "ipuplugin"
-	defaultServingAddr  = "/var/run/vendor-plugin.sock"
+	defaultServingAddr  = "/var/run/daemon/vendor-plugin.sock"
 	defaultServingPort  = 50152
 	defaultServingProto = "unix"
 	tenantBridgeName    = "br-tenant"

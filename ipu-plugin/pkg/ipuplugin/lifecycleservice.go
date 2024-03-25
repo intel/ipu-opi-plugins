@@ -15,15 +15,21 @@
 package ipuplugin
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
+	"github.com/pkg/sftp"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -230,7 +236,227 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	return nil
 }
 
+func (s *LifeCycleServiceServer) sshFunc() error {
+	config := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			ssh.Password(""),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// Connect to the remote server.
+	client, err := ssh.Dial("tcp", "192.168.0.1:22", config)
+	if err != nil {
+		return fmt.Errorf("failed to dial: %s", err)
+	}
+	defer client.Close()
+
+	// Create an SFTP client.
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return fmt.Errorf("failed to create SFTP client: %s", err)
+	}
+	defer sftpClient.Close()
+
+	// Open the source file.
+	localFilePath := "/linux_networking.pkg"
+	srcFile, err := os.Open(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open local file: %s", err)
+	}
+	defer srcFile.Close()
+
+	// Create the destination file on the remote server.
+	remoteFilePath := "/work/scripts/linux_networking.pkg"
+	dstFile, err := sftpClient.Create(remoteFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create remote file: %s", err)
+	}
+	defer dstFile.Close()
+
+	// Copy the file contents to the destination file.
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return fmt.Errorf("failed to copy file: %s", err)
+	}
+
+	// Ensure that the file is written to the remote filesystem.
+	err = dstFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync file: %s", err)
+	}
+
+	// Start a session.
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %s", err)
+	}
+	defer session.Close()
+
+	shellScript := `#!/bin/sh
+	CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
+	echo "Checking for custom package..."
+	if [ -e linux_networking.pkg ]; then
+		echo "Custom package linux_networking.pkg found. Overriding default package"
+		cp  linux_networking.pkg /etc/dpcp/package/
+		rm -rf /etc/dpcp/package/default_pkg.pkg
+		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
+		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
+		sed -i 's/acc_apf = 4;/acc_apf = 8;/g' $CP_INIT_CFG
+		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
+	else
+		echo "No custom package found. Continuing with default package"
+	fi
+	`
+
+	commands := fmt.Sprintf(`
+	cat <<'EOF' > /work/scripts/load_custom_pkg.sh
+	%s
+	EOF
+	`, shellScript)
+
+	// Run a command on the remote server and capture the output.
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	err = session.Run(commands)
+	if err != nil {
+		return fmt.Errorf("failed to run commands: %s", err)
+	}
+	fmt.Println(stdoutBuf.String())
+
+	return nil
+}
+
+func (s *LifeCycleServiceServer) countAPFDevices() int {
+
+	sysClassNet := "/sys/class/net"
+	deviceCode := "0x1452"
+
+	files, err := os.ReadDir(sysClassNet)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("Error: %s\n", err)
+			return 0
+		}
+	}
+
+	count := 0
+	for _, file := range files {
+		deviceCodeByte, err := os.ReadFile(filepath.Join(sysClassNet, file.Name(), "device/device"))
+		if err != nil {
+			fmt.Printf("Error: %s\n", err)
+		}
+
+		device_code := strings.TrimSpace(string(deviceCodeByte))
+
+		if device_code == deviceCode {
+			count++
+		}
+	}
+
+	return count
+}
+
+func (s *LifeCycleServiceServer) formatMAC(mac string) (string, error) {
+	if len(mac) != 12 {
+		return "", fmt.Errorf("invalid MAC address length")
+	}
+
+	var pairs []string
+	for i := 0; i < len(mac); i += 2 {
+		pairs = append(pairs, mac[i:i+2])
+	}
+
+	formattedMAC := strings.Join(pairs, ":")
+
+	return formattedMAC, nil
+}
+
+func (s *LifeCycleServiceServer) checkMAC() (bool, string) {
+	cmd := exec.Command("sh", "-c", "dmidecode | sha256sum | head -c 12")
+	stdout, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+		return false, ""
+	}
+	fmt.Println(string(stdout))
+
+	mac, err := s.formatMAC(string(stdout))
+	fmt.Println(mac)
+	if err != nil {
+		return false, fmt.Sprintf("error: %s", err)
+	}
+
+	config := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			ssh.Password(""),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// Connect to the remote server.
+	client, err := ssh.Dial("tcp", "192.168.0.1:22", config)
+	if err != nil {
+		return false, fmt.Sprintf("failed to dial remote server: %s", err)
+	}
+	defer client.Close()
+
+	// Start a session.
+	session, err := client.NewSession()
+	if err != nil {
+		return false, fmt.Sprintf("failed to create session: %s", err)
+	}
+	defer session.Close()
+
+	mac = "00:00:00:00:03:14"
+	// commands := fmt.Sprintf("grep '%s' /etc/dpcp/cfg/cp_init.cfg", "00:00:00:00:03:14")
+	commands := fmt.Sprintf("grep '%s' /etc/dpcp/cfg/cp_init.cfg", mac)
+
+	// Run a command on the remote server and capture the output.
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	err = session.Run(commands)
+	if err != nil {
+		return false, fmt.Sprintf("mac not found: %s", err)
+	}
+
+	fmt.Println(stdoutBuf.String())
+
+	if stdoutBuf.Len() > 0 {
+		return true, stdoutBuf.String()
+	}
+
+	return false, "mac not found"
+}
+
+func (s *LifeCycleServiceServer) validate() bool {
+
+	if numAPFs := s.countAPFDevices(); numAPFs < 8 {
+		fmt.Printf("Not enough APFs %v", numAPFs)
+		return false
+	}
+
+	if macPreFix, mac := s.checkMAC(); !macPreFix {
+		fmt.Printf("incorrect Mac assigned : %v\n", mac)
+		return false
+	}
+
+	return true
+}
+
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
+
+	if validate := s.validate(); !validate {
+		fmt.Println("forcing state")
+		if err := s.sshFunc(); err != nil {
+			return nil, fmt.Errorf("error calling sshFunc %s", err)
+		}
+	} else {
+		fmt.Println("not forcing state")
+	}
+
 	if in.DpuMode && s.mode != types.IpuMode || !in.DpuMode && s.mode != types.HostMode {
 		return nil, status.Errorf(codes.Internal, "Ipu plugin running in %s mode", s.mode)
 	}
