@@ -22,7 +22,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -89,8 +88,22 @@ func (fs *FileSystemHandlerImpl) GetVendor(iface string) ([]byte, error) {
 	return os.ReadFile(fmt.Sprintf("/sys/class/net/%s/device/vendor", iface))
 }
 
+type ExecutableHandler interface {
+	validate() bool
+}
+
+type ExecutableHandlerImpl struct{}
+
+type SSHHandler interface {
+	sshFunc() error
+}
+
+type SSHHandlerImpl struct{}
+
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
+var executableHandler ExecutableHandler
+var sshHander SSHHandler
 
 func initHandlers() {
 	if fileSystemHandler == nil {
@@ -98,6 +111,12 @@ func initHandlers() {
 	}
 	if networkHandler == nil {
 		networkHandler = &NetworkHandlerImpl{}
+	}
+	if executableHandler == nil {
+		executableHandler = &ExecutableHandlerImpl{}
+	}
+	if sshHander == nil {
+		sshHander = &SSHHandlerImpl{}
 	}
 }
 
@@ -202,7 +221,6 @@ func getFilteredPFs(pfList *[]netlink.Link) error {
 }
 
 func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
-	initHandlers()
 
 	var pfList []netlink.Link
 
@@ -236,7 +254,7 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	return nil
 }
 
-func (s *LifeCycleServiceServer) sshFunc() error {
+func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -304,6 +322,7 @@ func (s *LifeCycleServiceServer) sshFunc() error {
 		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
 		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
 		sed -i 's/acc_apf = 4;/acc_apf = 8;/g' $CP_INIT_CFG
+		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "00:00:00:0a:03:15";/g' $CP_INIT_CFG
 		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
 	else
 		echo "No custom package found. Continuing with default package"
@@ -328,37 +347,18 @@ func (s *LifeCycleServiceServer) sshFunc() error {
 	return nil
 }
 
-func (s *LifeCycleServiceServer) countAPFDevices() int {
+// refactor and use getFilteredPFs()
+func countAPFDevices() int {
+	var pfList []netlink.Link
 
-	sysClassNet := "/sys/class/net"
-	deviceCode := "0x1452"
-
-	files, err := os.ReadDir(sysClassNet)
-	if err != nil {
-		if os.IsNotExist(err) {
-			fmt.Printf("Error: %s\n", err)
-			return 0
-		}
+	if err := getFilteredPFs(&pfList); err != nil {
+		return 0
 	}
 
-	count := 0
-	for _, file := range files {
-		deviceCodeByte, err := os.ReadFile(filepath.Join(sysClassNet, file.Name(), "device/device"))
-		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-		}
-
-		device_code := strings.TrimSpace(string(deviceCodeByte))
-
-		if device_code == deviceCode {
-			count++
-		}
-	}
-
-	return count
+	return len(pfList)
 }
 
-func (s *LifeCycleServiceServer) formatMAC(mac string) (string, error) {
+func formatMAC(mac string) (string, error) {
 	if len(mac) != 12 {
 		return "", fmt.Errorf("invalid MAC address length")
 	}
@@ -373,7 +373,7 @@ func (s *LifeCycleServiceServer) formatMAC(mac string) (string, error) {
 	return formattedMAC, nil
 }
 
-func (s *LifeCycleServiceServer) checkMAC() (bool, string) {
+func checkMAC() (bool, string) {
 	cmd := exec.Command("sh", "-c", "dmidecode | sha256sum | head -c 12")
 	stdout, err := cmd.Output()
 	if err != nil {
@@ -382,7 +382,7 @@ func (s *LifeCycleServiceServer) checkMAC() (bool, string) {
 	}
 	fmt.Println(string(stdout))
 
-	mac, err := s.formatMAC(string(stdout))
+	mac, err := formatMAC(string(stdout))
 	fmt.Println(mac)
 	if err != nil {
 		return false, fmt.Sprintf("error: %s", err)
@@ -431,14 +431,14 @@ func (s *LifeCycleServiceServer) checkMAC() (bool, string) {
 	return false, "mac not found"
 }
 
-func (s *LifeCycleServiceServer) validate() bool {
+func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := s.countAPFDevices(); numAPFs < 8 {
+	if numAPFs := countAPFDevices(); numAPFs < 8 {
 		fmt.Printf("Not enough APFs %v", numAPFs)
 		return false
 	}
 
-	if macPreFix, mac := s.checkMAC(); !macPreFix {
+	if macPreFix, mac := checkMAC(); !macPreFix {
 		fmt.Printf("incorrect Mac assigned : %v\n", mac)
 		return false
 	}
@@ -447,10 +447,11 @@ func (s *LifeCycleServiceServer) validate() bool {
 }
 
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
+	initHandlers()
 
-	if validate := s.validate(); !validate {
+	if val := executableHandler.validate(); !val {
 		fmt.Println("forcing state")
-		if err := s.sshFunc(); err != nil {
+		if err := sshHander.sshFunc(); err != nil {
 			return nil, fmt.Errorf("error calling sshFunc %s", err)
 		}
 	} else {
