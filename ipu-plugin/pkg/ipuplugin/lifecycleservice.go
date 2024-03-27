@@ -305,6 +305,35 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to sync file: %s", err)
 	}
 
+	fileShPath := "/work/scripts/pre_init_app.sh"
+	initFile, err := sftpClient.Create(fileShPath)
+	if err != nil {
+		return fmt.Errorf("failed to create remote file.sh: %s", err)
+	}
+	defer initFile.Close()
+
+	initScript := `#!/bin/sh
+CURDIR=$(pwd)
+WORKDIR=$(dirname $(realpath $0))
+cd $WORKDIR	
+	if [ -e load_custom_pkg.sh ]; then
+	# Fix up the cp_init.cfg file
+	./load_custom_pkg.sh
+	fi
+	python /usr/bin/scripts/cfg_acc_apf_x2.py
+fi
+cd $CURDIR
+`
+	_, err = initFile.Write([]byte(initScript))
+	if err != nil {
+		return fmt.Errorf("failed to write to file.sh: %s", err)
+	}
+
+	err = initFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync file.sh: %s", err)
+	}
+
 	// Start a session.
 	session, err := client.NewSession()
 	if err != nil {
@@ -321,7 +350,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		rm -rf /etc/dpcp/package/default_pkg.pkg
 		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
 		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
-		sed -i 's/acc_apf = 4;/acc_apf = 8;/g' $CP_INIT_CFG
+		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
 		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "00:00:00:0a:03:15";/g' $CP_INIT_CFG
 		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
 	else
