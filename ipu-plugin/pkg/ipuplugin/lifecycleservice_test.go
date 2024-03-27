@@ -30,8 +30,10 @@ var _ = Describe("basic functionality", Serial, func() {
 	// Initialise the handlers
 	fileSystemHandler = &MockFileSystemHandlerImpl{}
 	networkHandler = &MockNetworkHandlerImpl{}
+	executableHandler = &MockExecutableHandlerImpl{}
 
-	Describe("of communication channel setup", Serial, func() {
+	Describe("pf communication channel setup", Serial, func() {
+
 		Context("when pfs are available", func() {
 			It("it should return true when checking valid PF", func() {
 				Expect(isPF("enp0s1f0d1")).To(Equal(true))
@@ -247,4 +249,10 @@ func (fs *MockFileSystemHandlerImpl) GetVendor(name string) ([]byte, error) {
 		return []byte("0x8086\n"), nil
 	}
 	return nil, fmt.Errorf("mock GetVendor error")
+}
+
+type MockExecutableHandlerImpl struct{}
+
+func (m *MockExecutableHandlerImpl) validate() bool {
+	return true
 }

@@ -1,0 +1,2 @@
+[registry."<HostIP>:5000"]
+  http = true
