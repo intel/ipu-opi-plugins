@@ -350,8 +350,8 @@ cd $CURDIR
 		rm -rf /etc/dpcp/package/default_pkg.pkg
 		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
 		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
-		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
 		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "00:00:00:0a:03:15";/g' $CP_INIT_CFG
+		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
 		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
 	else
 		echo "No custom package found. Continuing with default package"
@@ -368,6 +368,18 @@ cd $CURDIR
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
 	err = session.Run(commands)
+	if err != nil {
+		return fmt.Errorf("failed to run commands: %s", err)
+	}
+	fmt.Println(stdoutBuf.String())
+
+	session, err = client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %s", err)
+	}
+	defer session.Close()
+
+	err = session.Run("reboot")
 	if err != nil {
 		return fmt.Errorf("failed to run commands: %s", err)
 	}
@@ -462,7 +474,7 @@ func checkMAC() (bool, string) {
 
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := countAPFDevices(); numAPFs < 8 {
+	if numAPFs := countAPFDevices(); numAPFs < 19 {
 		fmt.Printf("Not enough APFs %v", numAPFs)
 		return false
 	}
