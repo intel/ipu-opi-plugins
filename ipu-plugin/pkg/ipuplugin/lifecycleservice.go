@@ -341,28 +341,59 @@ cd $CURDIR
 	}
 	defer session.Close()
 
-	shellScript := `#!/bin/sh
+	cmd := exec.Command("sh", "-c", "cat /proc/sys/kernel/random/uuid | sha256sum | head -c 2")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("command execution error: %s", err)
+	}
+	hashedChars := out.String()
+
+	macAddress := fmt.Sprintf("00:00:00:0a:%s:15", hashedChars)
+	fmt.Println("Updated MAC address:", macAddress)
+
+	shellScript := fmt.Sprintf(`#!/bin/sh
 	CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
 	echo "Checking for custom package..."
 	if [ -e linux_networking.pkg ]; then
 		echo "Custom package linux_networking.pkg found. Overriding default package"
-		cp  linux_networking.pkg /etc/dpcp/package/
+		cp linux_networking.pkg /etc/dpcp/package/
 		rm -rf /etc/dpcp/package/default_pkg.pkg
 		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
 		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
-		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "00:00:00:0a:03:15";/g' $CP_INIT_CFG
+		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
 		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
 		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
 	else
 		echo "No custom package found. Continuing with default package"
 	fi
-	`
+	`, macAddress) // Insert the MAC address variable into the script.
 
 	commands := fmt.Sprintf(`
 	cat <<'EOF' > /work/scripts/load_custom_pkg.sh
 	%s
 	EOF
 	`, shellScript)
+
+	uuidFilePath := "/work/uuid"
+	uuidFile, err := sftpClient.Create(uuidFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create remote uuid file: %s", err)
+	}
+	defer uuidFile.Close()
+
+	// Write the new MAC address to the uuid file.
+	_, err = uuidFile.Write([]byte(macAddress + "\n"))
+	if err != nil {
+		return fmt.Errorf("failed to write to uuid file: %s", err)
+	}
+
+	// Ensure that the uuid file is written to the remote filesystem.
+	err = uuidFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync uuid file: %s", err)
+	}
 
 	// Run a command on the remote server and capture the output.
 	var stdoutBuf bytes.Buffer
@@ -371,7 +402,6 @@ cd $CURDIR
 	if err != nil {
 		return fmt.Errorf("failed to run commands: %s", err)
 	}
-	fmt.Println(stdoutBuf.String())
 
 	session, err = client.NewSession()
 	if err != nil {
@@ -383,7 +413,6 @@ cd $CURDIR
 	if err != nil {
 		return fmt.Errorf("failed to run commands: %s", err)
 	}
-	fmt.Println(stdoutBuf.String())
 
 	return nil
 }
@@ -399,36 +428,7 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
-func formatMAC(mac string) (string, error) {
-	if len(mac) != 12 {
-		return "", fmt.Errorf("invalid MAC address length")
-	}
-
-	var pairs []string
-	for i := 0; i < len(mac); i += 2 {
-		pairs = append(pairs, mac[i:i+2])
-	}
-
-	formattedMAC := strings.Join(pairs, ":")
-
-	return formattedMAC, nil
-}
-
 func checkMAC() (bool, string) {
-	cmd := exec.Command("sh", "-c", "dmidecode | sha256sum | head -c 12")
-	stdout, err := cmd.Output()
-	if err != nil {
-		fmt.Println(err.Error())
-		return false, ""
-	}
-	fmt.Println(string(stdout))
-
-	mac, err := formatMAC(string(stdout))
-	fmt.Println(mac)
-	if err != nil {
-		return false, fmt.Sprintf("error: %s", err)
-	}
-
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -451,9 +451,7 @@ func checkMAC() (bool, string) {
 	}
 	defer session.Close()
 
-	mac = "00:00:00:00:03:14"
-	// commands := fmt.Sprintf("grep '%s' /etc/dpcp/cfg/cp_init.cfg", "00:00:00:00:03:14")
-	commands := fmt.Sprintf("grep '%s' /etc/dpcp/cfg/cp_init.cfg", mac)
+	commands := "if [ -f /work/uuid ]; then echo 'File exists'; else echo 'File does not exist'; fi"
 
 	// Run a command on the remote server and capture the output.
 	var stdoutBuf bytes.Buffer
@@ -463,13 +461,13 @@ func checkMAC() (bool, string) {
 		return false, fmt.Sprintf("mac not found: %s", err)
 	}
 
-	fmt.Println(stdoutBuf.String())
-
-	if stdoutBuf.Len() > 0 {
-		return true, stdoutBuf.String()
+	output := stdoutBuf.String()
+	fmt.Println(output)
+	if output == "File exists\n" {
+		return true, "File exists"
+	} else {
+		return false, "File does not exist"
 	}
-
-	return false, "mac not found"
 }
 
 func (e *ExecutableHandlerImpl) validate() bool {
