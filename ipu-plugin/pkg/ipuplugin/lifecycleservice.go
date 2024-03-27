@@ -417,7 +417,6 @@ cd $CURDIR
 	return nil
 }
 
-// refactor and use getFilteredPFs()
 func countAPFDevices() int {
 	var pfList []netlink.Link
 
