@@ -53,6 +53,12 @@ mkdir -p /dev/hugepages
 mount -t hugetlbfs -o pagesize=2M none /dev/hugepages || true
 echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 
+# Copy files required by infrap4d
+mkdir -p /usr/share/target_sys/
+cp /opt/p4/p4sde/share/target_sys/zlog-cfg /usr/share/target_sys/zlog-cfg
+mkdir -p /usr/share/stratum/es2k/
+cp /opt/p4/p4-cp-nws/share/stratum/es2k/es2k_port_config.pb.txt /usr/share/stratum/es2k/es2k_port_config.pb.txt
+
 # Start Infrap4d
 func_set_br_pipe &
 /opt/p4/p4-cp-nws/sbin/infrap4d -grpc_open_insecure_mode=true -nodetach -disable_krnlmon=true

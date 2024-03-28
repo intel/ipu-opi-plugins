@@ -1,27 +1,35 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
-FROM --platform=linux/arm64 alpine:3@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as builder
-ARG TARGETOS
-ARG TARGETARCH
+
+FROM registry.access.redhat.com/ubi9/ubi:9.3-1610
 
 ENV HTTP_PROXY $http_proxy
 ENV HTTPS_PROXY $https_proxy
 
-RUN apk add --no-cache --virtual tar
 COPY . /src
 WORKDIR /src
-RUN mkdir -pv /opt/p4 && tar -zxvf p4.tar.gz -C /opt/p4 && rm -f p4.tar.gz
+RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
 
-FROM --platform=linux/arm64 alpine:3@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
-RUN apk add --no-cache --virtual openssl libressl-dev ncurses-libs libstdc++ gawk gettext
-COPY --from=builder /opt/p4 /opt/
 COPY p4 /root/linux_networking
 COPY images/entrypoint.sh /
 COPY images/es2k_skip_p4.conf.template /
 
-LABEL io.k8s.display-name="IPU P4 SDK"
+RUN dnf -y install \
+    kmod-28-9.el9.aarch64 \
+    gettext-0.21-8.el9.aarch64 \
+    python3-pip-21.2.3-7.el9_3.1.noarch \
+    pciutils-3.7.0-5.el9.aarch64 \ 
+    libconfig-1.7.2-9.el9.aarch64 \
+    libnl3-3.7.0-1.el9.aarch64 \
+    libedit-3.1-38.20210216cvs.el9.aarch64 \
+    libatomic-11.4.1-2.1.el9.aarch64 \
+    && dnf clean all
+RUN python3 -m pip install --no-cache-dir \
+    grpcio==1.62.1 \
+    protobuf==4.25.3 \
+    netaddr==1.2.1 \
+    /opt/p4/p4-cp-nws/share/stratum/p4runtime/p4runtime-2023.11.0-py3-none-any.whl
 
-RUN rm -rf /var/cache/apk/*
 WORKDIR /
+
 ENTRYPOINT ["/entrypoint.sh"]
-# ENTRYPOINT ["/bin/sh","-c","while true; do sleep 3000; done"]

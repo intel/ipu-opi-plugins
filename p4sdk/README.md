@@ -66,4 +66,11 @@ make image
 ```
 
 
+### To run a container with the P4 artifacts
 
+
+```
+podman run -d --privileged -v /lib/modules/5.14.0-425.el9.aarch64:/lib/modules/5.14.0-425.el9.aarch64 localhost/intel-ipu-p4-sdk:latest
+```
+
+**Note**: The host modules are shared because the vfio module is not available in the container.
