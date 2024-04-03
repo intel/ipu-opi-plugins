@@ -156,6 +156,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, "Daemon address on ipu")
 	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, "Daemon port port")
 
+	// Determine plugin mode based on platform arch. i.e.; arm == "ipu" mode
+	// Should the platform arch changes to amd64 in future then we will need to introduce the "mode" flag again
 	config.mode = getPluginMode()
 
 	// Update below list of flags for any new flags added/updated above to bind them via Viper
