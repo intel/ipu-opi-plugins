@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-set -e
+set -ex
 
 export SDE_INSTALL=/opt/p4/p4sde
 export P4CP_INSTALL=/opt/p4/p4-cp-nws
@@ -26,14 +26,13 @@ func_set_br_pipe(){
     # Wait for 30s
     sleep 30
     # Set the Forwarding pipeline
-    $P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 /root/linux_networking/linux_networking.pb.bin /root/linux_networking/linux_networking.p4info.txt
+    $P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 /opt/p4/rh_mvp/rh_mvp.pb.bin /opt/p4/rh_mvp/rh_mvp.p4info.txt
 }
 
 
 CPF_INFO_FILE=cpf_info_file.txt
 CONF_DIR=/usr/share/stratum/es2k
 CONF_FILE=es2k_skip_p4.conf
-modprobe vfio_pci
 $SDE_INSTALL/bin/vfio_bind.sh 8086:1453 > $CPF_INFO_FILE 2>&1
 IOMMU_GROUP=$(awk '{print $5}' $CPF_INFO_FILE)
 CPF_BDF=$(awk '{print $2}' $CPF_INFO_FILE)
@@ -43,10 +42,10 @@ export CPF_BDF
 mkdir -p $CONF_DIR
 envsubst < $CONF_FILE.template > $CONF_DIR/$CONF_FILE
 
-touch /root/linux_networking/tofino.bin
+touch /opt/p4/rh_mvp/tofino.bin
 $P4CP_INSTALL/bin/tdi_pipeline_builder \
     --p4c_conf_file=/usr/share/stratum/es2k/es2k_skip_p4.conf \
-    --bf_pipeline_config_binary_file=/root/linux_networking/linux_networking.pb.bin
+    --bf_pipeline_config_binary_file=/opt/p4/rh_mvp/rh_mvp.pb.bin
 
 # Set hugepages
 mkdir -p /dev/hugepages

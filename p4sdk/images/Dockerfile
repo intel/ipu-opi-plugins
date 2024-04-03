@@ -10,7 +10,7 @@ COPY . /src
 WORKDIR /src
 RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
 
-COPY p4 /root/linux_networking
+COPY p4 /opt/p4/rh_mvp
 COPY images/entrypoint.sh /
 COPY images/es2k_skip_p4.conf.template /
 
@@ -18,7 +18,7 @@ RUN dnf -y install \
     kmod-28-9.el9.aarch64 \
     gettext-0.21-8.el9.aarch64 \
     python3-pip-21.2.3-7.el9_3.1.noarch \
-    pciutils-3.7.0-5.el9.aarch64 \ 
+    pciutils-3.7.0-5.el9.aarch64 \
     libconfig-1.7.2-9.el9.aarch64 \
     libnl3-3.7.0-1.el9.aarch64 \
     libedit-3.1-38.20210216cvs.el9.aarch64 \

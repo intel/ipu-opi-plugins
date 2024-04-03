@@ -26,7 +26,7 @@ all: image
 
 image:
 	# Copy p4 files from parent dir first
-	cp -r ../e2e/artefacts/p4 $(CURDIR)
+	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)/p4
 	# $(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -t $(IMAGE_TAG_LATEST) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
 	rm -rf p4

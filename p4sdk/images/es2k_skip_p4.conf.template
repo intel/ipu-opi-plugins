@@ -17,20 +17,20 @@
         "eal-args": "--lcores=1-2 -a $CPF_BDF,vport=[0-1] -- -i --rxq=1 --txq=1 --hairpinq=1 --hairpin-mode=0x0",
         "p4_programs": [
         {
-            "program-name": "linux_networking",
-            "bfrt-config": "/root/linux_networking/linux_networking.bf-rt.json",
+            "program-name": "rh_mvp",
+            "bfrt-config": "/opt/p4/rh_mvp/rh_mvp.bfrt.json",
             "p4_pipelines": [
             {
                 "p4_pipeline_name": "main",
-                "context": "/root/linux_networking/linux_networking.context.json",
-                "config": "/root/linux_networking/tofino.bin",
+                "context": "/opt/p4/rh_mvp/rh_mvp.context.json",
+                "config": "/opt/p4/rh_mvp/tofino.bin",
                 "pipe_scope": [
                     0,
                     1,
                     2,
                     3
                 ],
-                "path": "/root/linux_networking"
+                "path": "/opt/p4/rh_mvp"
             }
             ]
         }
