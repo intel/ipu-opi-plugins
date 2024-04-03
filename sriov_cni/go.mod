@@ -11,7 +11,7 @@ require (
 	github.com/opiproject/opi-api v0.0.0-20240216141047-82ae5a5a6f1a
 	github.com/stretchr/testify v1.9.0
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230905152006-63484bbf69f8
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.23.0
 	google.golang.org/grpc v1.62.1
 )
 
