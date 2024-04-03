@@ -45,7 +45,6 @@ Flags:
       --host string           IPU Manager serving host (default "localhost")
       --interface string      The uplink network interface name
       --logDir string         IPU Manager log directory (default "/var/log/ipuplugin")
-      --mode string           IPU Manager daemon mode: host|ipu (required)
       --ovsCliDir string      The directory where the ovs-vsctl is located (default "/opt/p4/p4-cp-nws/bin")
       --p4rtbin string        The directory where the p4rt-ctl binary is located (default "/opt/p4/p4-cp-nws/bin/p4rt-ctl")
       --port int              IPU Manager serving TCP port (default 50152)
