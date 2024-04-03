@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/ipuplugin"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
@@ -89,7 +90,7 @@ var (
 			bridgeType := viper.GetString("bridgeType")
 			p4rtbin := viper.GetString("p4rtbin")
 			portMuxVsi := viper.GetInt("portMuxVsi")
-			mode := viper.GetString("mode")
+			mode := config.mode
 			daemonHostIp := viper.GetString("daemonHostIp")
 			daemonIpuIp := viper.GetString("daemonIpuIp")
 			daemonPort := viper.GetInt("daemonPort")
@@ -151,14 +152,11 @@ func init() {
 		"The port mux VSI number. This must be for the same interface from --interface flags")
 	//Default Log level value is the warn level
 	rootCmd.PersistentFlags().StringVarP(&config.verbosity, "verbosity", "v", log.InfoLevel.String(), "Log level (debug, info, warn, error, fatal, panic")
-	rootCmd.PersistentFlags().StringVar(&config.mode, "mode", "", "IPU plugin daemon mode: host|ipu (required)")
 	rootCmd.PersistentFlags().StringVar(&config.daemonHostIp, "daemonHostIp", defaultDaemonHostIp, "Daemon address on host")
 	rootCmd.PersistentFlags().StringVar(&config.daemonIpuIp, "daemonIpuIp", defaultDaemonIpuIp, "Daemon address on ipu")
 	rootCmd.PersistentFlags().IntVar(&config.daemonPort, "daemonPort", defaultDaemonPort, "Daemon port port")
 
-	if err := rootCmd.MarkPersistentFlagRequired("mode"); err != nil {
-		exitWithError(err, 1)
-	}
+	config.mode = getPluginMode()
 
 	// Update below list of flags for any new flags added/updated above to bind them via Viper
 	flagList := []string{
@@ -173,7 +171,6 @@ func init() {
 		"p4rtbin",
 		"portMuxVsi",
 		"verbosity",
-		"mode",
 		"daemonHostIp",
 		"daemonIpuIp",
 		"daemonPort",
@@ -252,5 +249,16 @@ func getBridgeController(bridge, bridgeType, ovsCliDir string) (types.BridgeCont
 		return ipuplugin.NewLinuxBridgeController(bridge), types.LinuxBridge
 	default:
 		return ipuplugin.NewLinuxBridgeController(bridge), types.LinuxBridge
+	}
+}
+
+func getPluginMode() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return types.HostMode
+	case "arm":
+		return types.IpuMode
+	default:
+		return "unsupported"
 	}
 }
