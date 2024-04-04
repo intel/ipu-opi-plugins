@@ -27,7 +27,7 @@ import (
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
-	pb "github.com/openshift/dpu-operator/dpu-api/gen"
+	pb "github.com/openshift/dpu-operator/tree/main/dpu-api/gen"
 	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -607,9 +607,9 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 	DelFxpRules(s.p4rtbin)
 	AddFxpRules(s.p4rtbin)
 
-	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	// if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
+	// 	return nil, status.Error(codes.Internal, err.Error())
+	// }
 
 	response := &pb.IpPort{Ip: s.daemonIpuIp, Port: int32(s.daemonPort)}
 

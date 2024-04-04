@@ -23,10 +23,12 @@ import (
 	"syscall"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
-	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
+	pb2 "github.com/openshift/dpu-operator/tree/main/dpu-api/gen"
+
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 const ()
@@ -92,6 +94,8 @@ func (s *server) Run() error {
 	if s.mode == types.IpuMode {
 		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
 	}
+
+	pb2.RegisterDeviceServiceServer(s.grpcSrvr, NewDevicePluginService(make(map[string]pluginapi.Device)))
 
 	s.log.WithField("addr", listen.Addr().String()).Info("IPU plugin server listening on at:")
 	go func() {
