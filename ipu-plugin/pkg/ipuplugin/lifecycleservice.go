@@ -27,6 +27,7 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
 	"github.com/pkg/sftp"
+	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
@@ -46,6 +47,7 @@ const (
 	accVportId  = "02"
 	deviceId    = "0x1452"
 	vendorId    = "0x8086"
+	imcAddress  = "192.168.0.1:22"
 )
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string) *LifeCycleServiceServer {
@@ -264,7 +266,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	}
 
 	// Connect to the remote server.
-	client, err := ssh.Dial("tcp", "192.168.0.1:22", config)
+	client, err := ssh.Dial("tcp", imcAddress, config)
 	if err != nil {
 		return fmt.Errorf("failed to dial: %s", err)
 	}
@@ -351,7 +353,7 @@ cd $CURDIR
 	hashedChars := out.String()
 
 	macAddress := fmt.Sprintf("00:00:00:0a:%s:15", hashedChars)
-	fmt.Println("Updated MAC address:", macAddress)
+	log.Info("Allocated IPU MAC pattern:", macAddress)
 
 	shellScript := fmt.Sprintf(`#!/bin/sh
 	CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
@@ -427,7 +429,7 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
-func checkMAC() (bool, string) {
+func checkIfMACIsSet() (bool, string) {
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -437,7 +439,7 @@ func checkMAC() (bool, string) {
 	}
 
 	// Connect to the remote server.
-	client, err := ssh.Dial("tcp", "192.168.0.1:22", config)
+	client, err := ssh.Dial("tcp", imcAddress, config)
 	if err != nil {
 		return false, fmt.Sprintf("failed to dial remote server: %s", err)
 	}
@@ -461,7 +463,6 @@ func checkMAC() (bool, string) {
 	}
 
 	output := stdoutBuf.String()
-	fmt.Println(output)
 	if output == "File exists\n" {
 		return true, "File exists"
 	} else {
@@ -476,7 +477,7 @@ func (e *ExecutableHandlerImpl) validate() bool {
 		return false
 	}
 
-	if macPreFix, mac := checkMAC(); !macPreFix {
+	if macPreFix, mac := checkIfMACIsSet(); !macPreFix {
 		fmt.Printf("incorrect Mac assigned : %v\n", mac)
 		return false
 	}
@@ -487,17 +488,19 @@ func (e *ExecutableHandlerImpl) validate() bool {
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
 	initHandlers()
 
-	if val := executableHandler.validate(); !val {
-		fmt.Println("forcing state")
-		if err := sshHander.sshFunc(); err != nil {
-			return nil, fmt.Errorf("error calling sshFunc %s", err)
-		}
-	} else {
-		fmt.Println("not forcing state")
-	}
-
 	if in.DpuMode && s.mode != types.IpuMode || !in.DpuMode && s.mode != types.HostMode {
 		return nil, status.Errorf(codes.Internal, "Ipu plugin running in %s mode", s.mode)
+	}
+
+	if in.DpuMode {
+		if val := executableHandler.validate(); !val {
+			log.Info("forcing state")
+			if err := sshHander.sshFunc(); err != nil {
+				return nil, fmt.Errorf("error calling sshFunc %s", err)
+			}
+		} else {
+			log.Info("not forcing state")
+		}
 	}
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
