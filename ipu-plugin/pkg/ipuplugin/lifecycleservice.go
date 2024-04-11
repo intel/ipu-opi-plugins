@@ -280,7 +280,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer sftpClient.Close()
 
 	// Open the source file.
-	localFilePath := "/linux_networking.pkg"
+	localFilePath := "/rh_mvp.pkg"
 	srcFile, err := os.Open(localFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to open local file: %s", err)
@@ -288,7 +288,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer srcFile.Close()
 
 	// Create the destination file on the remote server.
-	remoteFilePath := "/work/scripts/linux_networking.pkg"
+	remoteFilePath := "/work/scripts/rh_mvp.pkg"
 	dstFile, err := sftpClient.Create(remoteFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create remote file: %s", err)
@@ -358,11 +358,11 @@ cd $CURDIR
 	shellScript := fmt.Sprintf(`#!/bin/sh
 	CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
 	echo "Checking for custom package..."
-	if [ -e linux_networking.pkg ]; then
-		echo "Custom package linux_networking.pkg found. Overriding default package"
-		cp linux_networking.pkg /etc/dpcp/package/
+	if [ -e rh_mvp.pkg ]; then
+		echo "Custom package rh_mvp.pkg found. Overriding default package"
+		cp rh_mvp.pkg /etc/dpcp/package/
 		rm -rf /etc/dpcp/package/default_pkg.pkg
-		ln -s /etc/dpcp/package/linux_networking.pkg /etc/dpcp/package/default_pkg.pkg
+		ln -s /etc/dpcp/package/rh_mvp.pkg /etc/dpcp/package/default_pkg.pkg
 		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
 		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
 		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
