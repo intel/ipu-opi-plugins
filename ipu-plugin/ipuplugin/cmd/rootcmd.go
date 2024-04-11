@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
-	"runtime"
+	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/ipuplugin"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
@@ -33,7 +34,7 @@ import (
 const (
 	configFilePath      = "/etc/ipu/"
 	cliName             = "ipuplugin"
-	defaultServingAddr  = "/var/run/vendor-plugin.sock"
+	defaultServingAddr  = "/var/run/dpu-daemon/vendor-plugin/vendor-plugin.sock"
 	defaultServingPort  = 50152
 	defaultServingProto = "unix"
 	tenantBridgeName    = "br-tenant"
@@ -254,13 +255,27 @@ func getBridgeController(bridge, bridgeType, ovsCliDir string) (types.BridgeCont
 	}
 }
 
+func getMachineArchitecture() (string, error) {
+	cmd := exec.Command("uname", "-m")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 func getPluginMode() string {
-	switch runtime.GOARCH {
-	case "amd64":
+	arch, err := getMachineArchitecture()
+	if err != nil {
+		return "error getting architecture: " + err.Error()
+	}
+
+	switch arch {
+	case "x86_64":
 		return types.HostMode
-	case "arm":
+	case "aarch64":
 		return types.IpuMode
 	default:
-		return "unsupported"
+		return "unsupported architecture: " + arch
 	}
 }
