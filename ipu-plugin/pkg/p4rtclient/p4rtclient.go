@@ -42,6 +42,7 @@ type p4rtclient struct {
 type fxpRuleParams []string
 
 func NewP4RtClient(p4RtBin string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
+	log.Debug("Creating Linux P4Client instance")
 	return &p4rtclient{
 		p4RtBin:    p4RtBin,
 		portMuxVsi: portMuxVsi,
@@ -58,7 +59,7 @@ func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("adding FXP rules")
 
 	for _, r := range ruleSets {
-		if err := p.runP4rtCtlCommand(r...); err != nil {
+		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing add rule command")
 		}
 	}
@@ -73,11 +74,11 @@ func (p *p4rtclient) DeleteRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("deleting FXP rules")
 
 	for _, r := range ruleSets {
-		if err := p.runP4rtCtlCommand(r...); err != nil {
+		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		}
 	}
-	log.Info("FXP rules were delete")
+	log.Info("FXP rules were deleted")
 }
 
 func (p *p4rtclient) getAddRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
@@ -164,10 +165,10 @@ func getMacIntValueFromBytes(macAddr []byte) uint64 {
 
 var p4rtCtlCommand = exec.Command
 
-func (p *p4rtclient) runP4rtCtlCommand(params ...string) error {
+func runP4rtCtlCommand(p4RtBin string, params ...string) error {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := p4rtCtlCommand(p.p4RtBin, params...)
+	cmd := p4rtCtlCommand(p4RtBin, params...)
 
 	// Set required env var for python implemented protobuf
 	cmd.Env = os.Environ()
@@ -180,10 +181,10 @@ func (p *p4rtclient) runP4rtCtlCommand(params ...string) error {
 			"err":    err,
 			"stdout": stdout.String(),
 			"stderr": stderr.String(),
-		}).Errorf("error while executing %s", p.p4RtBin)
+		}).Errorf("error while executing %s", p4RtBin)
 		return err
 	}
 
-	log.WithField("params", params).Debugf("successfully executed %s", p.p4RtBin)
+	log.WithField("params", params).Debugf("successfully executed %s", p4RtBin)
 	return nil
 }
