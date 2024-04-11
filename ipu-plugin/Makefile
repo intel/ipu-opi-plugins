@@ -52,7 +52,7 @@ test:
 	@go test -cover ./...
 
 image:
-	cp -r ../e2e/artefacts/p4 $(CURDIR)
+	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
 	$(IMGTOOL) image tag $(IMAGE_TAG_VERSION) $(IMAGE_TAG_LATEST)
 
@@ -61,7 +61,7 @@ PLATFORMS ?= linux/arm64,linux/amd64
 # 	docker buildx create --use --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt env.no_proxy=$(NO_PROXY)
 # buildkit.toml file is a configuration file which allows to set registry configuration
 imagex: ## Build and push docker image for the manager for cross-platform support
-	cp -r ../e2e/artefacts/p4 $(CURDIR)
+	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
 	- $(IMGTOOL) buildx create --name image-builder --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY)'"'
