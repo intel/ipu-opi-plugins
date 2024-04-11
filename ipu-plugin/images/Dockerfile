@@ -21,3 +21,4 @@ WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
 
 RUN rm -rf /var/cache/apk/*
+RUN apk add --update --no-cache openssh
