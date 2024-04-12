@@ -96,7 +96,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a valid response", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 
@@ -107,7 +107,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return an error if the plugin runs in a different mode", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 
@@ -119,7 +119,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a not a valid IPv4 address when daemonIpuIp is invalid", func() {
 
 				// create invalid licycle service
-				service := NewLifeCycleService("", "192.168.1", 50151, "ipu")
+				service := NewLifeCycleService("", "192.168.1", 50151, "ipu", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 
@@ -139,7 +139,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a valid response", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 
@@ -150,7 +150,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return an error if the plugin runs in a different mode", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 
@@ -162,7 +162,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a not a valid IPv4 address as daemonHostIp is invalid", func() {
 
 				// create invalid licycle service
-				service := NewLifeCycleService("192.168.1", "", 50151, "host")
+				service := NewLifeCycleService("192.168.1", "", 50151, "host", "fakebinary")
 
 				_, err := service.Init(context.Background(), request)
 

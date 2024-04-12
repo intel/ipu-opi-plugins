@@ -120,7 +120,7 @@ var (
 			brCtlr, brType := getBridgeController(bridge, bridgeType, ovsCliDir)
 			p4Client := getP4Client(p4pkg, p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
 
-			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, servingAddr, servingProto, bridge, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
+			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4rtbin, p4Client, servingAddr, servingProto, bridge, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
 			if err := mgr.Run(); err != nil {
 				exitWithError(err, 4)
 			}

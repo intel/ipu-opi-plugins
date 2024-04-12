@@ -15,21 +15,11 @@
 package p4rtclient
 
 import (
-	"bytes"
 	"fmt"
-	"net"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	vsiToVportOffset = 16
-	pbPythonEnvVar   = "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python"
 )
 
 type p4rtclient struct {
@@ -59,7 +49,7 @@ func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("adding FXP rules")
 
 	for _, r := range ruleSets {
-		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
+		if err := utils.RunP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing add rule command")
 		}
 	}
@@ -74,7 +64,7 @@ func (p *p4rtclient) DeleteRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("deleting FXP rules")
 
 	for _, r := range ruleSets {
-		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
+		if err := utils.RunP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		}
 	}
@@ -91,8 +81,8 @@ func (p *p4rtclient) getAddRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 	vfVsi := int(macAddr[1])
 
-	vfVport := getVportForVsi(vfVsi)
-	portMuxVport := getVportForVsi(p.portMuxVsi)
+	vfVport := utils.GetVportForVsi(vfVsi)
+	portMuxVport := utils.GetVportForVsi(p.portMuxVsi)
 
 	ruleSets := []fxpRuleParams{
 		// Rules for control packets coming from overlay VF (vfVsi), IPU will add a VLAN tag (vlan) and send to PortMux Vport (portMuxVport)
@@ -108,7 +98,7 @@ func (p *p4rtclient) getAddRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 	if p.bridgeType == types.LinuxBridge {
 		// Add additional add rules
-		macToIntValue := getMacIntValueFromBytes(macAddr)
+		macToIntValue := utils.GetMacIntValueFromBytes(macAddr)
 		ruleSets = append(ruleSets,
 			[]string{"add-entry", p.p4br, "linux_networking_control.l2_fwd_tx_table", fmt.Sprintf("dst_mac=0x%x,user_meta.pmeta.tun_flag1_d0=0x00,action=linux_networking_control.l2_fwd(%d)", macToIntValue, vfVport)},
 			[]string{"add-entry", p.p4br, "linux_networking_control.sem_bypass", fmt.Sprintf("dst_mac=0x%x,action=linux_networking_control.set_dest(%d)", macToIntValue, vfVport)},
@@ -141,7 +131,7 @@ func (p *p4rtclient) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 	if p.bridgeType == types.LinuxBridge {
 		// Add additional deletion rules
-		macToIntValue := getMacIntValueFromBytes(macAddr)
+		macToIntValue := utils.GetMacIntValueFromBytes(macAddr)
 		ruleSets = append(ruleSets,
 			[]string{"del-entry", p.p4br, "linux_networking_control.l2_fwd_tx_table", fmt.Sprintf("dst_mac=0x%x,user_meta.pmeta.tun_flag1_d0=0x00", macToIntValue)},
 			[]string{"del-entry", p.p4br, "linux_networking_control.sem_bypass", fmt.Sprintf("dst_mac=0x%x", macToIntValue)},
@@ -149,42 +139,4 @@ func (p *p4rtclient) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 
 	return ruleSets
-}
-
-func getVportForVsi(vsi int) int {
-	return vsi + vsiToVportOffset
-}
-
-func getMacIntValueFromBytes(macAddr []byte) uint64 {
-	// see how this works: https://go.dev/play/p/MZnMiotnew2
-	hwAddr := net.HardwareAddr(macAddr)
-	macStr := strings.Replace(hwAddr.String(), ":", "", -1)
-	macToInt, _ := strconv.ParseUint(macStr, 16, 64)
-	return macToInt
-}
-
-var p4rtCtlCommand = exec.Command
-
-func runP4rtCtlCommand(p4RtBin string, params ...string) error {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := p4rtCtlCommand(p4RtBin, params...)
-
-	// Set required env var for python implemented protobuf
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, pbPythonEnvVar)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		log.WithFields(log.Fields{
-			"params": params,
-			"err":    err,
-			"stdout": stdout.String(),
-			"stderr": stderr.String(),
-		}).Errorf("error while executing %s", p4RtBin)
-		return err
-	}
-
-	log.WithField("params", params).Debugf("successfully executed %s", p4RtBin)
-	return nil
 }

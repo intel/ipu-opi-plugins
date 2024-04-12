@@ -49,9 +49,10 @@ type server struct {
 	daemonHostIp    string
 	daemonIpuIp     string
 	daemonPort      int
+	p4rtbin         string
 }
 
-func NewIpuPlugin(port int, brCtlr types.BridgeController,
+func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 	p4Client types.P4RTClient, servingAddr, servingProto, bridge, intf, p4cpInstall, mode, daemonHostIp, daemonIpuIp string, daemonPort int) types.Runnable {
 	return &server{
 		servingAddr:     servingAddr,
@@ -87,7 +88,7 @@ func (s *server) Run() error {
 		return fmt.Errorf("host bridge error")
 	}
 
-	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode))
+	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin))
 	if s.mode == types.IpuMode {
 		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
 	}

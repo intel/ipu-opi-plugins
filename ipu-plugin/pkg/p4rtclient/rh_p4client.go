@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,7 +52,7 @@ func (p *rhP4Client) AddRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("adding FXP rules")
 
 	for _, r := range ruleSets {
-		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
+		if err := utils.RunP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing add rule command")
 		}
 	}
@@ -66,7 +67,7 @@ func (p *rhP4Client) DeleteRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("deleting FXP rules")
 
 	for _, r := range ruleSets {
-		if err := runP4rtCtlCommand(p.p4RtBin, r...); err != nil {
+		if err := utils.RunP4rtCtlCommand(p.p4RtBin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		}
 	}
@@ -83,9 +84,9 @@ func (p *rhP4Client) getAddRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 	vfVsi := int(macAddr[1])
 
-	vfVport := getVportForVsi(vfVsi)
-	portMuxVport := getVportForVsi(p.portMuxVsi)
-	macToIntValue := getMacIntValueFromBytes(macAddr)
+	vfVport := utils.GetVportForVsi(vfVsi)
+	portMuxVport := utils.GetVportForVsi(p.portMuxVsi)
+	macToIntValue := utils.GetMacIntValueFromBytes(macAddr)
 
 	ruleSets := []fxpRuleParams{
 		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vport_arp_egress_table "vsi=0x15,bit32_zeros=0x0000,action=rh_mvp_control.send_to_port_mux(2,30)"
@@ -118,7 +119,7 @@ func (p *rhP4Client) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 		return []fxpRuleParams{}
 	}
 	vfVsi := int(macAddr[1])
-	macToIntValue := getMacIntValueFromBytes(macAddr)
+	macToIntValue := utils.GetMacIntValueFromBytes(macAddr)
 
 	ruleSets := []fxpRuleParams{
 		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vport_arp_egress_table "vsi=0x15,bit32_zeros=0x0000,action=rh_mvp_control.send_to_port_mux(2,30)"
