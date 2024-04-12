@@ -40,6 +40,7 @@ type LifeCycleServiceServer struct {
 	daemonIpuIp  string
 	daemonPort   int
 	mode         string
+	p4rtbin      string
 }
 
 const (
@@ -50,12 +51,13 @@ const (
 	imcAddress  = "192.168.0.1:22"
 )
 
-func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string) *LifeCycleServiceServer {
+func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string) *LifeCycleServiceServer {
 	return &LifeCycleServiceServer{
 		daemonHostIp: daemonHostIp,
 		daemonIpuIp:  daemonIpuIp,
 		daemonPort:   daemonPort,
 		mode:         mode,
+		p4rtbin:      p4rtbin,
 	}
 }
 
