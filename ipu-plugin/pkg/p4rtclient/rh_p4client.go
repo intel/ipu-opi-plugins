@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	stag = 0 // Using single flat L2 network with vlan 0
+	stag          = 0 // Using single flat L2 network with vlan 0
+	portMuxModPtr = 1
 )
 
 type rhP4Client struct {
@@ -82,14 +83,27 @@ func (p *rhP4Client) getAddRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 	vfVsi := int(macAddr[1])
 
-	// vfVport := getVportForVsi(vfVsi)
-	// portMuxVport := getVportForVsi(p.portMuxVsi)
+	vfVport := getVportForVsi(vfVsi)
+	portMuxVport := getVportForVsi(p.portMuxVsi)
+	macToIntValue := getMacIntValueFromBytes(macAddr)
 
 	ruleSets := []fxpRuleParams{
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vport_arp_egress_table "vsi=0x15,bit32_zeros=0x0000,action=rh_mvp_control.send_to_port_mux(2,30)"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.vport_arp_egress_table", fmt.Sprintf("vsi=%d,bit32_zeros=0x0000,action=rh_mvp_control.send_to_port_mux(%d,%d)", vfVsi, vfVsi, portMuxVport)},
 		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vlan_push_ctag_stag_mod_table "meta.common.mod_blob_ptr=2,action=rh_mvp_control.mod_vlan_push_ctag_stag(1,1,301,1,1,300)"
-		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_egress_req_table "vsi=0xe,vid=301,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)"
 		[]string{"add-entry", p.p4br, "rh_mvp_control.vlan_push_ctag_stag_mod_table", fmt.Sprintf("meta.common.mod_blob_ptr=%d,action=rh_mvp_control.mod_vlan_push_ctag_stag(1,1,%d,1,1,%d)", vfVsi, vlan, stag)},
-		[]string{"add-entry", p.p4br, "rh_mvp_control.portmux_egress_req_table", fmt.Sprintf("vsi=%d,vid=%d,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)", p.portMuxVsi, vlan)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_egress_req_table "vsi=0xe,vid=301,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.portmux_egress_req_table", fmt.Sprintf("vsi=%d,vid=%d,action=rh_mvp_control.vlan_pop_ctag_stag(%d,%d)", p.portMuxVsi, vlan, portMuxModPtr, vfVport)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.ingress_loopback_table "vsi=0xe,target_vsi=0x15,action=rh_mvp_control.fwd_to_port(37)"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.portmux_egress_req_table", fmt.Sprintf("vsi=%d,target_vsi=%d,action=rh_mvp_control.fwd_to_port(%d)", p.portMuxVsi, vfVsi, vfVport)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_egress_resp_dmac_vsi_table "vsi=0xe,dmac=0x001500000314,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.portmux_egress_resp_dmac_vsi_table", fmt.Sprintf("vsi=%d,dmac=0x%x,action=rh_mvp_control.vlan_pop_ctag_stag(%d,%d)", p.portMuxVsi, macToIntValue, portMuxModPtr, vfVport)},
+
+		// Common Rules: These are not deleted on each DeleteBridgePort call.
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_ingress_loopback_table "bit32_zeros=0x0000,action=rh_mvp_control.fwd_to_port(30)"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.portmux_ingress_loopback_table", fmt.Sprintf("bit32_zeros=0x0000,action=rh_mvp_control.fwd_to_port(%d)", portMuxModPtr)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vlan_pop_ctag_stag_mod_table "meta.common.mod_blob_ptr=5,action=rh_mvp_control.mod_vlan_pop_ctag_stag"
+		[]string{"add-entry", p.p4br, "rh_mvp_control.vlan_pop_ctag_stag_mod_table", fmt.Sprintf("meta.common.mod_blob_ptr=%d,action=rh_mvp_control.mod_vlan_pop_ctag_stag", portMuxModPtr)},
 	}
 
 	return ruleSets
@@ -104,10 +118,19 @@ func (p *rhP4Client) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 		return []fxpRuleParams{}
 	}
 	vfVsi := int(macAddr[1])
+	macToIntValue := getMacIntValueFromBytes(macAddr)
 
 	ruleSets := []fxpRuleParams{
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vport_arp_egress_table "vsi=0x15,bit32_zeros=0x0000,action=rh_mvp_control.send_to_port_mux(2,30)"
+		[]string{"del-entry", p.p4br, "rh_mvp_control.vport_arp_egress_table", fmt.Sprintf("vsi=%d,bit32_zeros=0x0000", vfVsi)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.vlan_push_ctag_stag_mod_table "meta.common.mod_blob_ptr=2,action=rh_mvp_control.mod_vlan_push_ctag_stag(1,1,301,1,1,300)"
 		[]string{"del-entry", p.p4br, "rh_mvp_control.vlan_push_ctag_stag_mod_table", fmt.Sprintf("meta.common.mod_blob_ptr=%d", vfVsi)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_egress_req_table "vsi=0xe,vid=301,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)"
 		[]string{"del-entry", p.p4br, "rh_mvp_control.portmux_egress_req_table", fmt.Sprintf("vsi=%d,vid=%d", p.portMuxVsi, vlan)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.ingress_loopback_table "vsi=0xe,target_vsi=0x15,action=rh_mvp_control.fwd_to_port(37)"
+		[]string{"del-entry", p.p4br, "rh_mvp_control.portmux_egress_req_table", fmt.Sprintf("vsi=%d,target_vsi=%d", p.portMuxVsi, vfVsi)},
+		// $P4CP_INSTALL/bin/p4rt-ctl add-entry br0 rh_mvp_control.portmux_egress_resp_dmac_vsi_table "vsi=0xe,dmac=0x001500000314,action=rh_mvp_control.vlan_pop_ctag_stag(5,37)"
+		[]string{"del-entry", p.p4br, "rh_mvp_control.portmux_egress_resp_dmac_vsi_table", fmt.Sprintf("vsi=%d,dmac=0x%x", p.portMuxVsi, macToIntValue)},
 	}
 
 	return ruleSets
