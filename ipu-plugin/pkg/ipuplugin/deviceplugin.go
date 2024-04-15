@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	pb2 "github.com/openshift/dpu-operator/tree/main/dpu-api/gen"
+	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
 	"google.golang.org/protobuf/types/known/emptypb"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
