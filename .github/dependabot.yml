@@ -16,16 +16,6 @@ updates:
       interval: daily
 
   - package-ecosystem: gomod
-    directory: /ipu-device-plugin
-    schedule:
-      interval: daily
-
-  - package-ecosystem: docker
-    directory: /ipu-device-plugin/images
-    schedule:
-      interval: daily
-
-  - package-ecosystem: gomod
     directory: /ipu-plugin
     schedule:
       interval: daily
