@@ -22,7 +22,7 @@ var (
 	deviceCode  = "0x1452"
 )
 
-func NewDevicePluginService(list map[string]pluginapi.Device) *DevicePluginService {
+func NewDevicePluginService() *DevicePluginService {
 	return &DevicePluginService{}
 }
 
