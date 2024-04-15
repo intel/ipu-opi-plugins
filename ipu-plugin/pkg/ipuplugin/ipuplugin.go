@@ -93,6 +93,7 @@ func (s *server) Run() error {
 	if s.mode == types.IpuMode {
 		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
 		pb2.RegisterDeviceServiceServer(s.grpcSrvr, NewDevicePluginService())
+		pb2.RegisterNetworkFunctionServiceServer(s.grpcSrvr, NewNetworkFunctionService(s.p4rtbin))
 	}
 
 	s.log.WithField("addr", listen.Addr().String()).Info("IPU plugin server listening on at:")

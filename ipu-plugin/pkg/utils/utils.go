@@ -16,8 +16,8 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -57,6 +57,14 @@ func GetVportForVsi(vsi int) int {
 	return vsi + vsiToVportOffset
 }
 
+func GetMacAsByteArray(macAddr string) ([]byte, error) {
+	mAddr, err := net.ParseMAC(macAddr)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing MAC address: %v", err)
+	}
+	return mAddr, nil
+}
+
 func GetMacIntValueFromBytes(macAddr []byte) uint64 {
 	// see how this works: https://go.dev/play/p/MZnMiotnew2
 	hwAddr := net.HardwareAddr(macAddr)
@@ -65,28 +73,58 @@ func GetMacIntValueFromBytes(macAddr []byte) uint64 {
 	return macToInt
 }
 
-var p4rtCtlCommand = exec.Command
+//var p4rtCtlCommand = exec.Command
 
 func RunP4rtCtlCommand(p4RtBin string, params ...string) error {
+	// var stdout bytes.Buffer
+	// var stderr bytes.Buffer
+	// cmd := p4rtCtlCommand(p4RtBin, params...)
+
+	// // Set required env var for python implemented protobuf
+	// cmd.Env = os.Environ()
+	// cmd.Env = append(cmd.Env, pbPythonEnvVar)
+	// cmd.Stdout = &stdout
+	// cmd.Stderr = &stderr
+	// if err := cmd.Run(); err != nil {
+	// 	log.WithFields(log.Fields{
+	// 		"params": params,
+	// 		"err":    err,
+	// 		"stdout": stdout.String(),
+	// 		"stderr": stderr.String(),
+	// 	}).Errorf("error while executing %s", p4RtBin)
+	// 	return err
+	// }
+
+	// log.WithField("params", params).Debugf("successfully executed %s", p4RtBin)
+	// return nil
+
+	fmt.Println(p4RtBin, params)
+
+	return nil
+}
+
+func ExecuteScript(script string) (string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := p4rtCtlCommand(p4RtBin, params...)
 
-	// Set required env var for python implemented protobuf
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, pbPythonEnvVar)
+	cmd := exec.Command("sh", "-c", script)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		log.WithFields(log.Fields{
-			"params": params,
-			"err":    err,
-			"stdout": stdout.String(),
-			"stderr": stderr.String(),
-		}).Errorf("error while executing %s", p4RtBin)
-		return err
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("error calling sshFunc %s, %s, %v", stdout.String(), stderr.String(), err)
+	}
+	return stdout.String(), nil
+}
+
+func GetVfMacList() ([]string, error) {
+	// reach out to the IMC to get the mac addresses of the VFs
+	output, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
+		| awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to reach the IMC %v", err)
 	}
 
-	log.WithField("params", params).Debugf("successfully executed %s", p4RtBin)
-	return nil
+	return strings.Split(strings.TrimSpace(output), "\n"), nil
 }
