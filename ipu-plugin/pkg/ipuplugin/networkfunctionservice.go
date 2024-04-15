@@ -43,9 +43,10 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
 	}
 
-	// Delete the No NF Rules
+	// Remove point-to-point between host VFs from the FXP
+	p4rtclient.CreateDelPointToPointVFRules(s.p4rtbin, vfMacList)
 
-	// Add the No NF Rules
+	// Generate the P4 rules and program the FXP with NF comms
 	p4rtclient.CreateAddNetworkFunctionRules(s.p4rtbin, vfMacList, in.Input, in.Output)
 
 	return &pb.Empty{}, nil
@@ -59,9 +60,11 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
 	}
 
+	// Remove the NF comms from the FXP
 	p4rtclient.CreateDelNetworkFunctionRules(s.p4rtbin, vfMacList, in.Input, in.Output)
 
-	// Add the No NF Rules
+	// Generate the P4 rules and program the FXP with point-to-point rules between host VFs
+	p4rtclient.CreateAddPointToPointVFRules(s.p4rtbin, vfMacList)
 
 	return &pb.Empty{}, nil
 }
