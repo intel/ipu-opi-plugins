@@ -8,13 +8,12 @@ import (
 	"slices"
 	"strings"
 
-	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
-	"google.golang.org/protobuf/types/known/emptypb"
+	pb "github.com/openshift/dpu-operator/dpu-api/gen"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 type DevicePluginService struct {
-	pb2.UnimplementedDeviceServiceServer
+	pb.UnimplementedDeviceServiceServer
 }
 
 var (
@@ -27,14 +26,14 @@ func NewDevicePluginService(list map[string]pluginapi.Device) *DevicePluginServi
 	return &DevicePluginService{}
 }
 
-func (*DevicePluginService) GetDevices(context.Context, *emptypb.Empty) (*pb2.DeviceListResponse, error) {
+func (*DevicePluginService) GetDevices(context.Context, *pb.Empty) (*pb.DeviceListResponse, error) {
 
 	devices, err := discoverHostDevices()
 	if err != nil {
-		return &pb2.DeviceListResponse{}, err
+		return &pb.DeviceListResponse{}, err
 	}
 
-	response := &pb2.DeviceListResponse{
+	response := &pb.DeviceListResponse{
 		Devices: devices,
 	}
 
@@ -42,14 +41,14 @@ func (*DevicePluginService) GetDevices(context.Context, *emptypb.Empty) (*pb2.De
 	return response, nil
 }
 
-func discoverHostDevices() (map[string]*pb2.Device, error) {
+func discoverHostDevices() (map[string]*pb.Device, error) {
 
-	devices := make(map[string]*pb2.Device)
+	devices := make(map[string]*pb.Device)
 
 	files, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[string]*pb2.Device), nil
+			return make(map[string]*pb.Device), nil
 		}
 	}
 
@@ -63,7 +62,7 @@ func discoverHostDevices() (map[string]*pb2.Device, error) {
 
 		if device_code == deviceCode {
 			if !slices.Contains(exclude, file.Name()) {
-				devices[file.Name()] = &pb2.Device{ID: file.Name(), Health: pluginapi.Healthy}
+				devices[file.Name()] = &pb.Device{ID: file.Name(), Health: pluginapi.Healthy}
 			}
 		}
 	}
