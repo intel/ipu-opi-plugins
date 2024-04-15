@@ -27,7 +27,7 @@ import (
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
-	pb "github.com/openshift/dpu-operator/tree/main/dpu-api/gen"
+	pb "github.com/openshift/dpu-operator/dpu-api/gen"
 	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"

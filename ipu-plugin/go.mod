@@ -6,8 +6,7 @@ require (
 	github.com/ipdk-io/k8s-infra-offload v0.0.0-20230824210601-791f4fa3562a
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
-	github.com/openshift/dpu-operator/dpu-api v0.0.0-20240301140229-ca0f19ca135b
-	github.com/openshift/dpu-operator/tree/main/dpu-api v0.0.0-00010101000000-000000000000
+	github.com/openshift/dpu-operator/dpu-api v0.0.0-20240412210924-8e89acf05ba6
 	github.com/opiproject/opi-api v0.0.0-20230831141553-56e46f754823
 	github.com/pkg/sftp v1.13.6
 	github.com/sirupsen/logrus v1.9.3
@@ -88,4 +87,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/openshift/dpu-operator/tree/main/dpu-api => ./dpu-operator/dpu-api
+// replace github.com/openshift/dpu-operator/tree/main/dpu-api => ./dpu-operator/dpu-api
