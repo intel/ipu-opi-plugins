@@ -541,8 +541,10 @@ func AddFxpRules(p4rtbin string) {
 				vf2Port += 16
 				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
 
+				// nolint
 				utils.RunP4rtCtlCommand(p4rtbin, "add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
 					fmt.Sprintf("vsi=0x%s,target_vsi=0x%s,action=rh_mvp_control.fwd_to_port(%d)", vsi, targetVsi, vf2Port))
+				// nolint
 				utils.RunP4rtCtlCommand(p4rtbin, "add-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
 					fmt.Sprintf("vsi=0x%s,dmac=0x%s,action=rh_mvp_control.fwd_to_port(%d)", vsi, dmac, vf2Port))
 			}
@@ -575,9 +577,10 @@ func DelFxpRules(p4rtbin string) {
 				}
 
 				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
-
+				// nolint
 				utils.RunP4rtCtlCommand(p4rtbin, "del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
 					fmt.Sprintf("vsi=0x%s,target_vsi=0x%s", vsi, targetVsi))
+				// nolint
 				utils.RunP4rtCtlCommand(p4rtbin, "del-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
 					fmt.Sprintf("vsi=0x%s,dmac=0x%s", vsi, dmac))
 			}
