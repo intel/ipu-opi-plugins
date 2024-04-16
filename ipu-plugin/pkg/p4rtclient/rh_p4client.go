@@ -16,6 +16,7 @@ package p4rtclient
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -135,4 +136,203 @@ func (p *rhP4Client) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 
 	return ruleSets
+}
+
+func CreateNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
+
+	ruleSets := []fxpRuleParams{}
+
+	for i := range vfMacList {
+
+		vfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+		if err != nil {
+			fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+			return
+		}
+
+		vfDmac := strings.Replace(vfMacList[i], string(':'), "", -1)
+
+		apf1Mac, err := utils.GetMacAsByteArray(apf1)
+		if err != nil {
+			fmt.Printf("unable to extract octets from apf %s: %v", apf1, err)
+			return
+		}
+
+		ruleSets = append(ruleSets,
+			[]string{"add-entry", "br0", "rh_mvp_control.vport_egress_vsi_table",
+				fmt.Sprintf("vsi=0x%X,action=rh_mvp_control.fwd_to_port(%d)", vfMac[1], apf1Mac[1]+16)},
+			[]string{"add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+				fmt.Sprintf("vsi=0x%X,target_vsi=0x%X,action=rh_mvp_control.fwd_to_port(%d)", vfMac[1], apf1Mac[1], apf1Mac[1]+16)},
+			[]string{"add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+				fmt.Sprintf("vsi=0x%X,target_vsi=0x%X,action=rh_mvp_control.fwd_to_port(%d)", apf1Mac[1], vfMac[1], vfMac[1]+16)},
+			[]string{"add-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
+				fmt.Sprintf("vsi=0x%X,dmac=0x%s,action=rh_mvp_control.fwd_to_port(%d)", apf1Mac[1], vfDmac, vfMac[1]+16)},
+		)
+	}
+
+	apf2Mac, err := utils.GetMacAsByteArray(apf2)
+	if err != nil {
+		fmt.Printf("unable to extract octets from apf %s: %v", apf2, err)
+		return
+	}
+
+	ruleSets = append(ruleSets,
+		[]string{"add-entry", "br0", "rh_mvp_control.vport_egress_vsi_table",
+			fmt.Sprintf("vsi=0x%X,bit32_zeros=0x0000,action=rh_mvp_control.fwd_to_port(%d)", apf2Mac[1], apf2Mac[1]+16)},
+		[]string{"add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+			fmt.Sprintf("vsi=0x%X,target_vsi=0x%X,action=rh_mvp_control.fwd_to_port(%d)", apf2Mac[1], apf2Mac[1], apf2Mac[1]+16)},
+	)
+
+	for _, r := range ruleSets {
+		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
+			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+		}
+	}
+}
+
+func DeleteNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
+
+	ruleSets := []fxpRuleParams{}
+
+	for i := range vfMacList {
+
+		vfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+		if err != nil {
+			fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+			return
+		}
+
+		vfDmac := strings.Replace(vfMacList[i], string(':'), "", -1)
+
+		apf1Mac, err := utils.GetMacAsByteArray(apf1)
+		if err != nil {
+			fmt.Printf("unable to extract octets from apf %s: %v", apf1, err)
+			return
+		}
+
+		ruleSets = append(ruleSets,
+			[]string{"del-entry", "br0", "rh_mvp_control.vport_egress_vsi_table",
+				fmt.Sprintf("vsi=0x%X", vfMac[1])},
+			[]string{"del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+				fmt.Sprintf("vsi=0x%X,target_vsi=0x%X", vfMac[1], apf1Mac[1])},
+			[]string{"del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+				fmt.Sprintf("vsi=0x%X,target_vsi=0x%X", apf1Mac[1], vfMac[1])},
+			[]string{"del-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
+				fmt.Sprintf("vsi=0x%X,dmac=0x%s", apf1Mac[1], vfDmac)},
+		)
+	}
+
+	apf2Mac, err := utils.GetMacAsByteArray(apf2)
+	if err != nil {
+		fmt.Printf("unable to extract octets from apf %s: %v", apf2, err)
+		return
+	}
+
+	ruleSets = append(ruleSets,
+		[]string{"del-entry", "br0", "rh_mvp_control.vport_egress_vsi_table",
+			fmt.Sprintf("vsi=0x%X,bit32_zeros=0x0000", apf2Mac[1])},
+		[]string{"del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+			fmt.Sprintf("vsi=0x%X,target_vsi=0x%X", apf2Mac[1], apf2Mac[1])},
+	)
+
+	for _, r := range ruleSets {
+		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
+			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+		}
+	}
+}
+
+/*
+* The CreatePointToPointVFRules and DeletePointToPointVFRules are two functions added as a workaround
+* to configure the FXP with point to point rules between the VFs initialised on a single host.
+*
+* These rules assume that no NF has been deployed on the FXP.
+*
+* Function CreatePointToPointVFRules will create all the point to point rules between all the initilised VFs on the host.
+* Function DeletePointToPointVFRules will remove all the point to point rules between all the initilised VFs on the host.
+ */
+func CreatePointToPointVFRules(p4rtbin string, vfMacList []string) {
+
+	ruleSets := []fxpRuleParams{}
+
+	for i := range vfMacList {
+		for j := range vfMacList {
+			if i != j {
+
+				srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+				if err != nil {
+					fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+					return
+				}
+
+				dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
+				if err != nil {
+					fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
+					return
+				}
+
+				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
+
+				ruleSets = append(ruleSets,
+					[]string{"add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+						fmt.Sprintf("vsi=0x%X,target_vsi=0x%X,action=rh_mvp_control.fwd_to_port(%d)", srcVfMac[1], dstVfMac[1], dstVfMac[1]+16)},
+					[]string{"add-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
+						fmt.Sprintf("vsi=0x%X,dmac=0x%s,action=rh_mvp_control.fwd_to_port(%d)", srcVfMac[1], dmac, dstVfMac[1]+16)},
+				)
+			}
+		}
+	}
+
+	for _, r := range ruleSets {
+		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
+			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+		}
+	}
+}
+
+func DeletePointToPointVFRules(p4rtbin string, vfMacList []string) {
+
+	ruleSets := []fxpRuleParams{}
+
+	for i := range vfMacList {
+		for j := range vfMacList {
+			if i != j {
+
+				srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+				if err != nil {
+					fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+					return
+				}
+
+				dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
+				if err != nil {
+					fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
+					return
+				}
+
+				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
+
+				ruleSets = append(ruleSets,
+					[]string{"del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
+						fmt.Sprintf("vsi=0x%X,target_vsi=0x%X", srcVfMac[1], dstVfMac[1])},
+					[]string{"del-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
+						fmt.Sprintf("vsi=0x%X,dmac=0x%s", srcVfMac[1], dmac)},
+				)
+			}
+		}
+	}
+
+	for _, r := range ruleSets {
+		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
+			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+		}
+	}
 }

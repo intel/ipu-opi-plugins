@@ -22,9 +22,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
@@ -489,105 +489,6 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	return true
 }
 
-func executeScript(script string) (string, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cmd := exec.Command("sh", "-c", script)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("error calling sshFunc %s, %s, %v", stdout.String(), stderr.String(), err)
-	}
-	return stdout.String(), nil
-}
-
-/*
-* The AddFxpRules and DelFxpRules are two functions added as a workaround
-* to configure the FXP with point to point rules between the VFs initialised on a single
-* host. These rules assume that no NF has been deployed on the FXP.
-*
-* Function AddFxpRules will create all the point to point rules between all the initilised
-* VFs on the host.
-* Function DelFxpRules will remove all the point to point rules between all the initilised
-* VFs on the host.
- */
-func AddFxpRules(p4rtbin string) {
-
-	// reach out to the IMC to get the mac addresses of the VFs
-	output, err := executeScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
-| awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`)
-
-	if err != nil {
-		fmt.Printf("Unable to reach the IMC %v", err)
-		return
-	}
-
-	vfMacList := strings.Split(strings.TrimSpace(output), "\n")
-
-	for i := range vfMacList {
-		for j := range vfMacList {
-			if i != j {
-				vsi := strings.Trim(strings.Split(vfMacList[i], ":")[1], "\n")
-				targetVsi := strings.Trim(strings.Split(vfMacList[j], ":")[1], "\n")
-				vf2Port, err := strconv.ParseInt(targetVsi, 16, 64)
-
-				if err != nil {
-					fmt.Printf("error converting hex to decimal: %v", err)
-					return
-				}
-
-				vf2Port += 16
-				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
-
-				// nolint
-				utils.RunP4rtCtlCommand(p4rtbin, "add-entry", "br0", "rh_mvp_control.ingress_loopback_table",
-					fmt.Sprintf("vsi=0x%s,target_vsi=0x%s,action=rh_mvp_control.fwd_to_port(%d)", vsi, targetVsi, vf2Port))
-				// nolint
-				utils.RunP4rtCtlCommand(p4rtbin, "add-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
-					fmt.Sprintf("vsi=0x%s,dmac=0x%s,action=rh_mvp_control.fwd_to_port(%d)", vsi, dmac, vf2Port))
-			}
-		}
-	}
-}
-
-func DelFxpRules(p4rtbin string) {
-
-	// reach out to the IMC to get the mac addresses of the VFs
-	output, err := executeScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
-		| awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`)
-
-	if err != nil {
-		fmt.Printf("Unable to reach the IMC %v", err)
-		return
-	}
-
-	vfMacList := strings.Split(strings.TrimSpace(output), "\n")
-
-	for i := range vfMacList {
-		for j := range vfMacList {
-			if i != j {
-				vsi := strings.Split(vfMacList[i], ":")[1]
-				targetVsi := strings.Split(vfMacList[j], ":")[1]
-
-				if err != nil {
-					fmt.Printf("error converting hex to decimal: %v", err)
-					return
-				}
-
-				dmac := strings.Replace(vfMacList[j], string(':'), "", -1)
-				// nolint
-				utils.RunP4rtCtlCommand(p4rtbin, "del-entry", "br0", "rh_mvp_control.ingress_loopback_table",
-					fmt.Sprintf("vsi=0x%s,target_vsi=0x%s", vsi, targetVsi))
-				// nolint
-				utils.RunP4rtCtlCommand(p4rtbin, "del-entry", "br0", "rh_mvp_control.vport_egress_dmac_vsi_table",
-					fmt.Sprintf("vsi=0x%s,dmac=0x%s", vsi, dmac))
-			}
-		}
-	}
-}
-
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
 	initHandlers()
 
@@ -606,9 +507,15 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		}
 	}
 
-	// Preconfigure the FXP
-	DelFxpRules(s.p4rtbin)
-	AddFxpRules(s.p4rtbin)
+	vfMacList, err := utils.GetVfMacList()
+
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
+	}
+
+	// Preconfigure the FXP with point-to-point rules between host VFs
+	p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
+	p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
