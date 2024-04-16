@@ -186,6 +186,8 @@ func CreateAddNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 stri
 	for _, r := range ruleSets {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
@@ -238,6 +240,8 @@ func CreateDelNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 stri
 	for _, r := range ruleSets {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
@@ -286,6 +290,8 @@ func CreateAddPointToPointVFRules(p4rtbin string, vfMacList []string) {
 	for _, r := range ruleSets {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
@@ -325,6 +331,8 @@ func CreateDelPointToPointVFRules(p4rtbin string, vfMacList []string) {
 	for _, r := range ruleSets {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
+		} else {
+			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
