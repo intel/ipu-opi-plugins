@@ -138,7 +138,7 @@ func (p *rhP4Client) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	return ruleSets
 }
 
-func CreateAddNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
+func CreateNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
 
 	ruleSets := []fxpRuleParams{}
 
@@ -187,12 +187,12 @@ func CreateAddNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 stri
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		} else {
-			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
 
-func CreateDelNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
+func DeleteNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 string, apf2 string) {
 
 	ruleSets := []fxpRuleParams{}
 
@@ -241,21 +241,21 @@ func CreateDelNetworkFunctionRules(p4rtbin string, vfMacList []string, apf1 stri
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		} else {
-			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
 
 /*
-* The CreateAddPointToPointVFRules and DelFxpRules are two functions added as a workaround
+* The CreatePointToPointVFRules and DeletePointToPointVFRules are two functions added as a workaround
 * to configure the FXP with point to point rules between the VFs initialised on a single host.
 *
 * These rules assume that no NF has been deployed on the FXP.
 *
-* Function CreateAddPointToPointVFRules will create all the point to point rules between all the initilised VFs on the host.
-* Function DelFxpRules will remove all the point to point rules between all the initilised VFs on the host.
+* Function CreatePointToPointVFRules will create all the point to point rules between all the initilised VFs on the host.
+* Function DeletePointToPointVFRules will remove all the point to point rules between all the initilised VFs on the host.
  */
-func CreateAddPointToPointVFRules(p4rtbin string, vfMacList []string) {
+func CreatePointToPointVFRules(p4rtbin string, vfMacList []string) {
 
 	ruleSets := []fxpRuleParams{}
 
@@ -291,12 +291,12 @@ func CreateAddPointToPointVFRules(p4rtbin string, vfMacList []string) {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		} else {
-			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }
 
-func CreateDelPointToPointVFRules(p4rtbin string, vfMacList []string) {
+func DeletePointToPointVFRules(p4rtbin string, vfMacList []string) {
 
 	ruleSets := []fxpRuleParams{}
 
@@ -332,7 +332,7 @@ func CreateDelPointToPointVFRules(p4rtbin string, vfMacList []string) {
 		if err := utils.RunP4rtCtlCommand(p4rtbin, r...); err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		} else {
-			log.Printf("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
+			log.Infof("Finished running: %s", p4rtbin+" "+strings.Join(r, " "))
 		}
 	}
 }

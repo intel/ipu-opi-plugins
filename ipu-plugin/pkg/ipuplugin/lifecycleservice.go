@@ -514,8 +514,8 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 	}
 
 	// Preconfigure the FXP with point-to-point rules between host VFs
-	p4rtclient.CreateDelPointToPointVFRules(s.p4rtbin, vfMacList)
-	p4rtclient.CreateAddPointToPointVFRules(s.p4rtbin, vfMacList)
+	p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
+	p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
