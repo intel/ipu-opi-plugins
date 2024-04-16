@@ -25,12 +25,12 @@ import (
 )
 
 var _ = Describe("bridgeport", Serial, func() {
-	Describe("createVlanInterface", Serial, func() {
+	Describe("createInnerVlanInterface", Serial, func() {
 		Context("when vlan interface is found but not a valid vlan interface type", func() {
 			It("should return error", func() {
 				linkByNameFn = fakeLinkByName // it returns a dummy netlink instance; not a valid vlan interface
 				dummyMasterLink := &netlink.Dummy{}
-				err := createVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
+				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -43,7 +43,7 @@ var _ = Describe("bridgeport", Serial, func() {
 				}
 				linkAddFn = fakeLinkAdd
 				dummyMasterLink := &netlink.Dummy{}
-				err := createVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
+				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -52,7 +52,7 @@ var _ = Describe("bridgeport", Serial, func() {
 				linkByNameFn = fakeLinkByNameWithErr
 				linkAddFn = fakeLinkAdd
 				dummyMasterLink := &netlink.Dummy{}
-				err := createVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
+				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -61,7 +61,7 @@ var _ = Describe("bridgeport", Serial, func() {
 				linkByNameFn = fakeLinkByNameWithErr
 				linkAddFn = fakeLinkAddWithErr
 				dummyMasterLink := &netlink.Dummy{}
-				err := createVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
+				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("error creating vlan interface"))
 			})
