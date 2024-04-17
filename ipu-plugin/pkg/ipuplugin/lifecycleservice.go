@@ -311,41 +311,19 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to sync file: %s", err)
 	}
 
-	fileShPath := "/work/scripts/pre_init_app.sh"
-	initFile, err := sftpClient.Create(fileShPath)
-	if err != nil {
-		return fmt.Errorf("failed to create remote file.sh: %s", err)
-	}
-	defer initFile.Close()
-
-	initScript := `#!/bin/sh
-CURDIR=$(pwd)
-WORKDIR=$(dirname $(realpath $0))
-cd $WORKDIR	
-	if [ -e load_custom_pkg.sh ]; then
-	# Fix up the cp_init.cfg file
-	./load_custom_pkg.sh
-	fi
-	python /usr/bin/scripts/cfg_acc_apf_x2.py
-fi
-cd $CURDIR
-`
-	_, err = initFile.Write([]byte(initScript))
-	if err != nil {
-		return fmt.Errorf("failed to write to file.sh: %s", err)
-	}
-
-	err = initFile.Sync()
-	if err != nil {
-		return fmt.Errorf("failed to sync file.sh: %s", err)
-	}
-
 	// Start a session.
 	session, err := client.NewSession()
 	if err != nil {
 		return fmt.Errorf("failed to create session: %s", err)
 	}
 	defer session.Close()
+
+	// Append python script to configure the ACC
+	commands := `echo "python /usr/bin/scripts/cfg_acc_apf_x2.py" >> /work/scripts/pre_init_app.sh`
+	err = session.Run(commands)
+	if err != nil {
+		return fmt.Errorf("failed to run commands: %s", err)
+	}
 
 	cmd := exec.Command("sh", "-c", "cat /proc/sys/kernel/random/uuid | sha256sum | head -c 2")
 	var out bytes.Buffer
@@ -360,27 +338,38 @@ cd $CURDIR
 	log.Info("Allocated IPU MAC pattern:", macAddress)
 
 	shellScript := fmt.Sprintf(`#!/bin/sh
-	CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
-	echo "Checking for custom package..."
-	if [ -e rh_mvp.pkg ]; then
-		echo "Custom package rh_mvp.pkg found. Overriding default package"
-		cp rh_mvp.pkg /etc/dpcp/package/
-		rm -rf /etc/dpcp/package/default_pkg.pkg
-		ln -s /etc/dpcp/package/rh_mvp.pkg /etc/dpcp/package/default_pkg.pkg
-		sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
-		sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
-		sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
-		sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
-	else
-		echo "No custom package found. Continuing with default package"
-	fi
-	`, macAddress) // Insert the MAC address variable into the script.
+CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
+echo "Checking for custom package..."
+if [ -e rh_mvp.pkg ]; then
+    echo "Custom package rh_mvp.pkg found. Overriding default package"
+    cp rh_mvp.pkg /etc/dpcp/package/
+    rm -rf /etc/dpcp/package/default_pkg.pkg
+    ln -s /etc/dpcp/package/rh_mvp.pkg /etc/dpcp/package/default_pkg.pkg
+    sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
+    sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
+    sed -i 's/acc_apf = 4;/acc_apf = 19;/g' $CP_INIT_CFG
+    sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,2\]));/g' $CP_INIT_CFG
+else
+    echo "No custom package found. Continuing with default package"
+fi
+`, macAddress) // Insert the MAC address variable into the script.
 
-	commands := fmt.Sprintf(`
-	cat <<'EOF' > /work/scripts/load_custom_pkg.sh
-	%s
-	EOF
-	`, shellScript)
+	loadCustomPkgFilePath := "/work/scripts/load_custom_pkg.sh"
+	loadCustomPkgFile, err := sftpClient.Create(loadCustomPkgFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create remote load_custom_pkg.sh: %s", err)
+	}
+	defer loadCustomPkgFile.Close()
+
+	_, err = loadCustomPkgFile.Write([]byte(shellScript))
+	if err != nil {
+		return fmt.Errorf("failed to write to load_custom_pkg.sh: %s", err)
+	}
+
+	err = loadCustomPkgFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync load_custom_pkg.sh: %s", err)
+	}
 
 	uuidFilePath := "/work/uuid"
 	uuidFile, err := sftpClient.Create(uuidFilePath)
