@@ -63,6 +63,18 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 		return s.Ports[in.BridgePort.Name], nil
 	}
 
+	if !isOuterVlanSetup(s.uplinkInterface) {
+		outerVlanIntfName, err := createAndSetUpOuterVlan(s.uplinkInterface)
+		if err != nil {
+			s.log.WithField("vlan", in.BridgePort.Name).Error("unable to create outer vlan: ")
+			return nil, fmt.Errorf("unable to create bridge port: %v", err)
+		}
+
+		if err := s.bridgeCtlr.AddPort(outerVlanIntfName); err != nil {
+			return nil, fmt.Errorf("failed to add port to bridge: %v", err)
+		}
+	}
+
 	vlanIntfName, err := createAndSetUpInnerVlan(s.uplinkInterface, in.BridgePort.Spec.LogicalBridges)
 	if err != nil {
 		s.log.WithField("vlan", in.BridgePort.Name).Error("unable to create vlan: ")
@@ -85,6 +97,16 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 func isBridgePortPresent(srv server, brPortName string) bool {
 	_, ok := srv.Ports[brPortName]
 	return ok
+}
+
+func isOuterVlanSetup(uplinkInterface string) bool {
+	// Assume that the uplink interface name is something like enp0s1f0d3
+	// take only the last two characters from the name to avoid long names limit
+	outerVlanIntfName := fmt.Sprintf("%v.%d", uplinkInterface[len(uplinkInterface)-2:], outerVlanId)
+
+	_, err := linkByNameFn(outerVlanIntfName)
+
+	return err == nil
 }
 
 func createAndSetUpOuterVlan(uplinkInterface string) (string, error) {
@@ -138,24 +160,7 @@ func createAndSetUpInnerVlan(uplinkInterface string, bridges []string) (string, 
 
 	upLink, err := linkByNameFn(outerVlanIntfName)
 	if err != nil {
-		if err == err.(netlink.LinkNotFoundError) {
-
-			// Outer vlan interface has not been created yet
-			// We create it here
-			_, err := createAndSetUpOuterVlan(uplinkInterface)
-			if err != nil {
-				return "", fmt.Errorf("unable to create outer vlan interface %s, because: %w", outerVlanIntfName, err)
-			}
-
-			upLink, err = linkByNameFn(outerVlanIntfName)
-
-			if err != nil {
-				return "", fmt.Errorf("unable to find uplink interface: %s, because: %w", uplinkInterface, err)
-			}
-
-		} else {
-			return "", fmt.Errorf("unable to find uplink interface: %s, because: %w", uplinkInterface, err)
-		}
+		return "", fmt.Errorf("unable to find the outer vlan interface: %s, because: %w", outerVlanIntfName, err)
 	}
 
 	innerVlanId, err := strconv.Atoi(bridges[0])
@@ -167,7 +172,7 @@ func createAndSetUpInnerVlan(uplinkInterface string, bridges []string) (string, 
 	// take only the last two characters from the name to avoid long names limit
 	vlanIntfName := fmt.Sprintf("%v.%d.%d", uplinkInterface[len(uplinkInterface)-2:], outerVlanId, innerVlanId)
 
-	if err := createInnerVlanInterface(upLink, vlanIntfName, outerVlanId); err != nil {
+	if err := createInnerVlanInterface(upLink, vlanIntfName, innerVlanId); err != nil {
 		return "", err
 	}
 
