@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/ipdk-io/k8s-infra-offload v0.0.0-20230824210601-791f4fa3562a
 	github.com/onsi/ginkgo/v2 v2.17.1
-	github.com/onsi/gomega v1.32.0
+	github.com/onsi/gomega v1.33.0
 	github.com/openshift/dpu-operator/dpu-api v0.0.0-20240412210924-8e89acf05ba6
 	github.com/opiproject/opi-api v0.0.0-20230831141553-56e46f754823
 	github.com/pkg/sftp v1.13.6
@@ -60,7 +60,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
