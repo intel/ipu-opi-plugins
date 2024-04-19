@@ -15,6 +15,6 @@ spec:
     command: [ "/app/nf"]
     resources:
       requests:
-        intel.com/ipu: '1'
+        intel.com/ipu: '2'
       limits:
-        intel.com/ipu: '1'
+        intel.com/ipu: '2'
