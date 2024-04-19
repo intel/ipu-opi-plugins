@@ -494,17 +494,17 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		} else {
 			log.Info("not forcing state")
 		}
+
+		vfMacList, err := utils.GetVfMacList()
+
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
+		}
+
+		// Preconfigure the FXP with point-to-point rules between host VFs
+		p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
+		p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
 	}
-
-	vfMacList, err := utils.GetVfMacList()
-
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
-	}
-
-	// Preconfigure the FXP with point-to-point rules between host VFs
-	p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
-	p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
