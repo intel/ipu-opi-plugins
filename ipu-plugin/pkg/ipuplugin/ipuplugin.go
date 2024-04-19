@@ -30,8 +30,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const ()
-
 type server struct {
 	//pb.UnimplementedBridgePortServiceServer
 	servingAddr     string

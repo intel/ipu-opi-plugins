@@ -43,6 +43,10 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
 	}
 
+	if len(vfMacList) == 0 {
+		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
+	}
+
 	// Remove point-to-point between host VFs from the FXP
 	p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
 
@@ -58,6 +62,10 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
+	}
+
+	if len(vfMacList) == 0 {
+		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
 	}
 
 	// Remove the NF comms from the FXP

@@ -501,6 +501,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
 		}
 
+		if len(vfMacList) == 0 {
+			return nil, status.Error(codes.Internal, "No NFs initialized on the host")
+		}
+
 		// Preconfigure the FXP with point-to-point rules between host VFs
 		p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
 		p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
