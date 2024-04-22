@@ -11,6 +11,15 @@ spec:
       labels:
         name: vsp
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
+              - key: node-role.kubernetes.io/master
+                operator: DoesNotExist
       hostNetwork: true
       automountServiceAccountToken: false
       containers:
