@@ -51,6 +51,7 @@ const (
 	deviceId    = "0x1452"
 	vendorId    = "0x8086"
 	imcAddress  = "192.168.0.1:22"
+	apfNumber   = 8
 )
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string) *LifeCycleServiceServer {
@@ -465,7 +466,7 @@ func checkIfMACIsSet() (bool, string) {
 
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := countAPFDevices(); numAPFs < 19 {
+	if numAPFs := countAPFDevices(); numAPFs < apfNumber {
 		fmt.Printf("Not enough APFs %v", numAPFs)
 		return false
 	}
