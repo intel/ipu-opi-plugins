@@ -106,6 +106,10 @@ type SSHHandler interface {
 
 type SSHHandlerImpl struct{}
 
+type FXPHandler interface {
+	configureFXP()
+}
+
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
 var executableHandler ExecutableHandler
