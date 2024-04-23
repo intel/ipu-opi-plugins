@@ -109,7 +109,7 @@ type SSHHandlerImpl struct{}
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
 var executableHandler ExecutableHandler
-var sshHander SSHHandler
+var sshHandler SSHHandler
 
 func initHandlers() {
 	if fileSystemHandler == nil {
@@ -121,8 +121,8 @@ func initHandlers() {
 	if executableHandler == nil {
 		executableHandler = &ExecutableHandlerImpl{}
 	}
-	if sshHander == nil {
-		sshHander = &SSHHandlerImpl{}
+	if sshHandler == nil {
+		sshHandler = &SSHHandlerImpl{}
 	}
 }
 
@@ -488,7 +488,7 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 	if in.DpuMode {
 		if val := executableHandler.validate(); !val {
 			log.Info("forcing state")
-			if err := sshHander.sshFunc(); err != nil {
+			if err := sshHandler.sshFunc(); err != nil {
 				return nil, fmt.Errorf("error calling sshFunc %s", err)
 			}
 		} else {
