@@ -40,7 +40,7 @@ RUN dnf -y install \
     libnl3-3.7.0-1.el9.aarch64 \
     libedit-3.1-38.20210216cvs.el9.aarch64 \
     libatomic-11.4.1-2.1.el9.aarch64 \
-    openssh \
+    openssh-8.7p1-34.el9_3.3.aarch64 \
     && dnf clean all
 RUN python3 -m pip install --no-cache-dir \
     grpcio==1.62.1 \
