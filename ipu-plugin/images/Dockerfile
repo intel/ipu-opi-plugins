@@ -13,12 +13,44 @@ WORKDIR /usr/src/ipu-opi-plugin
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o bin/ipuplugin ipuplugin/main.go
 
-FROM alpine:3@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
+
+
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2024 Intel Corporation
+
+FROM registry.access.redhat.com/ubi9/ubi:9.3-1610
+
+ENV HTTP_PROXY $http_proxy
+ENV HTTPS_PROXY $https_proxy
+
+COPY . /src
+WORKDIR /src
+RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
+
+COPY p4 /opt/p4/rh_mvp
+COPY images/entrypoint.sh /
+COPY images/es2k_skip_p4.conf.template /
+
+RUN dnf -y install \
+    kmod-28-9.el9.aarch64 \
+    gettext-0.21-8.el9.aarch64 \
+    python3-pip-21.2.3-7.el9_3.1.noarch \
+    pciutils-3.7.0-5.el9.aarch64 \
+    libconfig-1.7.2-9.el9.aarch64 \
+    libnl3-3.7.0-1.el9.aarch64 \
+    libedit-3.1-38.20210216cvs.el9.aarch64 \
+    libatomic-11.4.1-2.1.el9.aarch64 \
+    openssh \
+    && dnf clean all
+RUN python3 -m pip install --no-cache-dir \
+    grpcio==1.62.1 \
+    protobuf==4.25.3 \
+    netaddr==1.2.1 \
+    /opt/p4/p4-cp-nws/share/stratum/p4runtime/p4runtime-2023.11.0-py3-none-any.whl
 
 COPY --from=builder /usr/src/ipu-opi-plugin/bin/ipuplugin /usr/bin/
 COPY p4-rh_mvp/rh_mvp.pkg /
 WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
 
-RUN rm -rf /var/cache/apk/*
-RUN apk add --update --no-cache openssh
+ENTRYPOINT ["/entrypoint.sh"]

@@ -52,9 +52,11 @@ test:
 	@go test -cover ./...
 
 image:
+	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)/p4
 	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
 	$(IMGTOOL) image tag $(IMAGE_TAG_VERSION) $(IMAGE_TAG_LATEST)
+	rm -rf p4
 
 PLATFORMS ?= linux/arm64,linux/amd64
 # https://stackoverflow.com/questions/73210141/running-buildkit-using-docker-buildx-behind-a-proxy
