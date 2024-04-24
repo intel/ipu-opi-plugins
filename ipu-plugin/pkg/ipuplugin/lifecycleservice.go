@@ -401,6 +401,12 @@ fi
 		return fmt.Errorf("failed to sync uuid file: %s", err)
 	}
 
+	session, err = client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %s", err)
+	}
+	defer session.Close()
+
 	// Run a command on the remote server and capture the output.
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
