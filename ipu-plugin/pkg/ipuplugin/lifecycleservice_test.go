@@ -31,6 +31,7 @@ var _ = Describe("basic functionality", Serial, func() {
 	fileSystemHandler = &MockFileSystemHandlerImpl{}
 	networkHandler = &MockNetworkHandlerImpl{}
 	executableHandler = &MockExecutableHandlerImpl{}
+	fxpHandler = &MockFXPHandlerImpl{}
 
 	Describe("pf communication channel setup", Serial, func() {
 
@@ -255,4 +256,10 @@ type MockExecutableHandlerImpl struct{}
 
 func (m *MockExecutableHandlerImpl) validate() bool {
 	return true
+}
+
+type MockFXPHandlerImpl struct{}
+
+func (m *MockFXPHandlerImpl) configureFXP(p4rtbin string) error {
+	return nil
 }

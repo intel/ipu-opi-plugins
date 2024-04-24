@@ -107,10 +107,17 @@ type SSHHandler interface {
 
 type SSHHandlerImpl struct{}
 
+type FXPHandler interface {
+	configureFXP(p4rtbin string) error
+}
+
+type FXPHandlerImpl struct{}
+
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
 var executableHandler ExecutableHandler
 var sshHandler SSHHandler
+var fxpHandler FXPHandler
 
 func initHandlers() {
 	if fileSystemHandler == nil {
@@ -124,6 +131,9 @@ func initHandlers() {
 	}
 	if sshHandler == nil {
 		sshHandler = &SSHHandlerImpl{}
+	}
+	if fxpHandler == nil {
+		fxpHandler = &FXPHandlerImpl{}
 	}
 }
 
@@ -479,6 +489,23 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	return true
 }
 
+func (s *FXPHandlerImpl) configureFXP(p4rtbin string) error {
+	vfMacList, err := utils.GetVfMacList()
+
+	if err != nil {
+		return fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	if len(vfMacList) == 0 {
+		return fmt.Errorf("no NFs initialized on the host")
+	}
+
+	p4rtclient.DeletePointToPointVFRules(p4rtbin, vfMacList)
+	p4rtclient.CreatePointToPointVFRules(p4rtbin, vfMacList)
+
+	return nil
+}
+
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
 	initHandlers()
 
@@ -496,19 +523,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			log.Info("not forcing state")
 		}
 
-		vfMacList, err := utils.GetVfMacList()
-
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
-		}
-
-		if len(vfMacList) == 0 {
-			return nil, status.Error(codes.Internal, "No NFs initialized on the host")
-		}
-
 		// Preconfigure the FXP with point-to-point rules between host VFs
-		p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
-		p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
+		if err := fxpHandler.configureFXP(s.p4rtbin); err != nil {
+			return nil, status.Errorf(codes.Internal, "Error when preconfiguring the FXP: %v", err)
+		}
 	}
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
