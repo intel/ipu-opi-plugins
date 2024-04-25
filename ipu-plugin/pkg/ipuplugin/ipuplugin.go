@@ -69,6 +69,7 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 		daemonHostIp:    daemonHostIp,
 		daemonIpuIp:     daemonIpuIp,
 		daemonPort:      daemonPort,
+		p4rtbin:         p4rtbin,
 	}
 }
 
