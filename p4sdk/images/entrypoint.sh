@@ -33,7 +33,7 @@ func_set_br_pipe(){
 CPF_INFO_FILE=cpf_info_file.txt
 CONF_DIR=/usr/share/stratum/es2k
 CONF_FILE=es2k_skip_p4.conf
-$SDE_INSTALL/bin/vfio_bind.sh 8086:1453 > $CPF_INFO_FILE 2>&1
+$SDE_INSTALL/bin/vfio_bind.sh 8086:1453 | tail -n 1 > $CPF_INFO_FILE 2>&1
 IOMMU_GROUP=$(awk '{print $5}' $CPF_INFO_FILE)
 CPF_BDF=$(awk '{print $2}' $CPF_INFO_FILE)
 export IOMMU_GROUP
