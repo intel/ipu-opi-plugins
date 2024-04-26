@@ -20,13 +20,23 @@ spec:
         securityContext:
           privileged: true
         command: [ "/entrypoint.sh" ]
+        resources:
+          limits:
+            hugepages-2Mi: 1Gi
+            cpu: "2"
         volumeMounts:
         - name: host-libmodules
           mountPath: /lib/modules
           mountPropagation: HostToContainer
+        - mountPath: /dev/hugepages
+          name: hugepage
       volumes:
       - name: host-libmodules
         hostPath:
           path: /lib/modules
           type: Directory
+      - name: hugepage
+        emptyDir:
+          medium: HugePages-2Mi
+
 
