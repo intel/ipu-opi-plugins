@@ -57,6 +57,9 @@ mkdir -p /usr/share/target_sys/
 cp /opt/p4/p4sde/share/target_sys/zlog-cfg /usr/share/target_sys/zlog-cfg
 mkdir -p /usr/share/stratum/es2k/
 cp /opt/p4/p4-cp-nws/share/stratum/es2k/es2k_port_config.pb.txt /usr/share/stratum/es2k/es2k_port_config.pb.txt
+# Create logging directory used by infrap4d
+mkdir -p /var/log/stratum
+touch /dev/mem
 
 # Start Infrap4d
 func_set_br_pipe &
