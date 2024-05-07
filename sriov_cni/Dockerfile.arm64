@@ -1,4 +1,4 @@
-FROM arm64v8/golang:alpine@sha256:91b81b4e3a039fe3f6a9f717784bf1197001adf412f6b1a9213b11d7977fe58b as builder
+FROM arm64v8/golang:alpine@sha256:c460374b291be9f6f7a7418a8591f1027289eb1e0d027202e571ad20f078daee as builder
 
 COPY . /usr/src/sriov-cni
 
