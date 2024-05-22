@@ -13,7 +13,7 @@ WORKDIR /usr/src/ipu-opi-plugin
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o bin/ipuplugin ipuplugin/main.go
 
-FROM alpine:3@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
+FROM alpine:3@sha256:77726ef6b57ddf65bb551896826ec38bc3e53f75cdde31354fbffb4f25238ebd
 
 COPY --from=builder /usr/src/ipu-opi-plugin/bin/ipuplugin /usr/bin/
 COPY p4-rh_mvp/rh_mvp.pkg /
