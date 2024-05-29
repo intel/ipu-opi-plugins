@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
 
-FROM registry.access.redhat.com/ubi9/ubi:9.3-1610
+FROM registry.access.redhat.com/ubi9/ubi:9.4-947.1716476138
 
 ENV HTTP_PROXY $http_proxy
 ENV HTTPS_PROXY $https_proxy
