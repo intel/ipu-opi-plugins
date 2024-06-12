@@ -37,7 +37,7 @@ jobs:
         with:
           go-version: 1.21
       - name: Checkout
-        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v3.5.2
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v3.5.2
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@df5a14dc28094dc936e103b37d749c6628682b60 # v2.3.3
