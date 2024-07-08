@@ -1,4 +1,4 @@
-# Intel IPU Plugin deployment and tesing on Openshift cluster
+# Intel IPU Plugin deployment and testing on Openshift cluster
 
 ## Assumptions:
 - Working OCP cluster with at least one Worker node with IPU with MEV-1.2
@@ -48,9 +48,9 @@ oc create -f $ROOT_DIR/e2e/artefacts/k8s/p4sdk-ds.yaml
 ## Run IPU Plugin
 
 ### Build IPU Plugin container image:
-Since ipu-plugin will be running on both workner node host side as well as on ACC we need to build a multi-arch container image for it so that the same image name can used to deploy it on both platform.
+Since ipu-plugin will be running on both workner node host side as well as on ACC we need to build a multi-arch container image for it so that the same image name can used to deploy it on both locations.
 
-Docker needs to be configure for multi-arch build and correct proxy needs to be set for docker daemon.
+Docker needs to be configured for multi-arch build and correct proxy needs to be set for docker daemon.
 
 ```
 $ROOT_DIR/ipu-plugin
