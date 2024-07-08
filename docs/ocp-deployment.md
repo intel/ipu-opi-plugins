@@ -1,10 +1,10 @@
 # Intel IPU Plugin deployment and tesing on Openshift cluster
 
 ## Assumptions:
-- Working OCP cluster with at least oen Worker node with IPU with MEV-1.2
+- Working OCP cluster with at least one Worker node with IPU with MEV-1.2
 - RHEL 9.4 is running on IPU ACC and Red Hat subscription is enabled
 - ACC has internet access
-- An image registry is configured and running to host container images that is accessible from the OCP enviroment and microshift running on ACC 
+- An image registry is configured and running to host container images that is accessible from the OCP environment and microshift running on ACC 
 
 ## Clone this repository
 
@@ -21,7 +21,7 @@ export ROOT_DIR=$(pwd)
 
 ## Export image registry URL
 
-Set MAGE_REGISTRY env variable with valid Image registry.
+Set IMAGE_REGISTRY env variable with valid Image registry.
 
 ```
 export IMAGE_REGISTRY=localhost:5000
@@ -58,7 +58,7 @@ make imagex
 ```
 
 ### Run IPU Plugin on Host
-Update ipu=plugin image reference if required in `$ROOT_DIR/e2e/artefacts/k8s/vsp-ds.yaml` and then deploy it:
+Update ipu-plugin image reference if required in `$ROOT_DIR/e2e/artefacts/k8s/vsp-ds.yaml` and then deploy it:
 
 ```
 oc create -f e2e/artefacts/k8s/vsp-ds.yaml
