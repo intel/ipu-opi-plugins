@@ -1,6 +1,7 @@
 module github.com/intel/ipu-opi-plugins/ipu-plugin
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	github.com/ipdk-io/k8s-infra-offload v0.0.0-20230824210601-791f4fa3562a
@@ -16,7 +17,7 @@ require (
 	golang.org/x/crypto v0.22.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
-	k8s.io/kubelet v0.29.3
+	k8s.io/kubelet v0.30.3
 )
 
 require (
@@ -66,7 +67,7 @@ require (
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.17.0 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
@@ -76,11 +77,11 @@ require (
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.29.3 // indirect
-	k8s.io/apimachinery v0.29.3 // indirect
-	k8s.io/client-go v0.29.3 // indirect
-	k8s.io/klog/v2 v2.110.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
+	k8s.io/api v0.30.3 // indirect
+	k8s.io/apimachinery v0.30.3 // indirect
+	k8s.io/client-go v0.30.3 // indirect
+	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
