@@ -68,8 +68,7 @@ func discoverHostDevices(mode string) (map[string]*pb.Device, error) {
 					devices[file.Name()] = &pb.Device{ID: file.Name(), Health: pluginapi.Healthy}
 				}
 			}
-		}
-		if mode == types.HostMode {
+		} else if mode == types.HostMode {
 			if device_code == deviceCodeVf {
 				devices[file.Name()] = &pb.Device{ID: file.Name(), Health: pluginapi.Healthy}
 			}
