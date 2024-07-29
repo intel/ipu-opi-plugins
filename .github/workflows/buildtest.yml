@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.21.x]
-        os: [intel-ubuntu-latest]
+        os: [ubuntu-latest]
         subproject: [ipu-plugin, sriov_cni, network_function] # Add more subprojects as needed
     runs-on: ${{ matrix.os }}
     env:
