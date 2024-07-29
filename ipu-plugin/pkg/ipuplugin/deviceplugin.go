@@ -8,27 +8,30 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 type DevicePluginService struct {
 	pb.UnimplementedDeviceServiceServer
+	mode string
 }
 
 var (
 	exclude     = []string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3"}
 	sysClassNet = "/sys/class/net"
 	deviceCode  = "0x1452"
+	deviceCodeVf = "0x145c"
 )
 
-func NewDevicePluginService() *DevicePluginService {
-	return &DevicePluginService{}
+func NewDevicePluginService(mode string) *DevicePluginService {
+	return &DevicePluginService{mode: mode}
 }
 
-func (*DevicePluginService) GetDevices(context.Context, *pb.Empty) (*pb.DeviceListResponse, error) {
+func (s *DevicePluginService) GetDevices(context.Context, *pb.Empty) (*pb.DeviceListResponse, error) {
 
-	devices, err := discoverHostDevices()
+	devices, err := discoverHostDevices(s.mode)
 	if err != nil {
 		return &pb.DeviceListResponse{}, err
 	}
@@ -41,7 +44,7 @@ func (*DevicePluginService) GetDevices(context.Context, *pb.Empty) (*pb.DeviceLi
 	return response, nil
 }
 
-func discoverHostDevices() (map[string]*pb.Device, error) {
+func discoverHostDevices(mode string) (map[string]*pb.Device, error) {
 
 	devices := make(map[string]*pb.Device)
 
@@ -59,9 +62,15 @@ func discoverHostDevices() (map[string]*pb.Device, error) {
 		}
 
 		device_code := strings.TrimSpace(string(deviceCodeByte))
-
-		if device_code == deviceCode {
-			if !slices.Contains(exclude, file.Name()) {
+		if mode == types.IpuMode {
+			if device_code == deviceCode {
+				if !slices.Contains(exclude, file.Name()) {
+					devices[file.Name()] = &pb.Device{ID: file.Name(), Health: pluginapi.Healthy}
+				}
+			}
+		}
+		if mode == types.HostMode {
+			if device_code == deviceCodeVf {
 				devices[file.Name()] = &pb.Device{ID: file.Name(), Health: pluginapi.Healthy}
 			}
 		}

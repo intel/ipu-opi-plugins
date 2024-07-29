@@ -91,9 +91,9 @@ func (s *server) Run() error {
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin))
 	if s.mode == types.IpuMode {
 		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
-		pb2.RegisterDeviceServiceServer(s.grpcSrvr, NewDevicePluginService())
 		pb2.RegisterNetworkFunctionServiceServer(s.grpcSrvr, NewNetworkFunctionService(s.p4rtbin))
 	}
+	pb2.RegisterDeviceServiceServer(s.grpcSrvr, NewDevicePluginService(s.mode))
 
 	s.log.WithField("addr", listen.Addr().String()).Info("IPU plugin server listening on at:")
 	go func() {
