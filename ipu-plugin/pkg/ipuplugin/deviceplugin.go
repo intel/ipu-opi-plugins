@@ -19,9 +19,9 @@ type DevicePluginService struct {
 }
 
 var (
-	exclude     = []string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3"}
-	sysClassNet = "/sys/class/net"
-	deviceCode  = "0x1452"
+	exclude      = []string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4"}
+	sysClassNet  = "/sys/class/net"
+	deviceCode   = "0x1452"
 	deviceCodeVf = "0x145c"
 )
 
