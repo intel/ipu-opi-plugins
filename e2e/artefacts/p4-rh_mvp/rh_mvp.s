@@ -1,4 +1,12 @@
-/* p4c-pna-xxp version: 3.0.70.68 */ 
+/* p4c-pna-xxp version: 3.0.70.112 */ 
+
+name "RH MVP P4 Program pkg";
+version 1.0.73.29;
+segment IDPF_CXP {
+    version 1.0.73.29;
+    name "RH MVP P4 Program pkg";
+}
+
 
 segment IDPF_FXP {
     label REG 0 PMD_COMMON;
@@ -103,6 +111,13 @@ segment IDPF_FXP {
 
 segment IDPF_FXP {
 
+    domain 0 {
+        name "RH MVP P4 Program pkg";
+    }
+    domain 0 {
+        version 1.0.73.29;
+        external_version 0 1.0.73.29;
+    }
 
     label DOMAIN 0 GLOBAL;    label PROTOCOL_ID 255 PROTO_ID_INVALID;
     label PROTOCOL_ID 1 MAC_IN0;
@@ -2008,6 +2023,7 @@ block PARSER {
 	}
 }
 
+
 block SEM {
 
   domain GLOBAL {
@@ -2031,7 +2047,6 @@ block SEM {
             'h????_????, 16'b????_????_????_???0, 32'b????_????_????_????_????_????_????_???? : BASE(0), KEY(3), KEY(2), KEY(8), KEY(48), KEY(9), KEY(45), KEY(44), KEY(33), KEY(32);
 
     }
-
 
     table PTYPE_GROUP(%PTYPE) {
 
@@ -2059,7 +2074,6 @@ block SEM {
         366 : 366, DROP(0);
         43 : 43, DROP(0);
     }
-
 
     tcam PROFILE(%PTYPE_GROUP, %VSI_GROUP, %SEM_MD2, %PORT) {
 
@@ -2116,7 +2130,7 @@ block SEM {
 
         0 : BASE(0), ENTRY_SIZE(64), START_BANK(0), NUM_BANKS(2);
         1 : BASE(17104896), ENTRY_SIZE(64), START_BANK(2), NUM_BANKS(2);
-        2 : BASE(34209792), ENTRY_SIZE(64), START_BANK(4), NUM_BANKS(2);
+        2 : BASE(34209792), ENTRY_SIZE(32), START_BANK(4), NUM_BANKS(1);
     }
 
     table PROFILE_CFG(%PROFILE) {
@@ -2127,7 +2141,7 @@ block SEM {
 				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (228, 2, 'hFFFF)
@@ -2149,7 +2163,7 @@ block SEM {
 				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
 				EXTRACT {
 					WORD0 (1, 0, 'hFFFF),
 					WORD1 (1, 2, 'hFFFF),
@@ -2164,13 +2178,36 @@ block SEM {
 				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (228, 2, 'hFFFF),
 					WORD2 (228, 4, 'hFFFF)
 				}
 
+			}
+, 
+			// vport_egress_dmac_table
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				EXTRACT {
+					WORD0 (1, 0, 'hFFFF),
+					WORD1 (1, 2, 'hFFFF),
+					WORD2 (1, 4, 'hFFFF)
+				}
+
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
 			}
 ;
         10 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(10), HASH_SIZE2(10), HASH_SIZE3(10), HASH_SIZE4(10), HASH_SIZE5(10), PINNED_LOOKUP(0), AGING_MODE(NONE), 
@@ -2179,7 +2216,8 @@ block SEM {
 				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (19, 2, 'hFF0F)
@@ -2201,7 +2239,7 @@ block SEM {
 				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
 				EXTRACT {
 					WORD0 (1, 0, 'hFFFF),
 					WORD1 (1, 2, 'hFFFF),
@@ -2216,7 +2254,8 @@ block SEM {
 				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (228, 2, 'hFFFF),
@@ -2231,13 +2270,30 @@ block SEM {
 				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(12),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (228, 2, 'hFFFF),
 					WORD2 (228, 4, 'hFFFF)
 				}
 
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
 			}
 , 
 			// empty_sem_2
@@ -2254,7 +2310,8 @@ block SEM {
 				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 24, 'h7FF),
 					WORD1 (230, 2, 'hFFE)
@@ -2262,12 +2319,19 @@ block SEM {
 
 			}
 , 
-			// empty_sem_1
+			// ingress_loopback_dmac_table
 			LUT {
 				OBJECT_ID(1),
-				VSI_LIST_EN(0),
+				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(1)
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
+				EXTRACT {
+					WORD0 (1, 0, 'hFFFF),
+					WORD1 (1, 2, 'hFFFF),
+					WORD2 (1, 4, 'hFFFF)
+				}
+
 			}
 ;
         9 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(10), HASH_SIZE2(10), HASH_SIZE3(10), HASH_SIZE4(10), HASH_SIZE5(10), PINNED_LOOKUP(0), AGING_MODE(NONE), 
@@ -2276,7 +2340,8 @@ block SEM {
 				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (228, 2, 'hFFFF),
 					WORD1 (228, 4, 'hFFFF)
@@ -2298,7 +2363,8 @@ block SEM {
 				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 5, 'h18),
 					WORD1 (16, 2, 'hFF0F)
@@ -2313,14 +2379,31 @@ block SEM {
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
 ;
         6 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(10), HASH_SIZE2(10), HASH_SIZE3(10), HASH_SIZE4(10), HASH_SIZE5(10), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// phy_ingress_vlan_dmac_table
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(604110855),
 				EXTRACT {
 					WORD0 (224, 5, 'h18),
 					WORD1 (16, 2, 'hFF0F),
@@ -2331,9 +2414,9 @@ block SEM {
 
 			}
 , 
-			// empty_sem_2
+			// empty_sem_1
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(1),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
@@ -2382,9 +2465,7 @@ block LEM {
   domain GLOBAL {
 
     owner PROFILE_CFG 0 GLOBAL;
-
     table PROFILE_CFG(%PROFILE) {
-
 		0 : 
 			HASH_SIZE0(1), 
 			HASH_SIZE1(1), 
@@ -2410,29 +2491,25 @@ block HASH {
     owner PROFILE_LUT_CFG 0 GLOBAL;
     owner KEY_EXTRACT 0 GLOBAL;
     owner KEY_MASK 0 GLOBAL;
-
-    tcam PROFILE(%PTYPE_GROUP, %VSI_GROUP, %MD_KEY){
+    tcam PROFILE(%PTYPE_GROUP, %VSI_GROUP, %MD_KEY) {
 		@4095 { 'b????, 'b????_?, 'h???? : 0; }
 
     }
-
-    table PROFILE_LUT_CFG(%PROFILE){
-		0 : 
+    table PROFILE_LUT_CFG(%PROFILE) {
+	0 : 
 			TYPE(QUEUE), 
 			MASK_SELECT(0), 
 			TC_OVR(0), 
 			VSI_PROFILE_OVR(1);
 
     }
-
-    table KEY_EXTRACT(%PROFILE){
+    table KEY_EXTRACT(%PROFILE) {
 		0 : 
 			BYTE0(255, 255), 
 			BYTE1(255, 255);
 
     }
-
-    table KEY_MASK (%MASK_SELECT){
+    table KEY_MASK(%MASK_SELECT) {
 		0 : 
 			BYTE0('hFF), 
 			BYTE1('hFF);
@@ -2452,8 +2529,7 @@ block MOD {
     owner FIELD_MAP1_CFG 0..2047 GLOBAL;
     owner FIELD_MAP2_CFG 0..2047 GLOBAL;
     owner META_PROFILE_CFG 0..15 GLOBAL;
-
-    table PROFILE_CFG(%PROFILE){
+    table PROFILE_CFG(%PROFILE) {
 		5 : /* mod_vlan_push_ctag*/
 			EXTRACT(0), 
 			GROUP{0}, 
@@ -2484,14 +2560,12 @@ block MOD {
 			GROUP{PID(16), INS(0,19,4)};
 
     }
-
-    table FV_EXTRACT(%EXTRACT){
+    table FV_EXTRACT(%EXTRACT) {
 		0 : /* Default*/
 			BYTE(255, 255);
 
     }
-
-    table HASH_SPACE_CFG(%HASH_SPACE_ID){
+    table HASH_SPACE_CFG(%HASH_SPACE_ID) {
 		0 : 
 			BASE('h0);
 		1 : 
@@ -2551,13 +2625,11 @@ block WCM {
 
     owner PROFILE_CFG0 0 GLOBAL;
     owner PROFILE_CFG1 0 GLOBAL;
-
     table PROFILE_CFG0(%WCM_PROFILE0) {
 		0 : 
 			BYPASS(1);
 
     }
-
     table PROFILE_CFG1(%WCM_PROFILE1) {
 		0 : 
 			BYPASS(1);
@@ -2575,22 +2647,17 @@ block RC {
   }
 }
 
-block PMC {
-}
-
 block LPM {
 
   domain GLOBAL {
 
     owner PROFILE_CFG 0 GLOBAL;
-
-    table PROFILE_CFG(%PROFILE){
+    table PROFILE_CFG(%PROFILE) {
 		0 : 
 			KEY_SIZE('h0);
 
     }
-
-    table HASH_SPACE_CFG(%HASH_SPACE_ID){
+    table HASH_SPACE_CFG(%HASH_SPACE_ID) {
 		0 : 
 			BASE('h0);
 
@@ -2599,8 +2666,7 @@ block LPM {
   }
 }
 
-block MNG{
-
+block MNG {
     define KEY_EXTRACT {
 		MAC_DA(1, 0),
 		VLAN_TAG(16, 2),
