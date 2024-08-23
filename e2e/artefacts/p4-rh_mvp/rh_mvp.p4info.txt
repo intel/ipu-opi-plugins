@@ -369,6 +369,30 @@ tables {
 }
 tables {
   preamble {
+    id: 43924165
+    name: "rh_mvp_control.ingress_loopback_dmac_table"
+    alias: "ingress_loopback_dmac_table"
+  }
+  match_fields {
+    id: 1
+    name: "dmac"
+    annotations: "@format(MAC_ADDRESS)"
+    bitwidth: 48
+    match_type: EXACT
+  }
+  action_refs {
+    id: 22841159
+  }
+  action_refs {
+    id: 30287134
+    annotations: "@defaultonly"
+    scope: DEFAULT_ONLY
+  }
+  const_default_action_id: 30287134
+  size: 16384
+}
+tables {
+  preamble {
     id: 41857485
     name: "rh_mvp_control.vport_egress_vsi_table"
     alias: "vport_egress_vsi_table"
@@ -416,6 +440,30 @@ tables {
     id: 2
     name: "vsi"
     bitwidth: 11
+    match_type: EXACT
+  }
+  action_refs {
+    id: 22841159
+  }
+  action_refs {
+    id: 21257015
+    annotations: "@defaultonly"
+    scope: DEFAULT_ONLY
+  }
+  const_default_action_id: 21257015
+  size: 1024
+}
+tables {
+  preamble {
+    id: 45925960
+    name: "rh_mvp_control.vport_egress_dmac_table"
+    alias: "vport_egress_dmac_table"
+  }
+  match_fields {
+    id: 1
+    name: "dmac"
+    annotations: "@format(MAC_ADDRESS)"
+    bitwidth: 48
     match_type: EXACT
   }
   action_refs {

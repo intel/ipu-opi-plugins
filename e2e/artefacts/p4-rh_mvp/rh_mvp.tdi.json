@@ -1204,6 +1204,82 @@
       "attributes" : []
     },
     {
+      "name" : "main.rh_mvp_control.ingress_loopback_dmac_table",
+      "id" : 43924165,
+      "table_type" : "MatchAction_Direct",
+      "size" : 16384,
+      "annotations" : [],
+      "depends_on" : [],
+      "has_const_default_action" : true,
+      "key" : [
+        {
+          "id" : 1,
+          "name" : "dmac",
+          "repeated" : false,
+          "annotations" : [
+            {
+              "name" : "@format(MAC_ADDRESS)"
+            }
+          ],
+          "mandatory" : false,
+          "match_type" : "Exact",
+          "type" : {
+            "type" : "bytes",
+            "width" : 48
+          }
+        }
+      ],
+      "action_specs" : [
+        {
+          "id" : 22841159,
+          "name" : "rh_mvp_control.fwd_to_port",
+          "action_scope" : "TableAndDefault",
+          "annotations" : [],
+          "data" : [
+            {
+              "id" : 1,
+              "name" : "vport",
+              "repeated" : false,
+              "mandatory" : true,
+              "read_only" : false,
+              "annotations" : [],
+              "type" : {
+                "type" : "bytes",
+                "width" : 32
+              }
+            }
+          ]
+        },
+        {
+          "id" : 30287134,
+          "name" : "rh_mvp_control.l2_fwd_miss_action",
+          "action_scope" : "DefaultOnly",
+          "annotations" : [
+            {
+              "name" : "@defaultonly"
+            }
+          ],
+          "data" : [
+            {
+              "id" : 1,
+              "name" : "port",
+              "repeated" : false,
+              "mandatory" : true,
+              "read_only" : false,
+              "annotations" : [],
+              "type" : {
+                "type" : "bytes",
+                "width" : 32
+              }
+            }
+          ]
+        }
+      ],
+      "data" : [],
+      "supported_operations" : [],
+      "attributes" : []
+    },
+    {
       "name" : "main.rh_mvp_control.vport_egress_vsi_table",
       "id" : 41857485,
       "table_type" : "MatchAction_Direct",
@@ -1354,6 +1430,69 @@
           "type" : {
             "type" : "bytes",
             "width" : 11
+          }
+        }
+      ],
+      "action_specs" : [
+        {
+          "id" : 22841159,
+          "name" : "rh_mvp_control.fwd_to_port",
+          "action_scope" : "TableAndDefault",
+          "annotations" : [],
+          "data" : [
+            {
+              "id" : 1,
+              "name" : "vport",
+              "repeated" : false,
+              "mandatory" : true,
+              "read_only" : false,
+              "annotations" : [],
+              "type" : {
+                "type" : "bytes",
+                "width" : 32
+              }
+            }
+          ]
+        },
+        {
+          "id" : 21257015,
+          "name" : "NoAction",
+          "action_scope" : "DefaultOnly",
+          "annotations" : [
+            {
+              "name" : "@defaultonly"
+            }
+          ],
+          "data" : []
+        }
+      ],
+      "data" : [],
+      "supported_operations" : [],
+      "attributes" : []
+    },
+    {
+      "name" : "main.rh_mvp_control.vport_egress_dmac_table",
+      "id" : 45925960,
+      "table_type" : "MatchAction_Direct",
+      "size" : 1024,
+      "annotations" : [],
+      "depends_on" : [],
+      "has_const_default_action" : true,
+      "key" : [
+        {
+          "id" : 1,
+          "name" : "dmac",
+          "repeated" : false,
+          "annotations" : [
+            {
+              "name" : "@format(MAC_ADDRESS)"
+            }
+          ],
+          "mandatory" : false,
+          "match_type" : "Exact",
+          "type" : {
+            "type" : "bytes",
+            "width" : 48
           }
         }
       ],
