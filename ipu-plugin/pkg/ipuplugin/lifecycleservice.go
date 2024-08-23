@@ -223,7 +223,7 @@ func getFilteredPFs(pfList *[]netlink.Link) error {
 	linkList, err := networkHandler.LinkList()
 
 	if err != nil || len(linkList) == 0 {
-		return fmt.Errorf("unable to retrieve link list: %v", err)
+		return fmt.Errorf("unable to retrieve link list: %v, len->%v", err, len(linkList))
 	}
 
 	for i := 0; i < len(linkList); i++ {
@@ -235,6 +235,45 @@ func getFilteredPFs(pfList *[]netlink.Link) error {
 	}
 
 	return nil
+}
+
+/*
+If IDPF net devices dont show up on host-side(this can happen if IMC reboot is done without rmmod(for IDPF on host).
+This function is a best effort to bring-up IDPF netdevices, using rmmod/modprobe of IDPF.
+*/
+func checkIdpfNetDevices(mode string) {
+	var pfList []netlink.Link
+	if mode == types.HostMode {
+		if err := getFilteredPFs(&pfList); err != nil {
+			log.Errorf("checkNetDevices: err->%v from getFilteredPFs", err)
+			return
+		}
+		//Case where we dont see host IDPF netdevices.
+		if len(pfList) == 0 {
+			log.Debugf("Not seeing host IDPF netdevices, attempt rmmod/modprobe\n")
+			output, err := utils.ExecuteScript(`lsmod | grep idpf`)
+			if err != nil {
+				log.Errorf("lsmod err->%v, output->%v\n", err, output)
+				return
+			}
+
+			_, err = utils.ExecuteScript(`rmmod idpf`)
+
+			if err != nil {
+				log.Errorf("rmmod err->%v\n", err)
+				return
+			} else {
+				_, err = utils.ExecuteScript(`modprobe idpf`)
+				if err != nil {
+					log.Errorf("modprobe err->%v\n", err)
+					return
+				}
+			}
+			log.Debugf("completed-rmmod and modprobe of IDPF\n")
+		} else {
+			log.Debugf("host IDPF netdevices exist, count->%d\n", len(pfList))
+		}
+	}
 }
 
 func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
@@ -538,6 +577,8 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			return nil, status.Errorf(codes.Internal, "Error when preconfiguring the FXP: %v", err)
 		}
 	}
+
+	checkIdpfNetDevices(s.mode)
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

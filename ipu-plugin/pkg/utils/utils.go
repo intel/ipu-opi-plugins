@@ -109,7 +109,7 @@ func ExecuteScript(script string) (string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("error calling sshFunc %s, %s, %v", stdout.String(), stderr.String(), err)
+		return "", fmt.Errorf("ExecuteScript: error %s, %s, %v", stdout.String(), stderr.String(), err)
 	}
 	return stdout.String(), nil
 }
