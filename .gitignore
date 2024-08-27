@@ -3,9 +3,3 @@
 */build/*
 */bin/*
 */.gopath/*
-*.tar.gz
-*.swp
-*.swo
-
-
-ipu-plugin/p4-rh_mvp
