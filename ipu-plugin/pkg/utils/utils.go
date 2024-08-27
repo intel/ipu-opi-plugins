@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -112,6 +113,32 @@ func ExecuteScript(script string) (string, error) {
 		return "", fmt.Errorf("ExecuteScript: error %s, %s, %v", stdout.String(), stderr.String(), err)
 	}
 	return stdout.String(), nil
+}
+
+func GetVfDeviceCount(mode string) (int, error) {
+	var ipAddr string
+	if mode == types.HostMode {
+		ipAddr = "100.0.0.100"
+	} else if mode == types.IpuMode {
+		ipAddr = "192.168.0.1"
+	}
+
+	runCommand := fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@"%s" "/usr/bin/cli_client -cq" \
+		| awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`, ipAddr)
+
+	// reach out to the IMC to get the mac addresses of the VFs
+	output, err := ExecuteScript(runCommand)
+
+	if err != nil {
+		return 0, fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	vfMacList := strings.Split(strings.TrimSpace(output), "\n")
+	length := len(vfMacList)
+	if len(vfMacList) == 1 && vfMacList[0] == "" {
+		length = length - 1
+	}
+	return length, nil
 }
 
 func GetVfMacList() ([]string, error) {

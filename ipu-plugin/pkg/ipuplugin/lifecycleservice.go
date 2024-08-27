@@ -289,12 +289,12 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 
 	if pf == nil {
 		// Address already set - we don't proceed with setting the ip
-		fmt.Printf("configureChannel: pf nil from getCommPf")
+		fmt.Printf("configureChannel: pf nil from getCommPf\n")
 		return nil
 	}
 
 	if err != nil {
-		fmt.Printf("configureChannel: err->%v from getCommPf", err)
+		fmt.Printf("configureChannel: err->%v from getCommPf\n", err)
 		return status.Error(codes.Internal, err.Error())
 	}
 
