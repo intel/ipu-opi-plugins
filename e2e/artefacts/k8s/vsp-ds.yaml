@@ -33,8 +33,13 @@ spec:
         volumeMounts:
         - name: vendor-plugin-sock
           mountPath: /var/run/dpu-daemon/
+        - name: dbus-socket
+          mountPath: /var/run/dbus
       volumes:
       - name: vendor-plugin-sock
         hostPath:
           path: /var/run/dpu-daemon/
+      - name: dbus-socket
+        hostPath:
+          path: /var/run/dbus/
 

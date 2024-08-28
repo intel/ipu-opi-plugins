@@ -99,6 +99,7 @@ func (fs *FileSystemHandlerImpl) GetVendor(iface string) ([]byte, error) {
 
 type ExecutableHandler interface {
 	validate() bool
+	nmcliSetup(link netlink.Link) error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -192,18 +193,52 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 	return pf, nil
 }
 
+/*
+It can take time for network-manager's state for each interface, to become
+activated, when IP address is set, which can cause the IP address to not stick.
+Removing the host-acc comm channel interface out of network-manager's mgmt.
+TODO: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
+this api can be extended for other distros that use different CLI/systemd-networkd.
+*/
+func (e *ExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
+	intfName := link.Attrs().Name
+	output, err := utils.ExecuteScript(`nmcli general status`)
+	if err == nil {
+		output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
+		if err != nil {
+			log.Errorf("nmcli err->%v, output->%v\n", err, output)
+			return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+		}
+	} else {
+		log.Infof("network manager not running, skipping nmcli, err->%v\n", err)
+	}
+	output, err = utils.ExecuteScript(`ip link set ` + intfName + ` up`)
+	if err != nil {
+		log.Errorf("ip link set err->%v, output->%v\n", err, output)
+		return fmt.Errorf("ip link set  err->%v, output->%v\n", err, output)
+	}
+	return nil
+}
+
 func setIP(link netlink.Link, ip string) error {
 	list, err := networkHandler.AddrList(link, netlink.FAMILY_V4)
 
 	if err != nil {
+		log.Errorf("setIP: unable to get the ip address of link: %v\n", err)
 		return fmt.Errorf("unable to get the ip address of link: %v", err)
 	}
 
 	if len(list) == 0 {
 
+		if err = executableHandler.nmcliSetup(link); err != nil {
+			log.Errorf("setIP: err->%v from nmcliSetup\n", err)
+			return fmt.Errorf("setIP: err->%v from nmcliSetup", err)
+		}
+
 		ipAddr := net.ParseIP(ip)
 
 		if ipAddr.To4() == nil {
+			log.Errorf("setIP: invalid ip->%v\n", ipAddr)
 			return fmt.Errorf("not a valid IPv4 address: %v", err)
 		}
 
@@ -211,12 +246,14 @@ func setIP(link netlink.Link, ip string) error {
 		addr := &netlink.Addr{IPNet: &net.IPNet{IP: ipAddr, Mask: net.CIDRMask(24, 32)}}
 
 		if err = networkHandler.AddrAdd(link, addr); err != nil {
+			log.Errorf("setIP: unable to add address: %v\n", err)
 			return fmt.Errorf("unable to add address: %v", err)
 		}
 	} else {
+		log.Errorf("address already set. Unset ip address for interface %s and run again\n", link.Attrs().Name)
 		return fmt.Errorf("address already set. Unset ip address for interface %s and run again", link.Attrs().Name)
 	}
-
+	log.Debugf("setIP: Address->%v, set for interface->%v\n", ip, link.Attrs().Name)
 	return nil
 }
 
@@ -438,7 +475,7 @@ if [ -e rh_mvp.pkg ]; then
     sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
-    sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,4\]));/g' $CP_INIT_CFG
+    sed -i 's/comm_vports = .*/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,4\]));/g' $CP_INIT_CFG
 else
     echo "No custom package found. Continuing with default package"
 fi
