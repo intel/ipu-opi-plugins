@@ -31,7 +31,7 @@ import (
 )
 
 type server struct {
-	//pb.UnimplementedBridgePortServiceServer
+	pb.UnimplementedBridgePortServiceServer
 	servingAddr     string
 	servingPort     int
 	servingProto    string
