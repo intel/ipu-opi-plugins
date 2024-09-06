@@ -119,7 +119,7 @@ var executableHandler ExecutableHandler
 var sshHandler SSHHandler
 var fxpHandler FXPHandler
 
-func initHandlers() {
+func InitHandlers() {
 	if fileSystemHandler == nil {
 		fileSystemHandler = &FileSystemHandlerImpl{}
 	}
@@ -218,7 +218,26 @@ func setIP(link netlink.Link, ip string) error {
 	return nil
 }
 
-func getFilteredPFs(pfList *[]netlink.Link) error {
+func GetMacforNetworkInterface(intf string, linkList []netlink.Link) (string, error) {
+	mac := ""
+	found := false
+	for i := 0; i < len(linkList); i++ {
+		if linkList[i].Attrs().Name == intf {
+			mac = linkList[i].Attrs().HardwareAddr.String()
+			log.Debugf("found mac->%v for interface->%v\n", mac, intf)
+			found = true
+			break
+		}
+	}
+
+	if found == true {
+		return mac, nil
+	}
+	log.Errorf("Couldnt find mac for interface->%v\n", intf)
+	return "", fmt.Errorf("Couldnt find mac for interface->%v\n", intf)
+}
+
+func GetFilteredPFs(pfList *[]netlink.Link) error {
 
 	linkList, err := networkHandler.LinkList()
 
@@ -244,8 +263,8 @@ This function is a best effort to bring-up IDPF netdevices, using rmmod/modprobe
 func checkIdpfNetDevices(mode string) {
 	var pfList []netlink.Link
 	if mode == types.HostMode {
-		if err := getFilteredPFs(&pfList); err != nil {
-			log.Errorf("checkNetDevices: err->%v from getFilteredPFs", err)
+		if err := GetFilteredPFs(&pfList); err != nil {
+			log.Errorf("checkNetDevices: err->%v from GetFilteredPFs", err)
 			return
 		}
 		//Case where we dont see host IDPF netdevices.
@@ -280,8 +299,8 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 
 	var pfList []netlink.Link
 
-	if err := getFilteredPFs(&pfList); err != nil {
-		fmt.Printf("configureChannel: err->%v from getFilteredPFs", err)
+	if err := GetFilteredPFs(&pfList); err != nil {
+		fmt.Printf("configureChannel: err->%v from GetFilteredPFs", err)
 		return status.Error(codes.Internal, err.Error())
 	}
 
@@ -475,7 +494,7 @@ fi
 func countAPFDevices() int {
 	var pfList []netlink.Link
 
-	if err := getFilteredPFs(&pfList); err != nil {
+	if err := GetFilteredPFs(&pfList); err != nil {
 		return 0
 	}
 
@@ -556,7 +575,7 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string) error {
 }
 
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
-	initHandlers()
+	InitHandlers()
 
 	if in.DpuMode && s.mode != types.IpuMode || !in.DpuMode && s.mode != types.HostMode {
 		return nil, status.Errorf(codes.Internal, "Ipu plugin running in %s mode", s.mode)

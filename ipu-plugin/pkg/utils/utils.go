@@ -30,6 +30,8 @@ import (
 const (
 	vsiToVportOffset = 16
 	pbPythonEnvVar   = "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python"
+	hostToImcIpAddr  = "100.0.0.100"
+	accToImcIpAddr   = "192.168.0.1"
 )
 
 var execCommand = exec.Command
@@ -115,12 +117,33 @@ func ExecuteScript(script string) (string, error) {
 	return stdout.String(), nil
 }
 
+func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
+	var ipAddr string
+	if mode == types.HostMode {
+		ipAddr = hostToImcIpAddr
+	} else if mode == types.IpuMode {
+		ipAddr = accToImcIpAddr
+	}
+
+	runCommand := fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@"%s" "/usr/bin/cli_client -cq" \
+		| awk '{if(($17 == "%s")) {print $8}}'`, ipAddr, mac)
+
+	output, err := ExecuteScript(runCommand)
+	output = strings.TrimSpace(string(output))
+
+	if err != nil || output == "" {
+		log.Errorf("unable to reach IMC %v or null output->%v", err, output)
+		return "", fmt.Errorf("unable to reach IMC %v or null output->%v", err, output)
+	}
+	return output, nil
+}
+
 func GetVfDeviceCount(mode string) (int, error) {
 	var ipAddr string
 	if mode == types.HostMode {
-		ipAddr = "100.0.0.100"
+		ipAddr = hostToImcIpAddr
 	} else if mode == types.IpuMode {
-		ipAddr = "192.168.0.1"
+		ipAddr = accToImcIpAddr
 	}
 
 	runCommand := fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@"%s" "/usr/bin/cli_client -cq" \
