@@ -29,7 +29,7 @@ spec:
         securityContext:
           privileged: true
         command: [ "/usr/bin/ipuplugin" ]
-        args: [ "--bridgeType=linux", "--interface=enp0s1f0d3", "--portMuxVsi=0x0b", "--ovsCliDir=/opt/p4/p4-cp-nws", "-v=debug"]
+        args: [ "-v=debug"]
         volumeMounts:
         - name: vendor-plugin-sock
           mountPath: /var/run/dpu-daemon/

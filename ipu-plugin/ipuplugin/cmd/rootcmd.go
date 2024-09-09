@@ -20,15 +20,20 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/ipuplugin"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	ut "github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	"github.com/ipdk-io/k8s-infra-offload/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -40,10 +45,11 @@ const (
 	tenantBridgeName    = "br-tenant"
 	defaultLogDir       = "/var/log/ipuplugin"
 	defaultBridge       = "linux"
+	defaultBridgeIntf   = "enp0s1f0d3"
 	defaulP4Pkg         = "redhat"
 	defaultP4rtBin      = "/opt/p4/p4-cp-nws/bin/p4rt-ctl"
-	defaultOvsCliDir    = "/opt/p4/p4-cp-nws/bin"
-	defaultPortMuxVsi   = 0x0a
+	defaultOvsCliDir    = "/opt/p4/p4-cp-nws"
+	defaultPortMuxVsi   = 0x0a //this is just a place-holder, since VSI can change.
 	defaultP4BridgeName = "br0"
 	defaultDaemonHostIp = "192.168.1.1"
 	defaultDaemonIpuIp  = "192.168.1.2"
@@ -83,7 +89,6 @@ var (
 			if err := logInit(viper.GetString("logDir"), viper.GetString("verbosity")); err != nil {
 				exitWithError(err, 3)
 			}
-
 			servingAddr := viper.GetString("servingAddr")
 			servingProto := viper.GetString("servingProto")
 			port := viper.GetInt("port")
@@ -100,10 +105,20 @@ var (
 			daemonPort := viper.GetInt("daemonPort")
 
 			log.Info("Initializing IPU plugin")
+			if mode == types.IpuMode {
+				vsi, err := findVsiForPfInterface(mode, intf)
+				if err != nil {
+					log.Errorf("Not able to find VSI->%d, for bridge interface->%v\n", vsi, intf)
+					exitWithError(err, 5)
+				} else {
+					//Overwrite default value with the correct VSI for that interface.
+					portMuxVsi = vsi
+				}
+			}
 			log.WithFields(log.Fields{
 				"servingAddr":  servingAddr,
 				"servingProto": servingProto,
-				"port":         port,
+				"servingPort":  port,
 				"bridge":       bridge,
 				"interface":    intf,
 				"ovsCliDir":    ovsCliDir,
@@ -114,7 +129,7 @@ var (
 				"mode":         mode,
 				"daemonHostIp": daemonHostIp,
 				"daemonIpuIp":  daemonIpuIp,
-				"daemonHost":   daemonPort,
+				"daemonPort":   daemonPort,
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridge, bridgeType, ovsCliDir)
@@ -127,6 +142,38 @@ var (
 		},
 	}
 )
+
+func findVsiForPfInterface(mode string, intfName string) (int, error) {
+
+	var pfList []netlink.Link
+
+	ipuplugin.InitHandlers()
+
+	if err := ipuplugin.GetFilteredPFs(&pfList); err != nil {
+		log.Errorf("configureChannel: err->%v from GetFilteredPFs", err)
+		return 0, status.Error(codes.Internal, err.Error())
+	}
+
+	mac, err := ipuplugin.GetMacforNetworkInterface(intfName, pfList)
+	if err != nil {
+		return 0, err
+	}
+	vsi, err := ut.ImcQueryfindVsiGivenMacAddr(mode, mac)
+	if err != nil {
+		return 0, err
+	}
+	//skip 0x in front of vsi
+	vsi = vsi[2:]
+	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+	if err != nil {
+		log.Errorf("error from ParseInt %v", err)
+		return 0, fmt.Errorf("error from ParseInt %v", err)
+	}
+	vsiInt := int(vsiInt64)
+	log.Debugf("Found VSI->%d, for interface->%v\n", vsiInt, intfName)
+
+	return vsiInt, nil
+}
 
 func exitWithError(err error, exitCode int) {
 	fmt.Fprintf(os.Stderr, "There was an error while executing %s: %s\n", cliName, err.Error())
@@ -148,7 +195,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&config.port, "port", defaultServingPort, "IPU plugin serving TCP port")
 	rootCmd.PersistentFlags().StringVar(&config.servingAddr, "servingAddr", defaultServingAddr, "IPU plugin serving host")
 	rootCmd.PersistentFlags().StringVar(&config.servingProto, "servingProto", defaultServingProto, "IPU plugin serving protocol: 'unix|tcp'")
-	rootCmd.PersistentFlags().StringVar(&config.interfaceName, "interface", "", "The uplink network interface name")
+	rootCmd.PersistentFlags().StringVar(&config.interfaceName, "interface", defaultBridgeIntf, "The uplink network interface name")
 	rootCmd.PersistentFlags().StringVar(&config.bridge, "bridge", tenantBridgeName, "The bridge name that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.ovsCliDir, "ovsCliDir", defaultOvsCliDir, "The directory where the ovs-vsctl is located")
 	rootCmd.PersistentFlags().StringVar(&config.bridgeType, "bridgeType", defaultBridge, "The bridge type that IPU plugin will manage")
@@ -191,6 +238,12 @@ func init() {
 			os.Exit(1)
 		}
 	}
+	fmt.Printf("Default Config, configFile=%s, bridge=%s bridgeType=%s daemonPort=%v daemonHostIp=%v daemonIpuIp=%v\n",
+		viper.ConfigFileUsed(), viper.GetString("bridge"), viper.GetString("bridgeType"), viper.GetString("daemonPort"), viper.GetString("daemonHostIp"), viper.GetString("daemonIpuIp"))
+	fmt.Printf("Default Config, interface=%s mode=%v ovsCliDir=%v p4pkg=%v p4rtbin=%v servingPort=%v portMuxVsi=%d\n",
+		viper.GetString("interface"), config.mode, viper.GetString("ovsCliDir"), viper.GetString("p4pkg"), viper.GetString("p4rtbin"), viper.GetString("port"), viper.GetInt("portMuxVsi"))
+	fmt.Printf("Default Config, servingAddr=%v servingProto=%v \n",
+		viper.GetString("servingAddr"), viper.GetString("servingProto"))
 }
 
 func initConfig() {
