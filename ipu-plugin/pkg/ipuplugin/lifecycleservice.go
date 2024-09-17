@@ -17,11 +17,12 @@ package ipuplugin
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
+	math_rand "math/rand"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
@@ -46,12 +47,13 @@ type LifeCycleServiceServer struct {
 }
 
 const (
-	hostVportId = "03"
-	accVportId  = "04"
-	deviceId    = "0x1452"
-	vendorId    = "0x8086"
-	imcAddress  = "192.168.0.1:22"
-	apfNumber   = 16
+	hostVportId         = "03"
+	accVportId          = "04"
+	deviceId            = "0x1452"
+	vendorId            = "0x8086"
+	imcAddress          = "192.168.0.1:22"
+	apfNumber           = 16
+	last_byte_mac_range = 239
 )
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string) *LifeCycleServiceServer {
@@ -333,6 +335,28 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	return nil
 }
 
+// sets random bytes for last 2 bytes(5th and 6th) in MAC address
+func setBaseMacAddr() (string, error) {
+	var macAddress string
+	macBytes := make([]byte, 2)
+	_, err := rand.Read(macBytes)
+	if err != nil {
+		return "", fmt.Errorf("error->%v, failed to create random bytes for MAC: ", err)
+	}
+	//Restricting range of last byte in node-policy to be less than 240,
+	//to allow for 16 function-ids. Since last-byte(+1) is done
+	//for the 16 function-ids, in CP code->set_start_mac_address(in mac_utils.c)
+	if macBytes[1] > last_byte_mac_range {
+		macBytes[1] = byte(math_rand.Intn(last_byte_mac_range) + 1)
+	}
+	log.Debugf("mac bytes ->%v\n", macBytes)
+
+	macAddress = fmt.Sprintf("00:00:00:00:%x:%x", macBytes[0], macBytes[1])
+	log.Info("Allocated IPU MAC pattern:", macAddress)
+
+	return macAddress, nil
+}
+
 func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
@@ -398,17 +422,10 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to run commands: %s", err)
 	}
 
-	cmd := exec.Command("sh", "-c", "cat /proc/sys/kernel/random/uuid | sha256sum | head -c 2")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err = cmd.Run()
+	macAddress, err := setBaseMacAddr()
 	if err != nil {
-		return fmt.Errorf("command execution error: %s", err)
+		return fmt.Errorf("error from setBaseMacAddr()->%v", err)
 	}
-	hashedChars := out.String()
-
-	macAddress := fmt.Sprintf("00:00:00:0a:%s:15", hashedChars)
-	log.Info("Allocated IPU MAC pattern:", macAddress)
 
 	shellScript := fmt.Sprintf(`#!/bin/sh
 CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
