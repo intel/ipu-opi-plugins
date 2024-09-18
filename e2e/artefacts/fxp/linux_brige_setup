@@ -13,7 +13,7 @@ ip link add link enp0s1f0d3 name d3.300 type vlan id 300 protocol 802.1ad
 #And the P4 script assigns inner vlan numbers 301 to 308 that correspond to the 8 VFs(on the host).
 ip link set dev d3.300 up
 ip link set dev d3.300 master br0
-ip link set dev d3.300 learning off
+bridge link set dev d3.300 learning off
 
 ip link add link d3.300 name d3.300.301 type vlan id 301
 ip link set dev d3.300.301 up
