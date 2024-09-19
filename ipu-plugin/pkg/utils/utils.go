@@ -23,12 +23,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
 	vsiToVportOffset = 16
 	pbPythonEnvVar   = "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python"
+	hostToImcIpAddr  = "100.0.0.100"
+	accToImcIpAddr   = "192.168.0.1"
 )
 
 var execCommand = exec.Command
@@ -109,9 +112,56 @@ func ExecuteScript(script string) (string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("error calling sshFunc %s, %s, %v", stdout.String(), stderr.String(), err)
+		return "", fmt.Errorf("ExecuteScript: error %s, %s, %v", stdout.String(), stderr.String(), err)
 	}
 	return stdout.String(), nil
+}
+
+func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
+	var ipAddr string
+	if mode == types.HostMode {
+		ipAddr = hostToImcIpAddr
+	} else if mode == types.IpuMode {
+		ipAddr = accToImcIpAddr
+	}
+
+	runCommand := fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@"%s" "/usr/bin/cli_client -cq" \
+		| awk '{if(($17 == "%s")) {print $8}}'`, ipAddr, mac)
+
+	output, err := ExecuteScript(runCommand)
+	output = strings.TrimSpace(string(output))
+
+	if err != nil || output == "" {
+		log.Errorf("unable to reach IMC %v or null output->%v", err, output)
+		return "", fmt.Errorf("unable to reach IMC %v or null output->%v", err, output)
+	}
+	return output, nil
+}
+
+func GetVfDeviceCount(mode string) (int, error) {
+	var ipAddr string
+	if mode == types.HostMode {
+		ipAddr = hostToImcIpAddr
+	} else if mode == types.IpuMode {
+		ipAddr = accToImcIpAddr
+	}
+
+	runCommand := fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@"%s" "/usr/bin/cli_client -cq" \
+		| awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`, ipAddr)
+
+	// reach out to the IMC to get the mac addresses of the VFs
+	output, err := ExecuteScript(runCommand)
+
+	if err != nil {
+		return 0, fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	vfMacList := strings.Split(strings.TrimSpace(output), "\n")
+	length := len(vfMacList)
+	if len(vfMacList) == 1 && vfMacList[0] == "" {
+		length = length - 1
+	}
+	return length, nil
 }
 
 func GetVfMacList() ([]string, error) {

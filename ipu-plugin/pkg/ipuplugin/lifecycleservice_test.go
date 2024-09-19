@@ -44,26 +44,26 @@ var _ = Describe("basic functionality", Serial, func() {
 			})
 			It("it should filter and return the correct number of PFs", func() {
 				var list []netlink.Link
-				getFilteredPFs(&list) //nolint:errcheck
+				GetFilteredPFs(&list) //nolint:errcheck
 				Expect(len(list)).To(Equal(4))
 			})
 			It("it should identify the correct PF in ipu mode", func() {
 				var list []netlink.Link
-				getFilteredPFs(&list) //nolint:errcheck
+				GetFilteredPFs(&list) //nolint:errcheck
 				link, _ := getCommPf("ipu", list)
 				octets := strings.Split(link.Attrs().HardwareAddr.String(), ":")
 				Expect(octets[3]).To(Equal(accVportId))
 			})
 			It("it should identify the correct PF in host mode", func() {
 				var list []netlink.Link
-				getFilteredPFs(&list) //nolint:errcheck
+				GetFilteredPFs(&list) //nolint:errcheck
 				link, _ := getCommPf("host", list)
 				octets := strings.Split(link.Attrs().HardwareAddr.String(), ":")
 				Expect(octets[3]).To(Equal(hostVportId))
 			})
 			It("it should set correctly the IP on a PF", func() {
 				var list []netlink.Link
-				getFilteredPFs(&list) //nolint:errcheck
+				GetFilteredPFs(&list) //nolint:errcheck
 				link, _ := getCommPf("host", list)
 				err := setIP(link, "192.168.1.1")
 				Expect(err).To(HaveOccurred())

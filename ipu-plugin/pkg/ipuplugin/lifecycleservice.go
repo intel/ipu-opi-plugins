@@ -17,11 +17,12 @@ package ipuplugin
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
+	math_rand "math/rand"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
@@ -46,12 +47,13 @@ type LifeCycleServiceServer struct {
 }
 
 const (
-	hostVportId = "03"
-	accVportId  = "04"
-	deviceId    = "0x1452"
-	vendorId    = "0x8086"
-	imcAddress  = "192.168.0.1:22"
-	apfNumber   = 16
+	hostVportId         = "03"
+	accVportId          = "04"
+	deviceId            = "0x1452"
+	vendorId            = "0x8086"
+	imcAddress          = "192.168.0.1:22"
+	apfNumber           = 16
+	last_byte_mac_range = 239
 )
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string) *LifeCycleServiceServer {
@@ -119,7 +121,7 @@ var executableHandler ExecutableHandler
 var sshHandler SSHHandler
 var fxpHandler FXPHandler
 
-func initHandlers() {
+func InitHandlers() {
 	if fileSystemHandler == nil {
 		fileSystemHandler = &FileSystemHandlerImpl{}
 	}
@@ -218,12 +220,31 @@ func setIP(link netlink.Link, ip string) error {
 	return nil
 }
 
-func getFilteredPFs(pfList *[]netlink.Link) error {
+func GetMacforNetworkInterface(intf string, linkList []netlink.Link) (string, error) {
+	mac := ""
+	found := false
+	for i := 0; i < len(linkList); i++ {
+		if linkList[i].Attrs().Name == intf {
+			mac = linkList[i].Attrs().HardwareAddr.String()
+			log.Debugf("found mac->%v for interface->%v\n", mac, intf)
+			found = true
+			break
+		}
+	}
+
+	if found == true {
+		return mac, nil
+	}
+	log.Errorf("Couldnt find mac for interface->%v\n", intf)
+	return "", fmt.Errorf("Couldnt find mac for interface->%v\n", intf)
+}
+
+func GetFilteredPFs(pfList *[]netlink.Link) error {
 
 	linkList, err := networkHandler.LinkList()
 
 	if err != nil || len(linkList) == 0 {
-		return fmt.Errorf("unable to retrieve link list: %v", err)
+		return fmt.Errorf("unable to retrieve link list: %v, len->%v", err, len(linkList))
 	}
 
 	for i := 0; i < len(linkList); i++ {
@@ -237,12 +258,51 @@ func getFilteredPFs(pfList *[]netlink.Link) error {
 	return nil
 }
 
+/*
+If IDPF net devices dont show up on host-side(this can happen if IMC reboot is done without rmmod(for IDPF on host).
+This function is a best effort to bring-up IDPF netdevices, using rmmod/modprobe of IDPF.
+*/
+func checkIdpfNetDevices(mode string) {
+	var pfList []netlink.Link
+	if mode == types.HostMode {
+		if err := GetFilteredPFs(&pfList); err != nil {
+			log.Errorf("checkNetDevices: err->%v from GetFilteredPFs", err)
+			return
+		}
+		//Case where we dont see host IDPF netdevices.
+		if len(pfList) == 0 {
+			log.Debugf("Not seeing host IDPF netdevices, attempt rmmod/modprobe\n")
+			output, err := utils.ExecuteScript(`lsmod | grep idpf`)
+			if err != nil {
+				log.Errorf("lsmod err->%v, output->%v\n", err, output)
+				return
+			}
+
+			_, err = utils.ExecuteScript(`rmmod idpf`)
+
+			if err != nil {
+				log.Errorf("rmmod err->%v\n", err)
+				return
+			} else {
+				_, err = utils.ExecuteScript(`modprobe idpf`)
+				if err != nil {
+					log.Errorf("modprobe err->%v\n", err)
+					return
+				}
+			}
+			log.Debugf("completed-rmmod and modprobe of IDPF\n")
+		} else {
+			log.Debugf("host IDPF netdevices exist, count->%d\n", len(pfList))
+		}
+	}
+}
+
 func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 
 	var pfList []netlink.Link
 
-	if err := getFilteredPFs(&pfList); err != nil {
-		fmt.Printf("configureChannel: err->%v from getFilteredPFs", err)
+	if err := GetFilteredPFs(&pfList); err != nil {
+		fmt.Printf("configureChannel: err->%v from GetFilteredPFs", err)
 		return status.Error(codes.Internal, err.Error())
 	}
 
@@ -250,12 +310,12 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 
 	if pf == nil {
 		// Address already set - we don't proceed with setting the ip
-		fmt.Printf("configureChannel: pf nil from getCommPf")
+		fmt.Printf("configureChannel: pf nil from getCommPf\n")
 		return nil
 	}
 
 	if err != nil {
-		fmt.Printf("configureChannel: err->%v from getCommPf", err)
+		fmt.Printf("configureChannel: err->%v from getCommPf\n", err)
 		return status.Error(codes.Internal, err.Error())
 	}
 
@@ -273,6 +333,28 @@ func configureChannel(mode, daemonHostIp, daemonIpuIp string) error {
 	}
 
 	return nil
+}
+
+// sets random bytes for last 2 bytes(5th and 6th) in MAC address
+func setBaseMacAddr() (string, error) {
+	var macAddress string
+	macBytes := make([]byte, 2)
+	_, err := rand.Read(macBytes)
+	if err != nil {
+		return "", fmt.Errorf("error->%v, failed to create random bytes for MAC: ", err)
+	}
+	//Restricting range of last byte in node-policy to be less than 240,
+	//to allow for 16 function-ids. Since last-byte(+1) is done
+	//for the 16 function-ids, in CP code->set_start_mac_address(in mac_utils.c)
+	if macBytes[1] > last_byte_mac_range {
+		macBytes[1] = byte(math_rand.Intn(last_byte_mac_range) + 1)
+	}
+	log.Debugf("mac bytes ->%v\n", macBytes)
+
+	macAddress = fmt.Sprintf("00:00:00:00:%x:%x", macBytes[0], macBytes[1])
+	log.Info("Allocated IPU MAC pattern:", macAddress)
+
+	return macAddress, nil
 }
 
 func (s *SSHHandlerImpl) sshFunc() error {
@@ -340,17 +422,10 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to run commands: %s", err)
 	}
 
-	cmd := exec.Command("sh", "-c", "cat /proc/sys/kernel/random/uuid | sha256sum | head -c 2")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err = cmd.Run()
+	macAddress, err := setBaseMacAddr()
 	if err != nil {
-		return fmt.Errorf("command execution error: %s", err)
+		return fmt.Errorf("error from setBaseMacAddr()->%v", err)
 	}
-	hashedChars := out.String()
-
-	macAddress := fmt.Sprintf("00:00:00:0a:%s:15", hashedChars)
-	log.Info("Allocated IPU MAC pattern:", macAddress)
 
 	shellScript := fmt.Sprintf(`#!/bin/sh
 CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
@@ -436,7 +511,7 @@ fi
 func countAPFDevices() int {
 	var pfList []netlink.Link
 
-	if err := getFilteredPFs(&pfList); err != nil {
+	if err := GetFilteredPFs(&pfList); err != nil {
 		return 0
 	}
 
@@ -517,7 +592,7 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string) error {
 }
 
 func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (*pb.IpPort, error) {
-	initHandlers()
+	InitHandlers()
 
 	if in.DpuMode && s.mode != types.IpuMode || !in.DpuMode && s.mode != types.HostMode {
 		return nil, status.Errorf(codes.Internal, "Ipu plugin running in %s mode", s.mode)
@@ -538,6 +613,8 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			return nil, status.Errorf(codes.Internal, "Error when preconfiguring the FXP: %v", err)
 		}
 	}
+
+	checkIdpfNetDevices(s.mode)
 
 	if err := configureChannel(s.mode, s.daemonHostIp, s.daemonIpuIp); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
