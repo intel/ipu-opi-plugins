@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -72,6 +73,14 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 
 		if err := s.bridgeCtlr.AddPort(outerVlanIntfName); err != nil {
 			return nil, fmt.Errorf("failed to add port to bridge: %v", err)
+		}
+		runCmd := "bridge link set dev " + outerVlanIntfName + " learning off"
+		log.Debugf("run cmd->%s\n", runCmd)
+		_, err = utils.ExecuteScript(runCmd)
+		if err != nil {
+			return nil, fmt.Errorf("Error->%v, turning learning off on outer vlan->%v\n", err, outerVlanIntfName)
+		} else {
+			log.Debugf("Turned learning off for outer vlan->%v\n", outerVlanIntfName)
 		}
 	}
 
