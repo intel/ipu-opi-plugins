@@ -45,7 +45,7 @@ envsubst < $CONF_FILE.template > $CONF_DIR/$CONF_FILE
 touch /opt/p4/rh_mvp/tofino.bin
 $P4CP_INSTALL/bin/tdi_pipeline_builder \
     --p4c_conf_file=/usr/share/stratum/es2k/es2k_skip_p4.conf \
-    --bf_pipeline_config_binary_file=/opt/p4/rh_mvp/rh_mvp.pb.bin
+    --tdi_pipeline_config_binary_file=/opt/p4/rh_mvp/rh_mvp.pb.bin
 
 # Set hugepages
 mkdir -p /dev/hugepages
