@@ -156,11 +156,14 @@ tables {
     id: 18255697
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -185,11 +188,14 @@ tables {
     id: 24572067
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -217,11 +223,14 @@ tables {
     id: 22775904
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -279,11 +288,14 @@ tables {
     id: 22775904
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -306,7 +318,10 @@ tables {
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  action_refs {
+    id: 21257015
+  }
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -331,11 +346,14 @@ tables {
     id: 24824497
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -360,11 +378,14 @@ tables {
     id: 22841159
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -384,11 +405,14 @@ tables {
     id: 22841159
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -416,11 +440,14 @@ tables {
     id: 32637686
   }
   action_refs {
+    id: 21257015
+  }
+  action_refs {
     id: 30287134
     annotations: "@defaultonly"
     scope: DEFAULT_ONLY
   }
-  const_default_action_id: 30287134
+  const_default_action_id: 21257015
   size: 16384
 }
 tables {
@@ -510,7 +537,6 @@ actions {
     id: 21257015
     name: "NoAction"
     alias: "NoAction"
-    annotations: "@noWarn(\"unused\")"
   }
 }
 actions {
