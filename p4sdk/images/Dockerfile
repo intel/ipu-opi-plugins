@@ -27,10 +27,8 @@ RUN dnf -y install \
     https://mirror.stream.centos.org/9-stream/BaseOS/aarch64/os/Packages/libconfig-1.7.2-9.el9.aarch64.rpm \
     && dnf -y install libconfig-1.7.2-9.el9.aarch64.rpm && rm -f libconfig-1.7.2-9.el9.aarch64.rpm && dnf clean all
 RUN python3 -m pip install --no-cache-dir \
-    grpcio==1.62.1 \
-    protobuf==4.25.3 \
     netaddr==1.2.1 \
-    /opt/p4/p4-cp-nws/share/stratum/p4runtime/p4runtime-2023.11.0-py3-none-any.whl
+    /opt/p4/p4-cp-nws/share/stratum/p4runtime/p4runtime-2024.8.0-py3-none-any.whl
 
 WORKDIR /
 

@@ -18,7 +18,7 @@
         "p4_programs": [
         {
             "program-name": "rh_mvp",
-            "bfrt-config": "/opt/p4/rh_mvp/rh_mvp.bfrt.json",
+            "tdi-config": "/opt/p4/rh_mvp/rh_mvp.tdi.json",
             "p4_pipelines": [
             {
                 "p4_pipeline_name": "main",
