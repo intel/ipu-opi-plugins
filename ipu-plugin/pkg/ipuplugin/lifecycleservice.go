@@ -203,14 +203,14 @@ this api can be extended for other distros that use different CLI/systemd-networ
 func (e *ExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
 	intfName := link.Attrs().Name
 	output, err := utils.ExecuteScript(`nmcli general status`)
-	if err != nil {
-		log.Infof("nmcli err->%v, output->%v\n", err, output)
-		return nil
-	}
-	output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
-	if err != nil {
-		log.Errorf("nmcli err->%v, output->%v\n", err, output)
-		return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+	if err == nil {
+		output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
+		if err != nil {
+			log.Errorf("nmcli err->%v, output->%v\n", err, output)
+			return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+		}
+	} else {
+		log.Infof("network manager not running, skipping nmcli, err->%v\n", err)
 	}
 	output, err = utils.ExecuteScript(`ip link set ` + intfName + ` up`)
 	if err != nil {
