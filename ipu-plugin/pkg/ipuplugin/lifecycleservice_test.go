@@ -258,6 +258,10 @@ func (m *MockExecutableHandlerImpl) validate() bool {
 	return true
 }
 
+func (e *MockExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
+	return nil
+}
+
 type MockFXPHandlerImpl struct{}
 
 func (m *MockFXPHandlerImpl) configureFXP(p4rtbin string) error {
