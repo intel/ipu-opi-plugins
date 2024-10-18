@@ -16,8 +16,9 @@ FROM python:3.11-alpine as builderpy
 COPY bin/p4runtime-2024.8.0-py3-none-any.whl /opt/p4/p4-cp-nws/bin/
 RUN apk add -U --no-cache py3-pip'=='24.0-r2 \
     g++ linux-headers python3-dev binutils
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN python3 -m pip install --no-cache-dir /opt/p4/p4-cp-nws/bin/p4runtime-2024.8.0-py3-none-any.whl
-RUN find /usr/local/lib/python3.11/site-packages/ -name "cygrpc*" | xargs strip --strip-debug
+RUN find /usr/local/lib/python3.11/site-packages/ -name "cygrpc*" -print0 | xargs -0 strip --strip-debug
 
 FROM alpine:3.19.4
 
@@ -36,4 +37,4 @@ WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
 
 RUN rm -rf /var/cache/apk/*
-RUN apk add --update --no-cache openssh
+RUN apk add --update --no-cache openssh binutils
