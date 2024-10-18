@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 #
-# Copyright (c) 2021-2023 Intel Corporation.
+# Copyright (c) 2021-2024 Intel Corporation.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -44,6 +44,13 @@ from functools import wraps
 import google.protobuf.text_format
 from google.rpc import status_pb2, code_pb2
 
+try:
+    from idpf import p4info_pb2 as idpf_p4info
+    from idpf import p4runtime_pb2 as idpf_p4runtime
+except:
+    print("Unable to import the 'idpf' modules. The meter commands will not work.\n"
+          "To fix the problem, install an updated version of the python p4runtime package.")
+
 from p4.v1 import p4runtime_pb2
 from p4.v1 import p4runtime_pb2_grpc
 from p4.config.v1 import p4info_pb2
@@ -78,6 +85,7 @@ for P4Runtime switches:
   add-meter-config SWITCH MTR_TBL MTR_FLOW     add packet mod meter config table entry
   get-packet-mod-meter SWITCH MTR_TBL MTR_FLOW     gets packet mod meter table entry
   get-direct-pkt-mod-meter SWITCH MTR_TBL MTR_FLOW     gets direct packet mod meter table entry
+  del-meter-config SWITCH MTR_TBL MTR_FLOW  delete packet mod meter config table entry
 """
 
 def usage():
@@ -466,24 +474,25 @@ class P4InfoHelper(object):
         table_entry = p4runtime_pb2.TableEntry()
         table_entry.table_id = self.get_tables_id(table_name)
 
-        for mfn, value in match_fields.items():
-            # A table can contain more than one match filed and in such cases
-            # if one match_type has ternary and other filed is of any type
-            # it is considered as ternary match_type.
-            # In these cases we expect priority field from the user.
-            p4info_match = self.get_match_field(table_name, mfn)
+        if match_fields:
+            for mfn, value in match_fields.items():
+                # A table can contain more than one match field, and in such cases,
+                # if one match_type has ternary and other field is of any type,
+                # it is considered as ternary match_type.
+                # In these cases, we expect a priority field from the user.
+                p4info_match = self.get_match_field(table_name, mfn)
 
-            if p4info_match.match_type == p4info_pb2.MatchField.TERNARY:
-                one_match_type_is_ternary = True
-                # If match_type is ternary, then priority field is expected
-                if priority == None:
-                    print("For ternary match_type, priority field is needed")
-                    sys.exit(1)
+                if p4info_match.match_type == p4info_pb2.MatchField.TERNARY:
+                    one_match_type_is_ternary = True
+                    # If match_type is ternary, then priority field is expected
+                    if priority is None:
+                        print("For ternary match_type, priority field is needed")
+                        sys.exit(1)
 
-            if match_fields:
-                table_entry.match.extend([
-                    self.get_match_field_pb(table_name, mfn, value)
-                ])
+                if match_fields:
+                    table_entry.match.extend([
+                        self.get_match_field_pb(table_name, mfn, value)
+                    ])
 
         if priority is not None and one_match_type_is_ternary:
             table_entry.priority = int(priority)
@@ -588,8 +597,11 @@ class P4RuntimeClient:
 
     def __init__(self, device_id, grpc_addr='localhost:9559',
                  election_id=(1, 0)):
+        global client_role_name
+
         self.device_id = device_id
         self.election_id = election_id
+        self.role_name = client_role_name
         grpc_addr = str(grpc_server_addr)
 
         root_ca_file_path = '/usr/share/stratum/certs/ca.crt'
@@ -662,6 +674,8 @@ class P4RuntimeClient:
         election_id = arbitration.election_id
         election_id.high = self.election_id[0]
         election_id.low = self.election_id[1]
+        if self.role_name is not None:
+            arbitration.role.name = self.role_name
         self.stream_out_q.put(req)
 
         rep = self.get_stream_packet("arbitration", timeout=2)
@@ -728,6 +742,8 @@ class P4RuntimeClient:
         election_id = req.election_id
         election_id.high = self.election_id[0]
         election_id.low = self.election_id[1]
+        if self.role_name is not None:
+            req.role = self.role_name
         req.action = p4runtime_pb2.SetForwardingPipelineConfigRequest. \
             VERIFY_AND_COMMIT
         with open(p4info_path, 'r') as f1:
@@ -755,6 +771,8 @@ class P4RuntimeClient:
         election_id = req.election_id
         election_id.high = self.election_id[0]
         election_id.low = self.election_id[1]
+        if self.role_name is not None:
+            req.role = self.role_name
         return self.stub.Write(req)
 
     @parse_p4runtime_write_error
@@ -764,6 +782,8 @@ class P4RuntimeClient:
         election_id = req.election_id
         election_id.high = self.election_id[0]
         election_id.low = self.election_id[1]
+        if self.role_name is not None:
+            req.role = self.role_name
         req.updates.extend([update])
         return self.stub.Write(req)
 
@@ -1239,8 +1259,10 @@ def p4ctl_mod_entry(client, bridge, tbl_name, flow):
 def p4ctl_set_default_entry(client, bridge, tbl_name, action):
     """
     set-default-entry SWITCH TABLE ACTION
-    Example:
-        p4rt-ctl set-default-entry br0 pipe.filter_tbl pipe.push_mpls(10)
+    Example of setting to valid action:
+        p4rt-ctl set-default-entry br0 pipe.filter_tbl "pipe.push_mpls(10)"
+    Example of resetting to default action:
+        p4rt-ctl set-default-entry br0 pipe.filter_tbl ""
     """
 
     p4info = client.get_p4info()
@@ -1248,12 +1270,14 @@ def p4ctl_set_default_entry(client, bridge, tbl_name, action):
         raise Exception("cannot retrieve P4Info from device {}".format(bridge))
     helper = P4InfoHelper(p4info)
 
-    action_name, action_data = parse_action(action)
+    action_name, action_data = parse_action(action, helper)
     te = helper.buildTableEntry(
         table_name=tbl_name,
         default_action=True,
         action_name=action_name,
-        action_params={a.name: int(action_data[idx]) for idx,
+        action_params=action_data
+                       if (action_data==None or action_data==[''])
+                       else {a.name: int(action_data[idx]) for idx,
                        a in enumerate(helper.get_action_params(action_name))})
 
     update = p4runtime_pb2.Update()
@@ -1842,7 +1866,6 @@ def _format_me(ce):
     return output_buffer
 
 def _format_dme(ce):
-    pdb.set_trace()
     output_buffer = 'table_id={}'.format(ce.table_entry.table_id)
     output_buffer += ', direct_meter_counter_data_green=(bytes={},packets={})'.format(ce.counter_data.green.byte_count, ce.counter_data.green.packet_count)
     output_buffer += ', direct_meter_counter_data_yellow=(bytes={},packets={})'.format(ce.counter_data.yellow.byte_count, ce.counter_data.yellow.packet_count)
@@ -1909,6 +1932,34 @@ def p4ctl_get_direct_pkt_mod_meter_entry(client, bridge, tbl_name, flow):
             if entity.direct_meter_entry.table_entry.table_id == ce.table_entry.table_id:
                 print(_format_dme(entry.direct_meter_entry))
 
+@with_client
+def p4ctl_del_meter_config(client, bridge, tbl_name, flow):
+    """
+    del-meter-config SWITCH MTR_TBL MTR_FLOW
+    Example:
+        p4rt-ctl del-meter-config br0 my_control.meter1 "meter_id=2244878476,meter_index=10"
+    """
+    p4info = client.get_p4info()
+    if not p4info:
+        raise Exception("cannot retrieve P4Info from device {}".format(bridge))
+    
+    helper = P4InfoHelper(p4info)
+    entity = p4runtime_pb2.Entity()
+    ce = entity.meter_entry
+
+    if ce is None:
+        raise Exception("Cannot find meter_entry field in entity")
+    
+    meter_id, index = parse_get_meter_flow(flow)
+    ce.index.index = int(index)
+    ce.meter_id = int(meter_id)
+    
+    update = p4runtime_pb2.Update()
+    update.type = p4runtime_pb2.Update.DELETE
+    update.entity.meter_entry.CopyFrom(ce)
+
+    client.write_update(update)
+
 all_commands = {
     "show": (p4ctl_show, 1),
     "set-pipe": (p4ctl_set_pipe, 3),
@@ -1932,7 +1983,8 @@ all_commands = {
     "reset-counter" : (p4ctl_reset_counter_entry, 2),
     "add-meter-config" : (p4ctl_add_meter_config, 3),
     "get-packet-mod-meter" : (p4ctl_get_packet_mod_meter_entry, 2),
-    "get-direct-pkt-mod-meter" : (p4ctl_get_direct_pkt_mod_meter_entry, 2)
+    "get-direct-pkt-mod-meter" : (p4ctl_get_direct_pkt_mod_meter_entry, 2),
+    "del-meter-config" : (p4ctl_del_meter_config, 2)
 }
 
 
@@ -1941,16 +1993,20 @@ def validate_args(argv, command, expected_nr):
         raise Exception("p4rt-ctl: '{}' command requires at least {} "
                         "arguments".format(command, expected_nr))
 
-# Global variable
+# Global variables
 grpc_server_addr = ""
+client_role_name = None
 
 def main():
     global grpc_server_addr
+    global client_role_name
+
     if len(sys.argv) < 2:
         print("p4rt-ctl: missing command name; use --help for help")
         sys.exit(1)
     parser = argparse.ArgumentParser(usage=USAGE)
     parser.add_argument('-g', '--grpc_addr', required=False, type=str, help="P4Runtime gRPC server address, format : <server IP>:<port>")
+    parser.add_argument('-r', '--role_name', required=False, type=str, help="Role name of this client")
     parser.add_argument('command', nargs='*', help='Subcommand to run')
     args = parser.parse_args()
     if args.grpc_addr is None:
@@ -1962,6 +2018,11 @@ def main():
         else:
             print("Invalid IP address for GRPC server ")
             system.exit(1)
+    
+    # client_role_name will default to 'None' (global var) unless user sets
+    # a name using the args.role_name flag
+    client_role_name = args.role_name
+
     if args.command[0] not in all_commands.keys():
         usage()
 
