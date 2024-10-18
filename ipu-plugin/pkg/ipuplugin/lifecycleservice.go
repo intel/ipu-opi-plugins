@@ -475,7 +475,7 @@ if [ -e rh_mvp.pkg ]; then
     sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
-    sed -i 's/comm_vports = ((\[5,0\],\[4,0\]));/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,4\]));/g' $CP_INIT_CFG
+    sed -i 's/comm_vports = .*/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,4\]));/g' $CP_INIT_CFG
 else
     echo "No custom package found. Continuing with default package"
 fi
