@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
-# Apply environment
+
 FROM golang:1.22.5-alpine@sha256:0d3653dd6f35159ec6e3d10263a42372f6f194c3dea0b35235d72aabde86486e as builder
 ARG TARGETOS
 ARG TARGETARCH
 
 RUN apk add --no-cache --virtual build-dependencies build-base
-RUN apk add --no-cache git
 COPY . /usr/src/ipu-opi-plugin
 WORKDIR /usr/src/ipu-opi-plugin
 RUN go mod download
