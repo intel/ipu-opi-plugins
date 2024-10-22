@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -201,17 +202,30 @@ TODO: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
 this api can be extended for other distros that use different CLI/systemd-networkd.
 */
 func (e *ExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
+	maxRetries := 4
+	retryInterval := 10 * time.Second
+	var err error
+	var output string
 	intfName := link.Attrs().Name
-	output, err := utils.ExecuteScript(`nmcli general status`)
-	if err == nil {
-		output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
-		if err != nil {
-			log.Errorf("nmcli err->%v, output->%v\n", err, output)
-			return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+
+	for cnt := 0; cnt < maxRetries; cnt++ {
+		output, err = utils.ExecuteScript(`nmcli general status`)
+		if err == nil {
+			output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
+			if err != nil {
+				log.Errorf("nmcli err->%v, output->%v\n", err, output)
+				return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+			} else {
+				log.Infof("nmcli intf->%v set to unmanaged\n", intfName)
+				break
+			}
+		} else {
+			log.Infof("network manager not running, retry, err->%v\n", err)
 		}
-	} else {
-		log.Infof("network manager not running, skipping nmcli, err->%v\n", err)
+		time.Sleep(retryInterval)
+		log.Infof("nmcliSetup: Retry attempt cnt->%v:\n", cnt)
 	}
+
 	output, err = utils.ExecuteScript(`ip link set ` + intfName + ` up`)
 	if err != nil {
 		log.Errorf("ip link set err->%v, output->%v\n", err, output)
