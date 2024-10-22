@@ -6,12 +6,14 @@ FROM registry.access.redhat.com/ubi9/ubi:9.3-1610
 
 ENV HTTP_PROXY $http_proxy
 ENV HTTPS_PROXY $https_proxy
+ARG P4_NAME
+ENV P4_NAME $P4_NAME
 
 COPY . /src
 WORKDIR /src
 RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
 
-COPY p4 /opt/p4/rh_mvp
+COPY p4 /opt/p4/${P4_NAME}
 COPY images/entrypoint.sh /
 COPY images/es2k_skip_p4.conf.template /
 

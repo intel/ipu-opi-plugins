@@ -2,6 +2,8 @@
 
 .PHONY: all fmt check-fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
 APP_NAME = ipu-p4-sdk
+P4_NAME = rh_mvp
+P4_DIR  = p4-rh_mvp
 VERSION ?= 0.0.0
 IMAGE_NAME = intel-$(APP_NAME)
 ifneq (, $(IMAGE_REGISTRY))
@@ -21,12 +23,14 @@ endif
 ifdef HTTPS_PROXY
 	DOCKERARGS += --build-arg https_proxy=$(HTTPS_PROXY)
 endif
+DOCKERARGS += --build-arg P4_NAME=$(P4_NAME)
 
 all: image
 
 image:
 	# Copy p4 files from parent dir first
-	cp -r ../e2e/artefacts/p4-rh_mvp $(CURDIR)/p4
+	mkdir -p $(CURDIR)/p4
+	cp -r ../e2e/artefacts/$(P4_DIR)/* $(CURDIR)/p4
 	# $(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -t $(IMAGE_TAG_LATEST) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
 	rm -rf p4
