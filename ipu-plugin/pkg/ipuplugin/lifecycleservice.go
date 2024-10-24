@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -99,7 +100,7 @@ func (fs *FileSystemHandlerImpl) GetVendor(iface string) ([]byte, error) {
 
 type ExecutableHandler interface {
 	validate() bool
-	nmcliSetup(link netlink.Link) error
+	nmcliSetIPAddress(link netlink.Link, ipAddr string) error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -194,30 +195,90 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 }
 
 /*
-It can take time for network-manager's state for each interface, to become
-activated, when IP address is set, which can cause the IP address to not stick.
-Removing the host-acc comm channel interface out of network-manager's mgmt.
+Upon host reboot, it seems to take time for network-manager's state for each interface,
+to stabilize and become activated. This function does a few retries,
+when it tries to set IP.
 TODO: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
 this api can be extended for other distros that use different CLI/systemd-networkd.
 */
-func (e *ExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
+func (e *ExecutableHandlerImpl) nmcliSetIPAddress(link netlink.Link, ipAddr string) error {
 	intfName := link.Attrs().Name
-	output, err := utils.ExecuteScript(`nmcli general status`)
-	if err == nil {
-		output, err = utils.ExecuteScript(`nmcli device set ` + intfName + ` managed no`)
+	ipWithMask := ipAddr + "/24"
+	var runCmd string
+	var ipAddrSet bool
+	var err error
+	var output string
+	maxRetries := 5
+	retryInterval := 10 * time.Second
+
+	for cnt := 0; cnt < maxRetries; cnt++ {
+		_, err = utils.ExecuteScript(`nmcli general status`)
 		if err != nil {
-			log.Errorf("nmcli err->%v, output->%v\n", err, output)
-			return fmt.Errorf("nmcli err->%v, output->%v\n", err, output)
+			log.Infof("network manager not running, nmcli, err->%v\n", err)
+			goto retry
 		}
-	} else {
-		log.Infof("network manager not running, skipping nmcli, err->%v\n", err)
+		runCmd = fmt.Sprintf(`nmcli conn show | grep -w "%s"`, intfName)
+		output, err = utils.ExecuteScript(runCmd)
+		if (output == "") || (err != nil) {
+			//add new conn
+			log.Errorf("nmcli err->%v, for cmd->%v, output->%v\n", err, runCmd, output)
+			runCmd = fmt.Sprintf(`nmcli connection add type ethernet ifname "%s" con-name "%s" \
+			ip4 "%s"`, intfName, intfName, ipWithMask)
+			_, err = utils.ExecuteScript(runCmd)
+			if err != nil {
+				log.Errorf("nmcli err->%v, for cmd->%v\n", err, runCmd)
+				goto retry
+			} else {
+				log.Infof("nmcli cmd->%v, passed\n", runCmd)
+			}
+		} else {
+			//existing conn
+			log.Infof("existing conn: output->%v\n", output)
+			runCmd = fmt.Sprintf(`nmcli connection mod "%s" ip4 "%s"`, intfName, ipWithMask)
+			_, err = utils.ExecuteScript(runCmd)
+			if err != nil {
+				log.Errorf("nmcli err->%v, for cmd->%v\n", err, runCmd)
+				goto retry
+			} else {
+				log.Infof("nmcli cmd->%v, passed\n", runCmd)
+			}
+		}
+		_, err = utils.ExecuteScript(`nmcli conn reload`)
+		if err != nil {
+			log.Errorf("nmcli err->%v, for cmd->%v\n", err, runCmd)
+			goto retry
+		}
+		runCmd = fmt.Sprintf(`nmcli con up "%s"`, intfName)
+		_, err = utils.ExecuteScript(runCmd)
+		if err != nil {
+			log.Errorf("nmcli err->%v, for cmd->%v\n", err, runCmd)
+			goto retry
+		}
+		runCmd = fmt.Sprintf(`nmcli -g GENERAL.STATE con show "%s" | grep activated`, intfName)
+		output, err = utils.ExecuteScript(runCmd)
+		output = strings.TrimSuffix(output, "\n")
+		if (output != "activated") || (err != nil) {
+			log.Errorf("nmcli err ->%v, output->%v, for cmd->%v\n", err, output, runCmd)
+			goto retry
+		}
+		runCmd = fmt.Sprintf(`ip a | grep -w "%s" | grep -w "%s"`, intfName, ipWithMask)
+		output, err = utils.ExecuteScript(runCmd)
+		if (output == "") || (err != nil) {
+			log.Errorf("ip cmd err->%v, output->%v, for cmd->%v\n", err, output, runCmd)
+			goto retry
+		}
+		log.Infof("setIP successful->%v, for interface->%v\n", ipWithMask, intfName)
+		ipAddrSet = true
+		break
+	retry:
+		time.Sleep(retryInterval)
+		log.Infof("nmcliSetIPAddress: Retry attempt cnt->%v:\n", cnt)
 	}
-	output, err = utils.ExecuteScript(`ip link set ` + intfName + ` up`)
-	if err != nil {
-		log.Errorf("ip link set err->%v, output->%v\n", err, output)
-		return fmt.Errorf("ip link set  err->%v, output->%v\n", err, output)
+	if ipAddrSet {
+		return nil
 	}
-	return nil
+	log.Errorf("setIP error->%v, unable to set the ip address of interface->%v\n", err, intfName)
+	return fmt.Errorf("setIP error->%v, unable to set the ip address of interface->%v\n", err, intfName)
 }
 
 func setIP(link netlink.Link, ip string) error {
@@ -230,25 +291,17 @@ func setIP(link netlink.Link, ip string) error {
 
 	if len(list) == 0 {
 
-		if err = executableHandler.nmcliSetup(link); err != nil {
-			log.Errorf("setIP: err->%v from nmcliSetup\n", err)
-			return fmt.Errorf("setIP: err->%v from nmcliSetup", err)
-		}
-
 		ipAddr := net.ParseIP(ip)
 
 		if ipAddr.To4() == nil {
 			log.Errorf("setIP: invalid ip->%v\n", ipAddr)
 			return fmt.Errorf("not a valid IPv4 address: %v", err)
 		}
-
-		// Set the IP address on PF
-		addr := &netlink.Addr{IPNet: &net.IPNet{IP: ipAddr, Mask: net.CIDRMask(24, 32)}}
-
-		if err = networkHandler.AddrAdd(link, addr); err != nil {
-			log.Errorf("setIP: unable to add address: %v\n", err)
-			return fmt.Errorf("unable to add address: %v", err)
+		if err = executableHandler.nmcliSetIPAddress(link, ip); err != nil {
+			log.Errorf("setIP: err->%v from nmcliSetIPAddress\n", err)
+			return fmt.Errorf("setIP: err->%v from nmcliSetIPAddress", err)
 		}
+
 	} else {
 		log.Errorf("address already set. Unset ip address for interface %s and run again\n", link.Attrs().Name)
 		return fmt.Errorf("address already set. Unset ip address for interface %s and run again", link.Attrs().Name)

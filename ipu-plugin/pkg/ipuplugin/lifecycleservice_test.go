@@ -258,8 +258,8 @@ func (m *MockExecutableHandlerImpl) validate() bool {
 	return true
 }
 
-func (e *MockExecutableHandlerImpl) nmcliSetup(link netlink.Link) error {
-	return nil
+func (e *MockExecutableHandlerImpl) nmcliSetIPAddress(link netlink.Link, ipAddr string) error {
+	return fmt.Errorf("Method added for test purposes")
 }
 
 type MockFXPHandlerImpl struct{}
