@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
-	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	log "github.com/sirupsen/logrus"
 
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
@@ -30,7 +29,6 @@ var (
 	deviceCode       = "0x1452"
 	deviceCodeVf     = "0x145c"
 	intelVendor      = "0x8086"
-	configNumVfs     = 8
 	maxVfsSupported  = 64
 )
 
@@ -53,8 +51,54 @@ func (s *DevicePluginService) GetDevices(context.Context, *pb.Empty) (*pb.Device
 	return response, nil
 }
 
+// Note: This function below was taken from open-source sriov plugin, which
+// is also under the same apache license, with few additional changes.
+// Returns a List containing PCI addr for all VF discovered in a given PF
+func GetVFList(pf string) (vfList []string, err error) {
+	vfList = make([]string, 0)
+	pfDir := filepath.Join(sysBusPciDevices, pf)
+	_, err = os.Lstat(pfDir)
+	if err != nil {
+		log.Errorf("error. Could not get PF directory information for device: %s, Err: %v", pf, err)
+		err = fmt.Errorf("error. Could not get PF directory information for device: %s, Err: %v", pf, err)
+		return
+	}
+
+	vfDirs, err := filepath.Glob(filepath.Join(pfDir, "virtfn*"))
+
+	if err != nil {
+		log.Errorf("error reading VF directories %v", err)
+		err = fmt.Errorf("error reading VF directories %v", err)
+		return
+	}
+
+	// Read all VF directory and get add VF PCI addr to the vfList
+	for _, dir := range vfDirs {
+		dirInfo, err := os.Lstat(dir)
+		if err == nil && (dirInfo.Mode()&os.ModeSymlink != 0) {
+			linkName, err := filepath.EvalSymlinks(dir)
+			if err == nil {
+				vfLink := filepath.Base(linkName)
+				vfList = append(vfList, vfLink)
+			}
+		}
+	}
+	return
+}
+
+func GetVfDeviceCount(pciAddr string) (int, error) {
+	vfList, err := GetVFList(pciAddr)
+	if err != nil {
+		log.Errorf("Error->%v, from GetVFList", err)
+		return 0, fmt.Errorf("Error->%v, from GetVFList", err)
+	}
+	length := len(vfList)
+	log.Infof("GetVFList count->%v", length)
+	return length, nil
+}
+
 // Recommended to wait upto 2 seconds, for the max VFs(64) currently supported.
-func pollToCheckVfDevices(mode string, count int) error {
+func pollToCheckVfDevices(pciAddr string, count int) error {
 	var err error
 	cnt := 0
 	ticker := time.NewTicker(time.Second / 3)
@@ -62,7 +106,7 @@ func pollToCheckVfDevices(mode string, count int) error {
 
 	go func() {
 		for _ = range ticker.C {
-			cnt, err = utils.GetVfDeviceCount(mode)
+			cnt, err = GetVfDeviceCount(pciAddr)
 			if cnt == count && err == nil {
 				ticker.Stop()
 				break
@@ -104,7 +148,7 @@ func SetNumSriovVfs(mode string, pciAddr string, vfCnt int32) error {
 		return fmt.Errorf("SetNumSriovVfs(): reset fail %s: %v", pathToNumVfsFile, err)
 	}
 	zeroVfs := 0
-	err = pollToCheckVfDevices(mode, zeroVfs)
+	err = pollToCheckVfDevices(pciAddr, zeroVfs)
 	if err != nil {
 		return fmt.Errorf("cli-client query failed count->%v, err->%v\n", zeroVfs, err)
 	}
@@ -115,7 +159,7 @@ func SetNumSriovVfs(mode string, pciAddr string, vfCnt int32) error {
 		return fmt.Errorf("SetNumSriovVfs():error in updating %s: %v", pathToNumVfsFile, err)
 	}
 
-	err = pollToCheckVfDevices(mode, int(vfCnt))
+	err = pollToCheckVfDevices(pciAddr, int(vfCnt))
 	if err != nil {
 		return fmt.Errorf("cli-client query failed count->%v, err->%v\n", vfCnt, err)
 	}
@@ -132,9 +176,7 @@ func SetNumVfs(mode string, numVfs int32) (int32, error) {
 		return 0, fmt.Errorf("setNumVfs(): only supported on host: mode %s\n", mode)
 	}
 
-	//Note: Per internal discussion, for now setting VFs to hardcoded value.
-	log.Debugf("setNumVfs(): requested VFs->%v, will allocate VFs->%v\n", numVfs, configNumVfs)
-	numVfs = int32(configNumVfs)
+	log.Debugf("setNumVfs(): requested num of VFs->%v\n", numVfs)
 
 	files, err := os.ReadDir(sysBusPciDevices)
 	if err != nil {
