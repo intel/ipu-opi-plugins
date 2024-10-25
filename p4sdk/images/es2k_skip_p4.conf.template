@@ -17,20 +17,20 @@
         "eal-args": "--lcores=1-2 -a $CPF_BDF,vport=[0-1] -- -i --rxq=1 --txq=1 --hairpinq=1 --hairpin-mode=0x0",
         "p4_programs": [
         {
-            "program-name": "rh_mvp",
-            "tdi-config": "/opt/p4/rh_mvp/rh_mvp.tdi.json",
+            "program-name": "$P4_NAME",
+            "tdi-config": "/opt/p4/$P4_NAME/$P4_NAME.tdi.json",
             "p4_pipelines": [
             {
                 "p4_pipeline_name": "main",
-                "context": "/opt/p4/rh_mvp/rh_mvp.context.json",
-                "config": "/opt/p4/rh_mvp/tofino.bin",
+                "context": "/opt/p4/$P4_NAME/$P4_NAME.context.json",
+                "config": "/opt/p4/$P4_NAME/tofino.bin",
                 "pipe_scope": [
                     0,
                     1,
                     2,
                     3
                 ],
-                "path": "/opt/p4/rh_mvp"
+                "path": "/opt/p4/$P4_NAME"
             }
             ]
         }
