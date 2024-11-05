@@ -41,6 +41,30 @@ func NewP4RtClient(p4RtBin string, portMuxVsi int, p4BridgeName string, brType t
 	}
 }
 
+func AddPhyPortRules(p4RtBin string, prP0mac string, prP1mac string) {
+}
+
+func DeletePhyPortRules(p4RtBin string, prP0mac string, prP1mac string) {
+}
+
+func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) {
+}
+
+func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) {
+}
+
+func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressMac string, ingressPRMac string, egressPRMac string) {
+}
+
+func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressMac string, ingressPRMac string, egressPRMac string) {
+}
+
+func AddPeerToPeerP4Rules(p4RtBin string, vfMacList []string) {
+}
+
+func DeletePeerToPeerP4Rules(p4RtBin string, vfMacList []string) {
+}
+
 func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
 	// For all rules  in RuleSets call
 	// P4CP_INSTALL/bin/p4rt-ctl add-entry br0
