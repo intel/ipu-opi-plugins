@@ -76,13 +76,14 @@ func programFXPP4Rules(p4RtBin string, ruleSets []fxpRuleBuilder) error {
 
 //TODO: Move this under utils pkg
 func getVsiVportInfo(macAddr string) (int, int) {
-	vfVsi := int(macAddr[1])
+	macAddrByte, _ := utils.GetMacAsByteArray(macAddr)
+	vfVsi := int(macAddrByte[1])
         vfVport := utils.GetVportForVsi(vfVsi)
 	return vfVsi, vfVport
 }
 
 func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-	_ , prVport := getVsiVportInfo(prMac)
+	prVsi , prVport := getVsiVportInfo(prMac)
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "add-entry",
@@ -117,7 +118,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
-                                prVport, phyPort,
+                                prVsi, phyPort,
                         ),
                 },
 
@@ -126,7 +127,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 }
 
 func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-        _ , prVport := getVsiVportInfo(prMac)
+        prVsi , _ := getVsiVportInfo(prMac)
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "del-entry",
@@ -161,7 +162,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0",
-                                prVport,
+                                prVsi,
                         ),
                 },
 
@@ -558,7 +559,7 @@ func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
 			Control: "linux_networking_control.tx_acc_vsi",
 			Metadata: fmt.Sprintf(
 				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
-				apfPrVsi, apfPrVport,
+				apfPrVsi, hostVfVport,
 			),
 		},
 		{
@@ -646,7 +647,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                         Control: "linux_networking_control.vsi_to_vsi_loopback",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,target_vsi=%d",
-                                apfPrVsi,
+                                apfPrVsi,hostVfVsi,
                         ),
                 },
                 {
@@ -669,7 +670,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                 },
         }
 
-        log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("adding FXP rules")
+        log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("Deleting FXP rules")
 
         err := programFXPP4Rules(p4RtBin, hostVfP4ruleSets)
         if err != nil {
@@ -714,20 +715,10 @@ func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressM
              log.Info("Add NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
-        for vfIdx := range vfMacList {
-                vfMacAddr, err := utils.GetMacAsByteArray(vfMacList[vfIdx])
-                if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[vfIdx], err)
-                     return err
-                }
+        for _, vfMacAddr := range vfMacList {
                 nfMacList := []string {ingressMac, egressMac}
-                for nfIdx := range nfMacList {
-		        nfMacAddr, err := utils.GetMacAsByteArray(nfMacList[vfIdx])
-                        if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[nfIdx], err)
-                             return err
-		        }
-			programVsiToVsiP4Rules(p4RtBin, string(vfMacAddr), string(nfMacAddr))
+                for _, nfMacAddr := range nfMacList {
+			programVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
                 }
          }
 	 return nil
@@ -766,20 +757,10 @@ func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egre
              log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
-        for vfIdx := range vfMacList {
-                vfMacAddr, err := utils.GetMacAsByteArray(vfMacList[vfIdx])
-                if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[vfIdx], err)
-                     return err
-                }
+        for _, vfMacAddr := range vfMacList {
                 nfMacList := []string {ingressMac, egressMac}
-                for nfIdx := range nfMacList {
-                        nfMacAddr, err := utils.GetMacAsByteArray(nfMacList[vfIdx])
-                        if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[nfIdx], err)
-                             return err
-                        }
-                        deleteVsiToVsiP4Rules(p4RtBin, string(vfMacAddr), string(nfMacAddr))
+                for _, nfMacAddr := range nfMacList {
+                        deleteVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
                 }
          }
 return nil
@@ -794,24 +775,12 @@ func AddPeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
                   return errors.New("Invalid Mac Address")
             }
 	}
-        for i := range vfMacList {
-                for j := range vfMacList {
-                        if i != j {
-                                srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                                        return err
-                                }
-
-                                dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                                        return err
-                                }
-				programVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
-                        }
+        for i:=0; i < len(vfMacList); i++ {
+               for j:=i+1; j < len(vfMacList); j++ {
+		      programVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
                 }
         }
+        log.Info("AddPeerToPeerP4Rules FXP P4 rules added Successfully")
 return nil
 }
 
@@ -824,24 +793,12 @@ func DeletePeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
                   return errors.New("Invalid Mac Address")
             }
         }
-        for i := range vfMacList {
-                for j := range vfMacList {
-                        if i != j {
-                                srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                                        return err
-                                }
-
-                                dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                                        return err
-                                }
-                                deleteVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
-                        }
+	for i:=0; i < len(vfMacList); i++ {
+	       for j:=i+1; j < len(vfMacList); j++ {
+                      deleteVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
                 }
         }
+        log.Info("AddPeerToPeerP4Rules FXP P4 rules deleted Successfully for")
 return nil
 }
 
@@ -854,8 +811,16 @@ func AddLAGP4Rules(p4RtBin string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
-                     })
-		     log.Info("ARUN: %v", LAGP4ruleSets)
+         })
+         err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+         if err != nil {
+              log.Info("LAG LPM ROOT LUT FXP P4 rules add failed")
+         } else {
+              log.Info("LAG LPM ROOT LUT FXP P4 rules were added successfully")
+         }
+
+	LAGP4ruleSets = []fxpRuleBuilder{}
+
 	for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
@@ -866,13 +831,12 @@ func AddLAGP4Rules(p4RtBin string) error {
                      },
 	      )
 	 }
-	 log.Info("ARUN: %v", LAGP4ruleSets)
-	 err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+	 err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
-              log.Info("Host VF FXP P4 rules add failed")
+              log.Info("AddLAGP4Rules FXP P4 rules add failed")
               return err
          } else {
-             log.Info("Host VF FXP P4 rules were added successfully")
+             log.Info("AddLAGP4Rules FXP P4 rules were added successfully")
          }
          return nil
 }
@@ -882,12 +846,19 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 
         LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
-                        Action:  "add-entry",
+                        Action:  "del-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
-                     })
-        log.Info("ARUN: %v", LAGP4ruleSets)
+        })
+        err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+        if err != nil {
+             log.Info("LAG FXP P4 rules delete failed")
+        } else {
+            log.Info("LAG FXP P4 rules were delete successfully")
+        }
+
+        LAGP4ruleSets = []fxpRuleBuilder{}
 
         for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
@@ -899,13 +870,12 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                      },
               )
          }
-	 log.Info("ARUN: %v", LAGP4ruleSets)
-         err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+         err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
-              log.Info("LAG FXP P4 rules delete failed")
+              log.Info("DeleteLAGP4Rules FXP P4 rules delete failed")
               return err
          } else {
-             log.Info("LAG FXP P4 rules were delete successfully")
+             log.Info("DeleteLAGP4Rules FXP P4 rules were delete successfully")
          }
          return nil
 }

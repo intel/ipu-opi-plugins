@@ -596,10 +596,10 @@ if [ -e fxp-net_linux-networking.pkg ]; then
     cp fxp-net_linux-networking.pkg /etc/dpcp/package/
     rm -rf /etc/dpcp/package/default_pkg.pkg
     ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
-    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' \$CP_INIT_CFG
-    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' \$CP_INIT_CFG
-    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' \$CP_INIT_CFG
-    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' \$CP_INIT_CFG
+    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' $CP_INIT_CFG
+    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' $CP_INIT_CFG
+    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
+    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' $CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
     sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
