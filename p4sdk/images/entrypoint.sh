@@ -30,6 +30,9 @@ func_set_br_pipe(){
 }
 
 func_start_ovs() {
+    mkdir -p /opt/p4/p4-cp-nws/etc/openvswitch
+    mkdir -p /opt/p4/p4-cp-nws/share/openvswitch
+    mkdir -p /opt/p4/p4-cp-nws/var/run/openvswitch
     rm -rf /opt/p4/p4-cp-nws/etc/openvswitch/conf.db
     export PATH="$PATH:$P4CP_INSTALL/bin:$P4CP_INSTALL/sbin:"
     ovsdb-tool create $P4CP_INSTALL/etc/openvswitch/conf.db $P4CP_INSTALL/share/openvswitch/vswitch.ovsschema
