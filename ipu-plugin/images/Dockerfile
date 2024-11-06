@@ -34,3 +34,4 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages /opt/p4/p4-cp-
 RUN rm -rf /var/cache/apk/*
 RUN apk add --update --no-cache openssh
 RUN apk add --update --no-cache networkmanager-cli
+RUN apk add --update --no-cache openvswitch
