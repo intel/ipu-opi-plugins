@@ -40,8 +40,8 @@ func_start_ovs() {
     ovs-vswitchd --pidfile --detach  --log-file=/var/log/messages/ovs-vswitchd.log
 }
 
-LOGFILE=/var/log/messages/entrypoint.log;
-mkdir -p /var/log/messages
+LOGFILE=/var/log/entrypoint.log;
+mkdir -p /var/log
 
 
 CPF_INFO_FILE=cpf_info_file.txt
@@ -63,7 +63,9 @@ IDPF_VF_VPORT0=4 ; CTRL_MAP="" ; \
 idpf_ports=$(realpath /sys/class/net/*/dev_port | grep  "$(lspci -nnkd "8086:1452" | awk  "NR==1{print \$1}")") ; \
 for port in ${idpf_ports} ; do
      [ "$(head "$port")" -ge "${IDPF_VF_VPORT0}" ]  && netpath="$(dirname "$port")" && \
-            IDPF_VPORT_MAC=\""$(head "$netpath"/address)"\" && \
+            IDPF_VPORT_MAC="$(head "$netpath"/address)" && \
+            set -- "\"$IDPF_VPORT_MAC\"" && \
+            IDPF_VPORT_MAC="$*" && \
             CTRL_MAP=${CTRL_MAP}${IDPF_VPORT_MAC}, > $LOGFILE 2>&1 ;
 done;
 
