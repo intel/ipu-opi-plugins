@@ -846,18 +846,19 @@ return nil
 }
 
 func AddLAGP4Rules(p4RtBin string) error {
-        LAGP4ruleSets := []fxpRuleBuilder{
-               {
+        var LAGP4ruleSets []fxpRuleBuilder
+
+        LAGP4ruleSets = append(LAGP4ruleSets,
+                     fxpRuleBuilder{
                         Action:  "add-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
-               },
-        }
+                     },)
 
 	for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
-                     []fxpRuleBuilder{
+                     fxpRuleBuilder{
                         Action:  "add-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_lag_table",
@@ -876,18 +877,19 @@ func AddLAGP4Rules(p4RtBin string) error {
 }
 
 func DeleteLAGP4Rules(p4RtBin string) error {
-        LAGP4ruleSets := []fxpRuleBuilder{
-               {
-                        Action:  "del-entry",
+	var LAGP4ruleSets []fxpRuleBuilder
+
+        LAGP4ruleSets = append(LAGP4ruleSets,
+                     fxpRuleBuilder{
+                        Action:  "add-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
-               },
-        }
+                     },)
 
         for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
-                     []fxpRuleBuilder{
+                     fxpRuleBuilder{
                         Action:  "del-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_lag_table",
