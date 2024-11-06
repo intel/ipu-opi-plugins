@@ -14,7 +14,16 @@
 
 package types
 
+import (
+	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
+)
+
 type BridgeType int
+
+type BridgePortInfo struct {
+	PbBrPort      *pb.BridgePort
+	PortInterface string
+}
 
 const (
 	OvsBridge BridgeType = iota
@@ -43,6 +52,8 @@ type BridgeController interface {
 	// EnsureBridgeExists checks for the bridge that the controller is going to manage. It will attempt to
 	// create one if it doesn't exist.
 	EnsureBridgeExists() error
+	// DeleteBridges deletes the bridges managed.
+	DeleteBridges() error
 	// AddPort will add host interface "portName" to the bridge that this BridgeController is managing
 	AddPort(portName string) error
 	// DeletePort will remove a port "portName" from the bridge that this BridgeController is managing

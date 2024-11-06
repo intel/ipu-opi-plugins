@@ -2,8 +2,8 @@
 
 .PHONY: all fmt check-fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
 APP_NAME = ipu-p4-sdk
-P4_NAME = rh_mvp
-P4_DIR  = p4-rh_mvp
+P4_NAME = fxp-net_linux-networking
+P4_DIR  = fxp-net_linux-networking
 VERSION ?= 0.0.0
 IMAGE_NAME = intel-$(APP_NAME)
 ifneq (, $(IMAGE_REGISTRY))

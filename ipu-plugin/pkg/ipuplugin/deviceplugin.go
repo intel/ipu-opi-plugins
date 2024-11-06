@@ -23,7 +23,10 @@ type DevicePluginService struct {
 }
 
 var (
-	exclude          = []string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4"}
+	//TODO: Use (GetFilteredPfs), to find interface names to be excluded.
+	//excluding d3(host-acc), reserving D4-D5(QSPF ports) D6-D8(for max 3 host VFs), D9-D10(for single NF)
+	exclude = []string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4", "enp0s1f0d5", "enp0s1f0d6",
+		"enp0s1f0d7", "enp0s1f0d8", "enp0s1f0d9", "enp0s1f0d10"}
 	sysClassNet      = "/sys/class/net"
 	sysBusPciDevices = "/sys/bus/pci/devices"
 	deviceCode       = "0x1452"
