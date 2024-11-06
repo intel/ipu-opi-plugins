@@ -1,2 +1,2 @@
-[registry."10.166.87.164:5000"]
+[registry."localhost:5000"]
   http = true

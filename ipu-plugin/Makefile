@@ -73,7 +73,7 @@ imagex: ## Build and push docker image for the manager for cross-platform suppor
 	- $(IMGTOOL) buildx use image-builder
 	- $(IMGTOOL) buildx build --allow security.insecure --push --platform=$(PLATFORMS) --tag ${IMAGE_TAG_VERSION} --tag ${IMAGE_TAG_LATEST} -f $(DOCKERFILE).cross  $(CURDIR) $(DOCKERARGS)
 	- $(IMGTOOL) buildx rm image-builder
-	#rm $(DOCKERFILE).cross
+	rm $(DOCKERFILE).cross
 
 clean:
 	@echo "Remove bin directory"
