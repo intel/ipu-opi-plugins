@@ -24,7 +24,7 @@ RUN dnf -y install   kmod-28-9.el9 \
       pciutils-3.7.0-5.el9 \
       libnl3-3.9.0-1.el9 \
       libedit-3.1-38.20210216cvs.el9 \
-      libatomic-11.4.1-3.el9
+      libatomic-11.4.1-3.el9 && dnf clean all
 
 RUN if [ "$TARGETARCH" = "amd64" ]; then export ARCHSUFFIX="x86_64"; \
     else export ARCHSUFFIX="aarch64"; fi; \

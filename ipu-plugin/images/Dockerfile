@@ -11,7 +11,10 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o bi
 
 FROM registry.access.redhat.com/ubi9/ubi:9.4 as builder-ovs
 
-RUN dnf -y install git autoconf automake libtool && dnf clean all
+RUN dnf -y install git \
+                   autoconf \
+                   automake \
+                   libtool && dnf clean all
 WORKDIR /
 RUN git clone https://github.com/openvswitch/ovs.git
 WORKDIR /ovs
