@@ -68,7 +68,7 @@ func programFXPP4Rules(p4RtBin string, ruleSets []fxpRuleBuilder) error {
 		p4rule := []string{r.Action, r.P4br, r.Control, r.Metadata}
 		err := utils.RunP4rtCtlCommand(p4RtBin, p4rule...)
 		if err != nil {
-			log.Info("WARNING: Failed to program p4rule: %v", p4rule)
+			log.Info("WARNING: Failed to program p4rule: ", p4rule)
 		}
 	}
 	return nil
@@ -85,14 +85,14 @@ func getVsiVportInfo(macAddr string) (int, int) {
 func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 	vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
 	if err != nil {
-		log.Info("AddPhyPortRules failed. Unable to find Vsi and Vport for PR mac: %s", prMac)
+		log.Info("AddPhyPortRules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
 		return err
 	}
 	//skip 0x in front of vsi
 	vsi = vsi[2:]
 	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
 	if err != nil {
-		log.Info("error from ParseInt %v", err)
+		log.Info("error from ParseInt ", err)
 		return err
 	}
 	prVsi := int(vsiInt64)
@@ -143,14 +143,14 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 	vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
 	if err != nil {
-		log.Info("DeletePhyPortRules failed. Unable to find Vsi and Vport for PR mac: %s", prMac)
+		log.Info("DeletePhyPortRules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
 		return err
 	}
 	//skip 0x in front of vsi
 	vsi = vsi[2:]
 	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
 	if err != nil {
-		log.Info("error from ParseInt %v", err)
+		log.Info("error from ParseInt ", err)
 		return err
 	}
 	prVsi := int(vsiInt64)
@@ -721,18 +721,18 @@ func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressM
 
 	err := programNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
 	if err != nil {
-		log.Info("Add NF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
+		log.Info("Add NF FXP P4 rules add failed for ", ingressMac, ingressPRMac)
 		return err
 	} else {
-		log.Info("Add NF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
+		log.Info("Add NF FXP P4 rules were added successfully for ", ingressMac, ingressPRMac)
 	}
 
 	err = programNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
 	if err != nil {
-		log.Info("Add NF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
+		log.Info("Add NF FXP P4 rules add failed for ", egressMac, egressPRMac)
 		return err
 	} else {
-		log.Info("Add NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
+		log.Info("Add NF FXP P4 rules were added successfully for ", egressMac, egressPRMac)
 	}
 
 	for _, vfMacAddr := range vfMacList {
@@ -763,18 +763,18 @@ func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egre
 
 	err := deleteNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
 	if err != nil {
-		log.Info("Delete NF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
+		log.Info("Delete NF FXP P4 rules add failed for ", ingressMac, ingressPRMac)
 		return err
 	} else {
-		log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
+		log.Info("Delete NF FXP P4 rules were added successfully for ", ingressMac, ingressPRMac)
 	}
 
 	err = deleteNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
 	if err != nil {
-		log.Info("Delete NF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
+		log.Info("Delete NF FXP P4 rules add failed for ", egressMac, egressPRMac)
 		return err
 	} else {
-		log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
+		log.Info("Delete NF FXP P4 rules were added successfully for ", egressMac, egressPRMac)
 	}
 
 	for _, vfMacAddr := range vfMacList {

@@ -32,6 +32,8 @@ var _ = Describe("bridgeport", Serial, func() {
 		BeforeEach(func() {
 			fakeBrCtlr := &mockBrCtlr{}
 			fakeP4rtClient := &mockP4rtClient{}
+			ExecutableHandlerGlobal = &MockExecutableHandlerImpl{}
+			ExecutableHandlerGlobal.SetupAccApfs()
 			ipuServer = &server{
 				bridgeCtlr: fakeBrCtlr,
 				p4RtClient: fakeP4rtClient,
