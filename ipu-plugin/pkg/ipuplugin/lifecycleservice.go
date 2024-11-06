@@ -795,6 +795,12 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 	p4rtclient.DeletePeerToPeerP4Rules(p4rtbin, vfMacList)
 	log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
 	p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+
+	log.Infof("DeleteLAGP4Rules, path->%s", p4rtbin)
+	p4rtclient.DeleteLAGP4Rules(p4rtbin)
+	log.Infof("AddLAGP4Rules, path->%v", p4rtbin)
+	p4rtclient.AddLAGP4Rules(p4rtbin)
+
 	return nil
 }
 

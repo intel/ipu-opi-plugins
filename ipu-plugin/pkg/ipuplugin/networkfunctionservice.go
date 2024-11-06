@@ -79,8 +79,6 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 	}
 	log.Infof("added interfaces:in->%s, out->%s, inPR->%s, outPR->%s",
 		AccIntfNames[ingressIndex], AccIntfNames[egressIndex], AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
-	// Remove point-to-point between host VFs from the FXP
-	//p4rtclient.DeletePointToPointVFRules(s.p4rtbin, vfMacList)
 	/*Note: Currently this API does not have host-VF info, since there is no reference to what was passed by DPU in CreateBridgePort.
 	As a work-around, we take full vfMacList, and write P4 rules, to connect all host VFs to NF.	*/
 	// Generate the P4 rules and program the FXP with NF comms
@@ -133,8 +131,6 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	log.Infof("DeleteNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
 		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
 	p4rtclient.DeleteNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
-	// Generate the P4 rules and program the FXP with point-to-point rules between host VFs
-	//p4rtclient.CreatePointToPointVFRules(s.p4rtbin, vfMacList)
 
 	return &pb.Empty{}, nil
 }

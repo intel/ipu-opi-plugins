@@ -5,9 +5,6 @@ RUN apk add --no-cache git
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV HTTP_PROXY $http_proxy
-ENV HTTPS_PROXY $https_proxy
-
 RUN apk add --no-cache --virtual build-dependencies build-base
 COPY . /usr/src/ipu-opi-plugin
 WORKDIR /usr/src/ipu-opi-plugin
