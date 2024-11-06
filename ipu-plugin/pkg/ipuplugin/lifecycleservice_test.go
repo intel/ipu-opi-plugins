@@ -19,6 +19,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
@@ -30,7 +31,7 @@ var _ = Describe("basic functionality", Serial, func() {
 	// Initialise the handlers
 	fileSystemHandler = &MockFileSystemHandlerImpl{}
 	networkHandler = &MockNetworkHandlerImpl{}
-	executableHandler = &MockExecutableHandlerImpl{}
+	ExecutableHandlerGlobal = &MockExecutableHandlerImpl{}
 	fxpHandler = &MockFXPHandlerImpl{}
 
 	Describe("pf communication channel setup", Serial, func() {
@@ -97,7 +98,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a valid response", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -108,7 +109,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return an error if the plugin runs in a different mode", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -120,7 +121,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a not a valid IPv4 address when daemonIpuIp is invalid", func() {
 
 				// create invalid licycle service
-				service := NewLifeCycleService("", "192.168.1", 50151, "ipu", "fakebinary")
+				service := NewLifeCycleService("", "192.168.1", 50151, "ipu", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -140,7 +141,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a valid response", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "host", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -151,7 +152,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return an error if the plugin runs in a different mode", func() {
 
 				// create valid licycle service
-				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary")
+				service := NewLifeCycleService("192.168.1.1", "192.168.1.2", 50151, "ipu", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -163,7 +164,7 @@ var _ = Describe("basic functionality", Serial, func() {
 			It("the server should return a not a valid IPv4 address as daemonHostIp is invalid", func() {
 
 				// create invalid licycle service
-				service := NewLifeCycleService("192.168.1", "", 50151, "host", "fakebinary")
+				service := NewLifeCycleService("192.168.1", "", 50151, "host", "fakebinary", nil)
 
 				_, err := service.Init(context.Background(), request)
 
@@ -257,6 +258,10 @@ type MockExecutableHandlerImpl struct{}
 func (m *MockExecutableHandlerImpl) validate() bool {
 	return true
 }
+func (m *MockExecutableHandlerImpl) SetupAccApfs() error {
+	InitAccApfMacs = true
+	return nil
+}
 
 func (e *MockExecutableHandlerImpl) nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error {
 	return fmt.Errorf("Method added for test purposes")
@@ -264,6 +269,6 @@ func (e *MockExecutableHandlerImpl) nmcliSetupIpAddress(link netlink.Link, ipStr
 
 type MockFXPHandlerImpl struct{}
 
-func (m *MockFXPHandlerImpl) configureFXP(p4rtbin string) error {
+func (m *MockFXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
 	return nil
 }
