@@ -794,22 +794,19 @@ func AddPeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
                   return errors.New("Invalid Mac Address")
             }
 	}
-        for i := range vfMacList {
-                for j := range vfMacList {
-                        if i != j {
-                                srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                                        return err
-                                }
-
-                                dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                                        return err
-                                }
-				programVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
-                        }
+        for i:=0; i < len(vfMacList); i++ {
+               srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+               if err != nil {
+                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+                     return err
+               }
+               for j:=i+1; j < len(vfMacList); j++ {
+                      dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
+                      if err != nil {
+                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
+                             return err
+                      }
+		      programVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
                 }
         }
 return nil
@@ -824,22 +821,19 @@ func DeletePeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
                   return errors.New("Invalid Mac Address")
             }
         }
-        for i := range vfMacList {
-                for j := range vfMacList {
-                        if i != j {
-                                srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                                        return err
-                                }
-
-                                dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                                if err != nil {
-                                        fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                                        return err
-                                }
-                                deleteVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
-                        }
+	for i:=0; i < len(vfMacList); i++ {
+               srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
+               if err != nil {
+                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
+                     return err
+               }
+	       for j:=i+1; j < len(vfMacList); j++ {
+                      dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
+                      if err != nil {
+                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
+                             return err
+                      }
+                      deleteVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
                 }
         }
 return nil
