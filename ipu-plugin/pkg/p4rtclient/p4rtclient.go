@@ -83,7 +83,7 @@ func getVsiVportInfo(macAddr string) (int, int) {
 }
 
 func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-	_ , prVport := getVsiVportInfo(prMac)
+	prVsi , prVport := getVsiVportInfo(prMac)
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "add-entry",
@@ -118,7 +118,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
-                                prVport, phyPort,
+                                prVsi, phyPort,
                         ),
                 },
 
@@ -127,7 +127,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 }
 
 func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-        _ , prVport := getVsiVportInfo(prMac)
+        prVsi , _ := getVsiVportInfo(prMac)
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "del-entry",
@@ -162,7 +162,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0",
-                                prVport,
+                                prVsi,
                         ),
                 },
 
@@ -559,7 +559,7 @@ func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
 			Control: "linux_networking_control.tx_acc_vsi",
 			Metadata: fmt.Sprintf(
 				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
-				apfPrVsi, apfPrVport,
+				apfPrVsi, hostVfVport,
 			),
 		},
 		{
