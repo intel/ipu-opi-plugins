@@ -76,7 +76,8 @@ func programFXPP4Rules(p4RtBin string, ruleSets []fxpRuleBuilder) error {
 
 //TODO: Move this under utils pkg
 func getVsiVportInfo(macAddr string) (int, int) {
-	vfVsi := int(macAddr[1])
+	macAddrByte, _ := utils.GetMacAsByteArray(macAddr)
+	vfVsi := int(macAddrByte[1])
         vfVport := utils.GetVportForVsi(vfVsi)
 	return vfVsi, vfVport
 }
@@ -669,7 +670,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                 },
         }
 
-        log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("adding FXP rules")
+        log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("Deleting FXP rules")
 
         err := programFXPP4Rules(p4RtBin, hostVfP4ruleSets)
         if err != nil {
@@ -714,20 +715,10 @@ func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressM
              log.Info("Add NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
-        for vfIdx := range vfMacList {
-                vfMacAddr, err := utils.GetMacAsByteArray(vfMacList[vfIdx])
-                if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[vfIdx], err)
-                     return err
-                }
+        for _, vfMacAddr := range vfMacList {
                 nfMacList := []string {ingressMac, egressMac}
-                for nfIdx := range nfMacList {
-		        nfMacAddr, err := utils.GetMacAsByteArray(nfMacList[vfIdx])
-                        if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[nfIdx], err)
-                             return err
-		        }
-			programVsiToVsiP4Rules(p4RtBin, string(vfMacAddr), string(nfMacAddr))
+                for _, nfMacAddr := range nfMacList {
+			programVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
                 }
          }
 	 return nil
@@ -766,20 +757,10 @@ func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egre
              log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
-        for vfIdx := range vfMacList {
-                vfMacAddr, err := utils.GetMacAsByteArray(vfMacList[vfIdx])
-                if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[vfIdx], err)
-                     return err
-                }
+        for _, vfMacAddr := range vfMacList {
                 nfMacList := []string {ingressMac, egressMac}
-                for nfIdx := range nfMacList {
-                        nfMacAddr, err := utils.GetMacAsByteArray(nfMacList[vfIdx])
-                        if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[nfIdx], err)
-                             return err
-                        }
-                        deleteVsiToVsiP4Rules(p4RtBin, string(vfMacAddr), string(nfMacAddr))
+                for _, nfMacAddr := range nfMacList {
+                        deleteVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
                 }
          }
 return nil
@@ -795,20 +776,11 @@ func AddPeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
             }
 	}
         for i:=0; i < len(vfMacList); i++ {
-               srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-               if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                     return err
-               }
                for j:=i+1; j < len(vfMacList); j++ {
-                      dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                      if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                             return err
-                      }
-		      programVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
+		      programVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
                 }
         }
+        log.Info("AddPeerToPeerP4Rules FXP P4 rules added Successfully")
 return nil
 }
 
@@ -822,20 +794,11 @@ func DeletePeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
             }
         }
 	for i:=0; i < len(vfMacList); i++ {
-               srcVfMac, err := utils.GetMacAsByteArray(vfMacList[i])
-               if err != nil {
-                     fmt.Printf("unable to extract octets from %s: %v", vfMacList[i], err)
-                     return err
-               }
 	       for j:=i+1; j < len(vfMacList); j++ {
-                      dstVfMac, err := utils.GetMacAsByteArray(vfMacList[j])
-                      if err != nil {
-                             fmt.Printf("unable to extract octets from %s: %v", vfMacList[j], err)
-                             return err
-                      }
-                      deleteVsiToVsiP4Rules(p4RtBin, string(srcVfMac), string(dstVfMac))
+                      deleteVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
                 }
         }
+        log.Info("AddPeerToPeerP4Rules FXP P4 rules deleted Successfully for")
 return nil
 }
 
@@ -870,10 +833,10 @@ func AddLAGP4Rules(p4RtBin string) error {
 	 }
 	 err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
-              log.Info("Host VF FXP P4 rules add failed")
+              log.Info("AddLAGP4Rules FXP P4 rules add failed")
               return err
          } else {
-             log.Info("Host VF FXP P4 rules were added successfully")
+             log.Info("AddLAGP4Rules FXP P4 rules were added successfully")
          }
          return nil
 }
@@ -909,10 +872,10 @@ func DeleteLAGP4Rules(p4RtBin string) error {
          }
          err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
-              log.Info("LAG FXP P4 rules delete failed")
+              log.Info("DeleteLAGP4Rules FXP P4 rules delete failed")
               return err
          } else {
-             log.Info("LAG FXP P4 rules were delete successfully")
+             log.Info("DeleteLAGP4Rules FXP P4 rules were delete successfully")
          }
          return nil
 }
