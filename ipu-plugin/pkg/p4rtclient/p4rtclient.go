@@ -133,7 +133,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.rx_source_port",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.port_id=%d,zero_padding=0,action=linux_networking_control.set_source_port(%d)",
+                                "vmeta.common.port_id=%d,zero_padding=0",
                                 phyPort, phyPort,
                         ),
                 },
@@ -142,7 +142,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.rx_phy_port_to_pr_map",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.port_id=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+                                "vmeta.common.port_id=%d,zero_padding=0",
                                 phyPort, prVport,
                         ),
                 },
@@ -151,7 +151,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.source_port_to_pr_map",
                         Metadata: fmt.Sprintf(
-                                "user_meta.cmeta.source_port=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+                                "user_meta.cmeta.source_port=%d,zero_padding=0",
                                 phyPort, prVport,
                         ),
                 },
@@ -160,7 +160,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+                                "vmeta.common.vsi=%d,zero_padding=0",
                                 prVport, phyPort,
                         ),
                 },
@@ -177,7 +177,7 @@ func programPhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.source_port_to_bridge_map",
                         Metadata: fmt.Sprintf(
-                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1,action=linux_networking_control.set_bridge_id(bridge_id=%d)",
+                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1",
                                 phyPort, bridgeId,
                         ),
                 },
@@ -192,7 +192,7 @@ func deletePhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.source_port_to_bridge_map",
                         Metadata: fmt.Sprintf(
-                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1,action=linux_networking_control.set_bridge_id(bridge_id=%d)",
+                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1",
                                 phyPort, bridgeId,
                         ),
                 },
@@ -210,8 +210,8 @@ func programNfPrVportP4Rules(p4RtBin, ingressMac, egressMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_source_port",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.vsi=%d,priority=1,action=linux_networking_control.set_source_port(%d)",
-                                ingressVsi/2047, ingressVport,
+                                "vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port(%d)",
+                                ingressVsi, ingressVport,
                         ),
                 },
                 {
@@ -275,8 +275,8 @@ func deleteNfPrVportP4Rules(p4RtBin, ingressMac, egressMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_source_port",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.vsi=%d,priority=1",
-                                ingressVsi/2047,
+                                "vmeta.common.vsi=%d/0x7ff,priority=1",
+                                ingressVsi,
                         ),
                 },
                 {
@@ -548,8 +548,8 @@ func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
 			P4br:    "br0",
 			Control: "linux_networking_control.tx_source_port",
 			Metadata: fmt.Sprintf(
-				"vmeta.common.vsi=%d,priority=1,action=linux_networking_control.set_source_port",
-				hostVfVsi / 2047, hostVfVport,
+				"vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port",
+				hostVfVsi, hostVfVport,
 			),
 		},
 		{
@@ -627,8 +627,8 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_source_port",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.vsi=%d,priority=1",
-                                hostVfVsi/2047,
+                                "vmeta.common.vsi=%d/0x7ff,priority=1",
+                                hostVfVsi,
                         ),
                 },
                 {
@@ -673,10 +673,10 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
 
         err := programFXPP4Rules(p4RtBin, hostVfP4ruleSets)
         if err != nil {
-             log.Info("Host VF FXP P4 rules add failed")
+             log.Info("Host VF FXP P4 rules delete failed")
 	     return err
         } else {
-             log.Info("Host VF FXP P4 rules were added successfully")
+             log.Info("Host VF FXP P4 rules were deleted successfully")
         }
 	return nil
 }
@@ -700,18 +700,18 @@ func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressM
 
 	err := programNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
         if err != nil {
-             log.Info("Host VF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
+             log.Info("Add NF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
 	     return err
         } else {
-             log.Info("Host VF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
+             log.Info("Add NF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
         }
 
         err = programNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
         if err != nil {
-             log.Info("Host VF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
+             log.Info("Add NF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
 	     return err
         } else {
-             log.Info("Host VF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
+             log.Info("Add NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
         for vfIdx := range vfMacList {
@@ -752,18 +752,18 @@ func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egre
 
         err := deleteNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
         if err != nil {
-             log.Info("Host VF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
+             log.Info("Delete NF FXP P4 rules add failed for %s, %s", ingressMac, ingressPRMac)
 	     return err
         } else {
-             log.Info("Host VF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
+             log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", ingressMac, ingressPRMac)
         }
 
         err = deleteNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
         if err != nil {
-             log.Info("Host VF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
+             log.Info("Delete NF FXP P4 rules add failed for %s, %s", egressMac, egressPRMac)
 	     return err
         } else {
-             log.Info("Host VF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
+             log.Info("Delete NF FXP P4 rules were added successfully for %s, %s", egressMac, egressPRMac)
         }
 
         for vfIdx := range vfMacList {
