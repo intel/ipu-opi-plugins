@@ -134,7 +134,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.rx_source_port",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.port_id=%d,zero_padding=0",
-                                phyPort, phyPort,
+                                phyPort,
                         ),
                 },
                 {
@@ -143,7 +143,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.rx_phy_port_to_pr_map",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.port_id=%d,zero_padding=0",
-                                phyPort, prVport,
+                                phyPort,
                         ),
                 },
                 {
@@ -152,7 +152,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.source_port_to_pr_map",
                         Metadata: fmt.Sprintf(
                                 "user_meta.cmeta.source_port=%d,zero_padding=0",
-                                phyPort, prVport,
+                                phyPort,
                         ),
                 },
                 {
@@ -161,7 +161,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0",
-                                prVport, phyPort,
+                                prVport,
                         ),
                 },
 
@@ -350,7 +350,7 @@ func programVsiToVsiP4Rules(p4RtBin, mac1, mac2 string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.vsi_to_vsi_loopback",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%)",
+                                "vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
                                 mac2Vsi, mac1Vsi, mac1Vport,
                         ),
                 },
@@ -884,7 +884,7 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                         Action:  "add-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
-                        Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
+                        Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
                      },)
 
         for idx := 0; idx < 8; idx++ {
@@ -893,7 +893,7 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                         Action:  "del-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.tx_lag_table",
-                        Metadata: fmt.Sprintf("user_meta.cmeta.lag_group_id=0/255,hash=%d/7,priority=1,action=linux_networking_control.bypass", idx),
+                        Metadata: fmt.Sprintf("user_meta.cmeta.lag_group_id=0/255,hash=%d/7,priority=1", idx),
                      },
               )
          }
