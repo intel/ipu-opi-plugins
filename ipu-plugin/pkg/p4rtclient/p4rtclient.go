@@ -854,8 +854,8 @@ func AddLAGP4Rules(p4RtBin string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
-                     },)
-
+                     })
+		     log.Info("ARUN: %v", LAGP4ruleSets)
 	for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
@@ -866,6 +866,7 @@ func AddLAGP4Rules(p4RtBin string) error {
                      },
 	      )
 	 }
+	 log.Info("ARUN: %v", LAGP4ruleSets)
 	 err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("Host VF FXP P4 rules add failed")
@@ -885,7 +886,8 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
-                     },)
+                     })
+        log.Info("ARUN: %v", LAGP4ruleSets)
 
         for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
@@ -897,6 +899,7 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                      },
               )
          }
+	 log.Info("ARUN: %v", LAGP4ruleSets)
          err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("LAG FXP P4 rules delete failed")
