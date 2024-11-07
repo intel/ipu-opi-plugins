@@ -596,7 +596,10 @@ if [ -e fxp-net_linux-networking.pkg ]; then
     cp fxp-net_linux-networking.pkg /etc/dpcp/package/
     rm -rf /etc/dpcp/package/default_pkg.pkg
     ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
-    sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
+    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' \$CP_INIT_CFG
+    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' \$CP_INIT_CFG
+    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' \$CP_INIT_CFG
+    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' \$CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
     sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
@@ -774,14 +777,11 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 		log.Errorf("configureFXP: AccApfs info not set, thro-> setupAccApfs")
 		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> setupAccApfs")
 	}
-	//Add Phy Por0, Port1 to ovs bridge
+	//Add Phy Port0 to ovs bridge
+	//Note: Per current design, Phy Port1 is added to a different bridge(through P4 rules).
 	if err := brCtlr.AddPort(AccIntfNames[PHY_PORT0_INTF_INDEX]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
 		//return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
-	}
-	if err := brCtlr.AddPort(AccIntfNames[PHY_PORT1_INTF_INDEX]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT1_INTF_INDEX])
-		//return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT1_INTF_INDEX])
 	}
 	//Add P4 rules for phy ports
 	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
