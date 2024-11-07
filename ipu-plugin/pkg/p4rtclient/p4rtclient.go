@@ -646,7 +646,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                         Control: "linux_networking_control.vsi_to_vsi_loopback",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,target_vsi=%d",
-                                apfPrVsi,
+                                apfPrVsi,hostVfVsi,
                         ),
                 },
                 {
@@ -854,7 +854,7 @@ func AddLAGP4Rules(p4RtBin string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
-                     })
+         })
          err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("LAG LPM ROOT LUT FXP P4 rules add failed")
@@ -862,9 +862,8 @@ func AddLAGP4Rules(p4RtBin string) error {
               log.Info("LAG LPM ROOT LUT FXP P4 rules were added successfully")
          }
 
-        log.Info("ARUN: %v", LAGP4ruleSets)
 	LAGP4ruleSets = []fxpRuleBuilder{}
-	log.Info("ARUN: %v", LAGP4ruleSets)
+
 	for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
@@ -875,7 +874,6 @@ func AddLAGP4Rules(p4RtBin string) error {
                      },
 	      )
 	 }
-	 log.Info("ARUN: %v", LAGP4ruleSets)
 	 err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("Host VF FXP P4 rules add failed")
@@ -895,18 +893,16 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
-                     })
+        })
+        err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+        if err != nil {
+             log.Info("LAG FXP P4 rules delete failed")
+        } else {
+            log.Info("LAG FXP P4 rules were delete successfully")
+        }
 
-         err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
-         if err != nil {
-              log.Info("LAG FXP P4 rules delete failed")
-              return err
-         } else {
-             log.Info("LAG FXP P4 rules were delete successfully")
-         }
-        log.Info("ARUN: %v", LAGP4ruleSets)
         LAGP4ruleSets = []fxpRuleBuilder{}
-        log.Info("ARUN: %v", LAGP4ruleSets)
+
         for idx := 0; idx < 8; idx++ {
               LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
@@ -917,7 +913,6 @@ func DeleteLAGP4Rules(p4RtBin string) error {
                      },
               )
          }
-	 log.Info("ARUN: %v", LAGP4ruleSets)
          err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("LAG FXP P4 rules delete failed")
