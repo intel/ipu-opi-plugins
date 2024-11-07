@@ -70,7 +70,8 @@ make image
 
 
 ```
-podman run -d --privileged -v /lib/modules/5.14.0-427.13.1.el9_4.aarch64:/lib/modules/5.14.0-427.13.1.el9_4.aarch64 localhost/intel-ipu-p4-sdk:latest
+podman run -d --privileged -v /lib/modules/5.14.0-427.13.1.el9_4.aarch64:/lib/modules/5.14.0-427.13.1.el9_4.aarch64 -v  /sys:/sys -p 9559:9559 localhost/intel-ipu-p4-sdk:latest
+
 ```
 
 **Note**: The host modules are shared because the vfio module is not available in the container.

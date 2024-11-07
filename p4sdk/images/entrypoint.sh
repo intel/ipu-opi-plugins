@@ -41,9 +41,25 @@ export CPF_BDF
 # Note that P4_NAME is also envsubst along with above
 # which comes from the Dockerfile
 
+#We exclude interfaces D0 to D3. CTRL_MAP will
+#include interfaces D4 to D15, that can be added as 
+#port representors on bridge(in ACC).
+IDPF_VF_VPORT0=4 ; CTRL_MAP="" ; \
+idpf_ports=$(realpath /sys/class/net/*/dev_port | grep  $(lspci -nnkd 8086:1452 | awk  "NR==1{print \$1}")) ; \
+for port in ${idpf_ports} ; do \
+     [ $(head $port) -ge ${IDPF_VF_VPORT0} ]  && netpath=$(dirname $port) && \
+            IDPF_VPORT_NAME=$(basename $netpath) && \
+            IDPF_VPORT_MAC=$(head $netpath/address) && \
+            CTRL_MAP="${CTRL_MAP}\"${IDPF_VPORT_MAC}\"," ; \
+done ; \
+CTRL_MAP_MACS=$(echo ${CTRL_MAP} | xargs -n1 | sort | xargs) ; \
+echo ${CTRL_MAP}
+ACC_PR_CTRL_MAP=${CTRL_MAP}
+echo "ctrl_map : ["NETDEV",${ACC_PR_CTRL_MAP}1]"
+export ACC_PR_CTRL_MAP
+
 mkdir -p $CONF_DIR
 envsubst < $CONF_FILE.template > $CONF_DIR/$CONF_FILE
-
 
 touch "/opt/p4/$P4_NAME/tofino.bin"
 $P4CP_INSTALL/bin/tdi_pipeline_builder \
