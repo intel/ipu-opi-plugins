@@ -177,7 +177,7 @@ func programPhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.source_port_to_bridge_map",
                         Metadata: fmt.Sprintf(
-                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1",
+                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1,action=linux_networking_control.set_bridge_id(bridge_id=%d)",
                                 phyPort, bridgeId,
                         ),
                 },
@@ -193,7 +193,7 @@ func deletePhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
                         Control: "linux_networking_control.source_port_to_bridge_map",
                         Metadata: fmt.Sprintf(
                                 "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1",
-                                phyPort, bridgeId,
+                                phyPort,
                         ),
                 },
         }
@@ -548,7 +548,7 @@ func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
 			P4br:    "br0",
 			Control: "linux_networking_control.tx_source_port",
 			Metadata: fmt.Sprintf(
-				"vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port",
+				"vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port(%d)",
 				hostVfVsi, hostVfVport,
 			),
 		},
@@ -619,7 +619,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
         }
 
         hostVfVsi, hostVfVport := getVsiVportInfo(hostMacAddr.String())
-        apfPrVsi, apfPrVport := getVsiVportInfo(accMac)
+        apfPrVsi, _ := getVsiVportInfo(accMac)
 
         hostVfP4ruleSets := []fxpRuleBuilder{
                 {
@@ -655,7 +655,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                         Control: "linux_networking_control.vsi_to_vsi_loopback",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,target_vsi=%d",
-                                hostVfVsi, apfPrVsi, apfPrVport,
+                                hostVfVsi, apfPrVsi,
                         ),
                 },
                 {
@@ -664,7 +664,7 @@ func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error 
                         Control: "linux_networking_control.source_port_to_pr_map",
                         Metadata: fmt.Sprintf(
                                 "user_meta.cmeta.source_port=%d,zero_padding=0",
-                                hostVfVport, apfPrVport,
+                                hostVfVport,
                         ),
                 },
         }
