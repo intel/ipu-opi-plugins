@@ -2,8 +2,8 @@
 
 .PHONY: all fmt check-fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
 APP_NAME = ipu-p4-sdk
-P4_NAME ?= fxp-net_linux-networking
-P4_DIR  ?= fxp-net_linux-networking
+P4_NAME = fxp-net_linux-networking
+P4_DIR  = fxp-net_linux-networking
 VERSION ?= 0.0.0
 IMAGE_NAME = intel-$(APP_NAME)
 ifneq (, $(IMAGE_REGISTRY))
@@ -40,9 +40,9 @@ PLATFORMS ?= linux/arm64,linux/amd64
 # 	docker buildx create --use --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt env.no_proxy=$(NO_PROXY)
 imagex: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{TARGETPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{TARGETPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
-	- $(IMGTOOL) buildx create --name image-builder-p4 --use --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
-	$(IMGTOOL) buildx use image-builder-p4
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
+	- $(IMGTOOL) buildx create --name image-builder --use --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
+	$(IMGTOOL) buildx use image-builder
 	- $(IMGTOOL) buildx build --allow security.insecure --push --platform=$(PLATFORMS) --tag ${IMAGE_TAG_VERSION} -f $(DOCKERFILE).cross  $(CURDIR) $(DOCKERARGS)
-	- $(IMGTOOL) buildx rm image-builder-p4
+	- $(IMGTOOL) buildx rm image-builder
 	rm $(DOCKERFILE).cross
