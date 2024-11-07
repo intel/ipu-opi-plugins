@@ -891,11 +891,19 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 
         LAGP4ruleSets = append(LAGP4ruleSets,
                      fxpRuleBuilder{
-                        Action:  "add-entry",
+                        Action:  "del-entry",
                         P4br:    "br0",
                         Control: "linux_networking_control.ipv4_lpm_root_lut",
                         Metadata:"user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
                      })
+
+         err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+         if err != nil {
+              log.Info("LAG FXP P4 rules delete failed")
+              return err
+         } else {
+             log.Info("LAG FXP P4 rules were delete successfully")
+         }
         log.Info("ARUN: %v", LAGP4ruleSets)
         LAGP4ruleSets = []fxpRuleBuilder{}
         log.Info("ARUN: %v", LAGP4ruleSets)
@@ -910,7 +918,7 @@ func DeleteLAGP4Rules(p4RtBin string) error {
               )
          }
 	 log.Info("ARUN: %v", LAGP4ruleSets)
-         err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+         err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
          if err != nil {
               log.Info("LAG FXP P4 rules delete failed")
               return err
