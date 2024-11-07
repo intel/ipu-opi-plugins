@@ -32,6 +32,4 @@ RUN apk add -U --no-cache python3 py3-pip'=='23.3.1-r0 \
 RUN python3 -m pip install --no-cache-dir --break-system-packages /opt/p4/p4-cp-nws/bin/p4runtime-2023.11.0-py3-none-any.whl
 
 RUN rm -rf /var/cache/apk/*
-RUN apk add --update --no-cache openssh
-RUN apk add --update --no-cache networkmanager-cli
-RUN apk add --update --no-cache openvswitch
+RUN apk add --update --no-cache openssh networkmanager-cli openvswitch iproute2

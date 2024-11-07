@@ -69,8 +69,7 @@ imagex: ## Build and push docker image for the manager for cross-platform suppor
 	mkdir -p $(CURDIR)/bin && cp -r ../e2e/artefacts/bin/* $(CURDIR)/bin/
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
-	# - $(IMGTOOL) buildx create --name image-builder --use --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
-	- $(IMGTOOL) buildx create --name image-builder --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
+	- $(IMGTOOL) buildx create --name image-builder --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure network.host' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
 	- $(IMGTOOL) buildx use image-builder
 	- $(IMGTOOL) buildx build --allow security.insecure --push --platform=$(PLATFORMS) --tag ${IMAGE_TAG_VERSION} --tag ${IMAGE_TAG_LATEST} -f $(DOCKERFILE).cross  $(CURDIR) $(DOCKERARGS)
 	- $(IMGTOOL) buildx rm image-builder
