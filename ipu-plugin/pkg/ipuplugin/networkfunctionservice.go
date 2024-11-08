@@ -16,6 +16,7 @@ package ipuplugin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -53,32 +54,15 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
 	}
 
-	ingressIndex, err := FindInterfaceIdForGivenMac(in.Input)
-	if err != nil {
-		return nil, err
-	}
-	egressIndex, err := FindInterfaceIdForGivenMac(in.Output)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.bridgeCtlr.AddPort(AccIntfNames[ingressIndex]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[ingressIndex])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[ingressIndex])
-	}
-	if err := s.bridgeCtlr.AddPort(AccIntfNames[egressIndex]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[egressIndex])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[egressIndex])
-	}
 	if err := s.bridgeCtlr.AddPort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
 	}
 	if err := s.bridgeCtlr.AddPort(AccIntfNames[NF_OUT_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
 	}
-	log.Infof("added interfaces:in->%s, out->%s, inPR->%s, outPR->%s",
-		AccIntfNames[ingressIndex], AccIntfNames[egressIndex], AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	log.Infof("added interfaces:inPR->%s, outPR->%s", AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
 	/*Note: Currently this API does not have host-VF info, since there is no reference to what was passed by DPU in CreateBridgePort.
 	As a work-around, we take full vfMacList, and write P4 rules, to connect all host VFs to NF.	*/
 	// Generate the P4 rules and program the FXP with NF comms
@@ -100,33 +84,15 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	if len(vfMacList) == 0 {
 		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
 	}
-
-	ingressIndex, err := FindInterfaceIdForGivenMac(in.Input)
-	if err != nil {
-		return nil, err
-	}
-	egressIndex, err := FindInterfaceIdForGivenMac(in.Output)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.bridgeCtlr.DeletePort(AccIntfNames[ingressIndex]); err != nil {
-		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[ingressIndex])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[ingressIndex])
-	}
-	if err := s.bridgeCtlr.DeletePort(AccIntfNames[egressIndex]); err != nil {
-		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[egressIndex])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[egressIndex])
-	}
 	if err := s.bridgeCtlr.DeletePort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
 	}
 	if err := s.bridgeCtlr.DeletePort(AccIntfNames[NF_OUT_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
 	}
-	log.Infof("deleted interfaces:in->%s, out->%s, inPR->%s, outPR->%s",
-		AccIntfNames[ingressIndex], AccIntfNames[egressIndex], AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	log.Infof("deleted interfaces:inPR->%s, outPR->%s", AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
 
 	log.Infof("DeleteNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
 		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
