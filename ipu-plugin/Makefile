@@ -37,7 +37,7 @@ vet:
 	go vet ./...
 
 LINTER = $$(go env GOPATH)/bin/golangci-lint
-lint: golangci-lint 
+lint: golangci-lint
 	$(LINTER) run --timeout 2m0s
 
 build: ipuplugin-amd64 ipuplugin-arm64

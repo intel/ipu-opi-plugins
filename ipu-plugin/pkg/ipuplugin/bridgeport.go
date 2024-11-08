@@ -90,7 +90,7 @@ func freeAccInterface(intfName string) error {
 }
 
 // CreateBridgePort executes the creation of the port
-//TODO: To return error, once AddPort is resolved in CBP and DBP.
+// TODO: To return error, once AddPort is resolved in CBP and DBP.
 func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequest) (*pb.BridgePort, error) {
 	s.log.WithField("CreateBridgePortRequest", in).Debug("CreateBridgePort")
 	if !InitAccApfMacs {

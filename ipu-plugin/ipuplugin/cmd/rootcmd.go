@@ -48,7 +48,8 @@ const (
 	defaultBridgeIntf   = "enp0s1f0d6"
 	defaulP4Pkg         = "linux"
 	defaultP4rtBin      = "/opt/p4/p4-cp-nws/bin/p4rt-ctl"
-	defaultOvsCliDir    = "/opt/p4/p4-cp-nws"
+	defaultOvsCliDir    = "/usr/bin"
+	defaultOvsDbPath    = "/opt/p4/p4-cp-nws/var/run/openvswitch/db.sock"
 	defaultPortMuxVsi   = 0x0a //this is just a place-holder, since VSI can change.
 	defaultP4BridgeName = "br0"
 	defaultDaemonHostIp = "192.168.1.1"
@@ -66,6 +67,7 @@ var (
 		interfaceName string
 		logDir        string
 		ovsCliDir     string
+		ovsDbPath     string
 		bridgeType    string
 		p4pkg         string
 		p4rtbin       string
@@ -95,6 +97,7 @@ var (
 			bridgeName := viper.GetString("bridgeName")
 			intf := viper.GetString("interface")
 			ovsCliDir := viper.GetString("ovsCliDir")
+			ovsDbPath := viper.GetString("ovsDbPath")
 			bridgeType := viper.GetString("bridgeType")
 			p4pkg := viper.GetString("p4pkg")
 			p4rtbin := viper.GetString("p4rtbin")
@@ -122,6 +125,7 @@ var (
 				"bridgeName":   bridgeName,
 				"interface":    intf,
 				"ovsCliDir":    ovsCliDir,
+				"ovsDbPath":    ovsDbPath,
 				"bridgeType":   bridgeType,
 				"p4pkg":        p4pkg,
 				"p4rtbin":      p4rtbin,
@@ -132,7 +136,7 @@ var (
 				"daemonPort":   daemonPort,
 			}).Info("Configurations")
 
-			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir)
+			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir, ovsDbPath)
 			p4Client := getP4Client(p4pkg, p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
 
 			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4rtbin, p4Client, servingAddr, servingProto, bridgeName, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
@@ -198,6 +202,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.interfaceName, "interface", defaultBridgeIntf, "The uplink network interface name")
 	rootCmd.PersistentFlags().StringVar(&config.bridgeName, "bridgeName", tenantBridgeName, "The bridgeName that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.ovsCliDir, "ovsCliDir", defaultOvsCliDir, "The directory where the ovs-vsctl is located")
+	rootCmd.PersistentFlags().StringVar(&config.ovsDbPath, "ovsDbPath", defaultOvsDbPath, "Path to the OVS socket to connect to")
 	rootCmd.PersistentFlags().StringVar(&config.bridgeType, "bridgeType", defaultBridge, "The bridge type that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.p4pkg, "p4pkg", defaulP4Pkg, "The P4 package plugin is running with")
 	rootCmd.PersistentFlags().StringVar(&config.p4rtbin, "p4rtbin", defaultP4rtBin, "The directory where the p4rt-ctl binary is located")
@@ -222,6 +227,7 @@ func init() {
 		"interface",
 		"bridgeName",
 		"ovsCliDir",
+		"ovsDbPath",
 		"bridgeType",
 		"p4pkg",
 		"p4rtbin",
@@ -240,8 +246,8 @@ func init() {
 	}
 	fmt.Printf("Default Config, configFile=%s, bridgeName=%s bridgeType=%s daemonPort=%v daemonHostIp=%v daemonIpuIp=%v\n",
 		viper.ConfigFileUsed(), viper.GetString("bridgeName"), viper.GetString("bridgeType"), viper.GetString("daemonPort"), viper.GetString("daemonHostIp"), viper.GetString("daemonIpuIp"))
-	fmt.Printf("Default Config, interface=%s mode=%v ovsCliDir=%v p4pkg=%v p4rtbin=%v servingPort=%v portMuxVsi=%d\n",
-		viper.GetString("interface"), config.mode, viper.GetString("ovsCliDir"), viper.GetString("p4pkg"), viper.GetString("p4rtbin"), viper.GetString("port"), viper.GetInt("portMuxVsi"))
+	fmt.Printf("Default Config, interface=%s mode=%v ovsCliDir=%v ovsDbPath=%v p4pkg=%v p4rtbin=%v servingPort=%v portMuxVsi=%d\n",
+		viper.GetString("interface"), config.mode, viper.GetString("ovsCliDir"), viper.GetString("OvsDbPath"), viper.GetString("p4pkg"), viper.GetString("p4rtbin"), viper.GetString("port"), viper.GetInt("portMuxVsi"))
 	fmt.Printf("Default Config, servingAddr=%v servingProto=%v \n",
 		viper.GetString("servingAddr"), viper.GetString("servingProto"))
 }
@@ -306,10 +312,10 @@ func logInit(logDir string, logLevel string) error {
 	return nil
 }
 
-func getBridgeController(bridgeName, bridgeType, ovsCliDir string) (types.BridgeController, types.BridgeType) {
+func getBridgeController(bridgeName, bridgeType, ovsCliDir string, ovsDbPath string) (types.BridgeController, types.BridgeType) {
 	switch bridgeType {
 	case "ovs":
-		return ipuplugin.NewOvsBridgeController(bridgeName, ovsCliDir), types.OvsBridge
+		return ipuplugin.NewOvsBridgeController(bridgeName, ovsCliDir, ovsDbPath), types.OvsBridge
 	case "linux":
 		return ipuplugin.NewLinuxBridgeController(bridgeName), types.LinuxBridge
 	default:
