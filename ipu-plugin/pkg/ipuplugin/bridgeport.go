@@ -90,7 +90,6 @@ func freeAccInterface(intfName string) error {
 }
 
 // CreateBridgePort executes the creation of the port
-// TODO: To return error, once AddPort is resolved in CBP and DBP.
 func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequest) (*pb.BridgePort, error) {
 	s.log.WithField("CreateBridgePortRequest", in).Debug("CreateBridgePort")
 	if !InitAccApfMacs {
@@ -142,7 +141,7 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 	if err := s.bridgeCtlr.AddPort(AccIntfNames[intIndex]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
 		freeAccInterface(intfName)
-		//return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
 	}
 
 	// Add FXP rules
@@ -189,7 +188,7 @@ func (s *server) DeleteBridgePort(_ context.Context, in *pb.DeleteBridgePortRequ
 
 	if err := s.bridgeCtlr.DeletePort(AccIntfNames[intIndex]); err != nil {
 		log.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
-		//return nil, fmt.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
+		return nil, fmt.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
 	}
 	freeAccInterface(brPortInfo.PortInterface)
 	// Delete FXP rules

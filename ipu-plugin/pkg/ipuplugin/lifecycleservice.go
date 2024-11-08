@@ -118,7 +118,7 @@ func (fs *FileSystemHandlerImpl) GetVendor(iface string) ([]byte, error) {
 type ExecutableHandler interface {
 	validate() bool
 	nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error
-	setupAccApfs() error
+	SetupAccApfs() error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -137,7 +137,7 @@ type FXPHandlerImpl struct{}
 
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
-var executableHandler ExecutableHandler
+var ExecutableHandlerGlobal ExecutableHandler
 var sshHandler SSHHandler
 var fxpHandler FXPHandler
 
@@ -148,8 +148,8 @@ func InitHandlers() {
 	if networkHandler == nil {
 		networkHandler = &NetworkHandlerImpl{}
 	}
-	if executableHandler == nil {
-		executableHandler = &ExecutableHandlerImpl{}
+	if ExecutableHandlerGlobal == nil {
+		ExecutableHandlerGlobal = &ExecutableHandlerImpl{}
 	}
 	if sshHandler == nil {
 		sshHandler = &SSHHandlerImpl{}
@@ -215,7 +215,7 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 /*
 It can take time for network-manager's state for each interface, to become
 activated, when IP address is set, which can cause the IP address to not stick.
-TODO: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
+Note: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
 this api can be extended for other distros that use different CLI/systemd-networkd.
 Option2: First set IP address, sleep for a while, and check
 if interface is activated thro nmcli. Retry for few times,
@@ -315,7 +315,7 @@ func setIP(link netlink.Link, ip string) error {
 		// Set the IP address on PF
 		addr := &netlink.Addr{IPNet: &net.IPNet{IP: ipAddr, Mask: net.CIDRMask(24, 32)}}
 
-		if err = executableHandler.nmcliSetupIpAddress(link, ip, addr); err != nil {
+		if err = ExecutableHandlerGlobal.nmcliSetupIpAddress(link, ip, addr); err != nil {
 			log.Errorf("setIP: err->%v from nmcliSetup\n", err)
 			return fmt.Errorf("setIP: err->%v from nmcliSetup", err)
 		}
@@ -371,8 +371,8 @@ func FindInterfaceIdForGivenMac(macAddr string) (int, error) {
 	intfIndex := 0
 	found := false
 	if !InitAccApfMacs {
-		log.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> setupAccApfs")
-		return 0, fmt.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> setupAccApfs")
+		log.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
+		return 0, fmt.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
 	}
 	for i := 0; i < len(AccApfMacList); i++ {
 		if AccApfMacList[i] == macAddr {
@@ -728,10 +728,9 @@ func checkIfMACIsSet() (bool, string) {
 
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := countAPFDevices(); numAPFs < ApfNumber {
-		fmt.Printf("Not enough APFs %v", numAPFs)
-		return false
-	}
+	/*Note: Num of APFs gets validated early on,
+	in SetupAccApfs, prior to 1 interface(for Phy Port),
+	getting moved to p4 container in configureFxp */
 
 	if macPreFix, mac := checkIfMACIsSet(); !macPreFix {
 		fmt.Printf("incorrect Mac assigned : %v\n", mac)
@@ -741,7 +740,7 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	return true
 }
 
-func (e *ExecutableHandlerImpl) setupAccApfs() error {
+func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 	var err error
 
 	if !InitAccApfMacs {
@@ -774,8 +773,8 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 		return fmt.Errorf("No NFs initialized on the host")
 	}
 	if !InitAccApfMacs {
-		log.Errorf("configureFXP: AccApfs info not set, thro-> setupAccApfs")
-		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> setupAccApfs")
+		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
+		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
 	}
 	//Add Phy Port0 to ovs bridge
 	//Note: Per current design, Phy Port1 is added to a different bridge(through P4 rules).
@@ -789,8 +788,6 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 	p4rtclient.AddPhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 
-	//Open: For short-term F5 usecase, can we postpone Peer2PeerRules for -> Any Host-VF1-N-> to Any Host-VF2,
-	//TODO: To check and move DeletePhyPortRules and DeletePeerToPeerP4Rules, to ipuplugin->Stop(if that is better)
 	log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
 	p4rtclient.DeletePeerToPeerP4Rules(p4rtbin, vfMacList)
 	log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
@@ -812,7 +809,7 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 	}
 
 	if in.DpuMode {
-		if val := executableHandler.validate(); !val {
+		if val := ExecutableHandlerGlobal.validate(); !val {
 			log.Info("forcing state")
 			if err := sshHandler.sshFunc(); err != nil {
 				return nil, fmt.Errorf("error calling sshFunc %s", err)
@@ -820,10 +817,9 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		} else {
 			log.Info("not forcing state")
 		}
-
-		if err := executableHandler.setupAccApfs(); err != nil {
-			log.Errorf("error from  setupAccApfs %v", err)
-			return nil, fmt.Errorf("error from  setupAccApfs %v", err)
+		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
+			log.Errorf("error from  SetupAccApfs %v", err)
+			return nil, fmt.Errorf("error from  SetupAccApfs %v", err)
 		} else {
 			log.Info("setup ACC APFs")
 		}
