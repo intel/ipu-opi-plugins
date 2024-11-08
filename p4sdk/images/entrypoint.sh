@@ -31,7 +31,7 @@ func_set_br_pipe(){
 
 func_start_ovs() {
     rm -rf /opt/p4/p4-cp-nws/etc/openvswitch/conf.db
-    export PATH=$PATH:$P4CP_INSTALL/bin:$P4CP_INSTALL/sbin:
+    export PATH="$PATH:$P4CP_INSTALL/bin:$P4CP_INSTALL/sbin:"
     ovsdb-tool create $P4CP_INSTALL/etc/openvswitch/conf.db $P4CP_INSTALL/share/openvswitch/vswitch.ovsschema
     ovsdb-server --remote=punix:$P4CP_INSTALL/var/run/openvswitch/db.sock --remote=db:Open_vSwitch,Open_vSwitch,manager_options --pidfile --detach
     ovs-vswitchd --pidfile --detach  --log-file=/var/log/messages/ovs-vswitchd.log
@@ -39,7 +39,7 @@ func_start_ovs() {
 
 LOGFILE=/var/log/messages/entrypoint.log;
 mkdir -p /var/log/messages
->$LOGFILE
+
 
 CPF_INFO_FILE=cpf_info_file.txt
 CONF_DIR=/usr/share/stratum/es2k
@@ -57,11 +57,10 @@ export CPF_BDF
 #include interfaces D4 to D15, that can be added as
 #port representors on bridge(in ACC).
 IDPF_VF_VPORT0=4 ; CTRL_MAP="" ; \
-idpf_ports=$(realpath /sys/class/net/*/dev_port | grep  $(lspci -nnkd 8086:1452 | awk  "NR==1{print \$1}")) ; \
+idpf_ports=$(realpath /sys/class/net/*/dev_port | grep  $(lspci -nnkd "8086:1452" | awk  "NR==1{print \$1}")) ; \
 for port in ${idpf_ports} ; do \
-     [ $(head $port) -ge ${IDPF_VF_VPORT0} ]  && netpath=$(dirname $port) && \
-            IDPF_VPORT_NAME=$(basename $netpath) && \
-            IDPF_VPORT_MAC=$(head $netpath/address) && \
+     [ "$(head $port)" -ge ${IDPF_VF_VPORT0} ]  && netpath="$(dirname $port)" && \
+            IDPF_VPORT_MAC="$(head $netpath/address)" && \
             CTRL_MAP="${CTRL_MAP}\"${IDPF_VPORT_MAC}\"," > $LOGFILE 2>&1 ; \
 done ; \
 CTRL_MAP_MACS=$(echo ${CTRL_MAP} | xargs -n1 | sort | xargs) ; \
@@ -92,7 +91,10 @@ mkdir -p /var/log/stratum
 touch /dev/mem
 # sleep 5 secs
 sleep 5
-# Start Infrap4d
+
+# Start set pipe in the background
 func_set_br_pipe &
+# Start ovs switchd and ovs db
 func_start_ovs
+# Start Infrap4d
 /opt/p4/p4-cp-nws/sbin/infrap4d -grpc_open_insecure_mode=true -nodetach -disable_krnlmon=true
