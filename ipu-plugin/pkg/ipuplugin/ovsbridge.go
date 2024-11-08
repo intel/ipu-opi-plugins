@@ -1,9 +1,8 @@
 package ipuplugin
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
+	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -32,37 +31,34 @@ func createDbParam(ovsDbPath string) string {
 	return "--db=unix:" + ovsDbPath
 }
 
-func getInfraPodNamespace() string {
-	var buffer bytes.Buffer
+func getInfrapodNamespace() string {
 
-	nsCmdParams := []string{"-a", "|", "grep", "entrypoint.sh", "|", "head", "-n", "1",
+	nsCmdParams := []string{"ps", "-a", "|", "grep", "entrypoint.sh", "|", "head", "-n", "1",
 		"|", "awk", "'{print $1;}'", "|", "xargs", "ip", "netns", "identify"}
-	log.Debugf("Namespace command= ps %s", nsCmdParams)
-	cmd := exec.Command("ps", nsCmdParams...)
-	cmd.Stdout = &buffer
-	err := cmd.Run()
+	log.Debugf("Namespace command= %s", strings.Join(nsCmdParams, " "))
+	ret, err := utils.ExecuteScript(strings.Join(nsCmdParams, " "))
 	if err != nil {
 		log.Errorf("unable to get Namespace: %v", err)
-		return ""
+		return ret
 	}
-	log.Debugf("Got output = %s", buffer.String())
-	return buffer.String()
+	log.Debugf("Got output = %s", ret)
+	return ret
 }
 
 func (b *ovsBridge) EnsureBridgeExists() error {
-	// ovs-vsctl --may-exist add-br br-infra
+	// ovs-vsctl --db=/path/to/sock --may-exist add-br br-infra
 	createBrParams := []string{createDbParam(b.ovsDbPath), "--may-exist", "add-br", b.bridgeName}
 	if err := utils.ExecOsCommand(b.ovsCliDir+"/ovs-vsctl", createBrParams...); err != nil {
 		return fmt.Errorf("error creating ovs bridge %s with ovs-vsctl command %s", b.bridgeName, err.Error())
 	}
 	//assigning IP for bridge interface.
 	ipAddr := ACC_VM_PR_IP
-	cmdParams := []string{"addr", "add", "dev", b.bridgeName, ipAddr}
+	cmdParams := []string{"net", "exec", getInfrapodNamespace(), "ip", "addr", "add", "dev", b.bridgeName, ipAddr}
 	if err := utils.ExecOsCommand("ip", cmdParams...); err != nil {
 		return fmt.Errorf("error->%v, assigning IP->%v to ovs bridge %s", err.Error(), ipAddr, b.bridgeName)
 	}
 	//bring the interface up.
-	cmdParams = []string{"link", "set", "dev", b.bridgeName, "up"}
+	cmdParams = []string{"net", "exec", getInfrapodNamespace(), "ip", "link", "set", "dev", b.bridgeName, "up"}
 	if err := utils.ExecOsCommand("ip", cmdParams...); err != nil {
 		return fmt.Errorf("error->%v, bringing UP bridge interface->%v", err.Error(), b.bridgeName)
 	}
@@ -81,6 +77,7 @@ func (b *ovsBridge) DeleteBridges() error {
 }
 
 func (b *ovsBridge) AddPort(portName string) error {
+	// Move interface to the infrapod namespace
 	ipParams := []string{"-a", "|", "grep", "entrypoint.sh", "|", "head", "-n", "1",
 		"|", "awk", "'{print $1;}'", "|", "xargs", "ip", "netns", "identify", "|",
 		"xargs", "ip", "link", "set", portName, "netns"}
@@ -88,6 +85,11 @@ func (b *ovsBridge) AddPort(portName string) error {
 	err := utils.ExecOsCommand("ps", ipParams...)
 	if err != nil {
 		log.Errorf("error moving interface %s to infra namespace with error %s", portName, err.Error())
+	}
+	//bring the interface up.
+	cmdParams := []string{"net", "exec", getInfrapodNamespace(), "ip", "link", "set", "dev", b.bridgeName, "up"}
+	if err := utils.ExecOsCommand("ip", cmdParams...); err != nil {
+		return fmt.Errorf("error->%v, bringing UP bridge interface->%v", err.Error(), b.bridgeName)
 	}
 
 	brParams := []string{createDbParam(b.ovsDbPath), "add-port", b.bridgeName, portName}
