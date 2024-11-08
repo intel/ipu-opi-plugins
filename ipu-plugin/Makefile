@@ -24,6 +24,7 @@ ifdef HTTPS_PROXY
 	DOCKERARGS += --build-arg https_proxy=$(HTTPS_PROXY)
 endif
 DOCKERARGS += --build-arg P4_NAME=$(P4_NAME)
+DOCKERARGS += --build-arg BUILDKIT_INLINE_CACHE=1
 
 all: check-fmt lint update-mod build
 
@@ -57,7 +58,7 @@ test:
 image:
 	cp -r ../e2e/artefacts/$(P4_DIR) $(CURDIR)
 	mkdir -p $(CURDIR)/bin && cp -r ../e2e/artefacts/bin/* $(CURDIR)/bin/
-	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
+	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS)
 	$(IMGTOOL) image tag $(IMAGE_TAG_VERSION) $(IMAGE_TAG_LATEST)
 
 PLATFORMS ?= linux/arm64,linux/amd64
@@ -65,6 +66,7 @@ PLATFORMS ?= linux/arm64,linux/amd64
 # 	docker buildx create --use --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt env.no_proxy=$(NO_PROXY)
 # buildkit.toml file is a configuration file which allows to set registry configuration
 imagex: ## Build and push docker image for the manager for cross-platform support
+	export DOCKER_BUILDKIT=1
 	cp -r ../e2e/artefacts/$(P4_DIR) $(CURDIR)
 	mkdir -p $(CURDIR)/bin && cp -r ../e2e/artefacts/bin/* $(CURDIR)/bin/
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
