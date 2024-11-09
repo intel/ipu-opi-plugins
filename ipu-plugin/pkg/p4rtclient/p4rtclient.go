@@ -69,7 +69,6 @@ func programFXPP4Rules(p4RtBin string, ruleSets []fxpRuleBuilder) error {
                 err := utils.RunP4rtCtlCommand(p4RtBin, p4rule...)
 		if err != nil {
 			log.Info("WARNING: Failed to program p4rule: %v", p4rule)
-                        return err
                 }
         }
 	return nil
