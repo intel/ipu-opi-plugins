@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"errors"
+	"strconv"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -83,7 +84,22 @@ func getVsiVportInfo(macAddr string) (int, int) {
 }
 
 func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-	prVsi , prVport := getVsiVportInfo(prMac)
+        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+	if err != nil {
+	     log.Info("AddPhyPortRules failed. Unable to find Vsi and Vport for PR mac: %s", prMac)
+             return err
+        }
+        //skip 0x in front of vsi
+        vsi = vsi[2:]
+        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        if err != nil {
+                log.Info("error from ParseInt %v", err)
+                return err
+        }
+        prVsi := int(vsiInt64)
+
+	prVport := utils.GetVportForVsi(prVsi)
+
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "add-entry",
@@ -127,7 +143,20 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 }
 
 func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
-        prVsi , _ := getVsiVportInfo(prMac)
+        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+        if err != nil {
+                log.Info("DeletePhyPortRules failed. Unable to find Vsi and Vport for PR mac: %s", prMac)
+             return err
+        }
+        //skip 0x in front of vsi
+        vsi = vsi[2:]
+        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        if err != nil {
+                log.Info("error from ParseInt %v", err)
+                return err
+        }
+        prVsi := int(vsiInt64)
+
         phyVportP4ruleSets := []fxpRuleBuilder{
                 {
                         Action:  "del-entry",
