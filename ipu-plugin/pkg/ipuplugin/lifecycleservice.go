@@ -17,7 +17,9 @@ package ipuplugin
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	math_rand "math/rand"
@@ -585,31 +587,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("error from setBaseMacAddr()->%v", err)
 	}
 
-	//Note: Ensure pacakge name here matches with Makefile/Dockerfile in VSP similar to P4SDK
-	//Note: Ensure configureChannel/setIP according to host<->ACC comm_vports.
-	shellScript := fmt.Sprintf(`#!/bin/sh
-CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
-cd /work/scripts
-echo "Checking for custom package..."
-if [ -e fxp-net_linux-networking.pkg ]; then
-    echo "Custom package fxp-net_linux-networking.pkg found. Overriding default package"
-    cp fxp-net_linux-networking.pkg /etc/dpcp/package/
-    rm -rf /etc/dpcp/package/default_pkg.pkg
-    ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
-    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' $CP_INIT_CFG
-    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' $CP_INIT_CFG
-    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
-    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' $CP_INIT_CFG
-    sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
-    sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
-    sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
-    sed -i 's/uplink_vports = .*/uplink_vports = ([0,0,0],[0,1,1],[4,1,0],[4,5,1],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
-    sed -i 's/rep_vports = .*/rep_vports = ([0,0,0],[4,5,1]);/g' $CP_INIT_CFG
-    sed -i 's/exception_vports = .*/exception_vports = ([0,0,0],[4,5,1]); /g' $CP_INIT_CFG
-else
-    echo "No custom package found. Continuing with default package"
-fi
-`, macAddress) // Insert the MAC address variable into the script.
+	shellScript := genLoadCustomPkgFile(macAddress)
 
 	loadCustomPkgFilePath := "/work/scripts/load_custom_pkg.sh"
 	loadCustomPkgFile, err := sftpClient.Create(loadCustomPkgFilePath)
@@ -685,7 +663,47 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
-func checkIfMACIsSet() (bool, string) {
+// TODO: Ensure package name here matches with Makefile/Dockerfile in VSP, using os.getEnv
+func genLoadCustomPkgFile(macAddress string) string {
+
+	shellScript := fmt.Sprintf(`#!/bin/sh
+CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
+cd /work/scripts
+echo "Checking for custom package..."
+if [ -e fxp-net_linux-networking.pkg ]; then
+    echo "Custom package fxp-net_linux-networking.pkg found. Overriding default package"
+    cp fxp-net_linux-networking.pkg /etc/dpcp/package/
+    rm -rf /etc/dpcp/package/default_pkg.pkg
+    ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
+    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' $CP_INIT_CFG
+    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' $CP_INIT_CFG
+    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
+    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' $CP_INIT_CFG
+    sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
+    sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
+    sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
+    sed -i 's/uplink_vports = .*/uplink_vports = ([0,0,0],[0,1,1],[4,1,0],[4,5,1],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
+    sed -i 's/rep_vports = .*/rep_vports = ([0,0,0],[4,5,1]);/g' $CP_INIT_CFG
+    sed -i 's/exception_vports = .*/exception_vports = ([0,0,0],[4,5,1]); /g' $CP_INIT_CFG
+else
+    echo "No custom package found. Continuing with default package"
+fi
+`, macAddress) // Insert the MAC address variable into the script.
+
+	return shellScript
+
+}
+
+/*
+	IMC reboot needed for following cases:
+
+1. First time provisioning of IPU system(where MAC gets set in node policy)
+2. Upgrade-for any update to P4 package.
+3. Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
+For now, supporting case1, 2 above.
+Returns-> bool(returns false, if IMC reboot is required), string->for any error or success string.
+*/
+func skipIMCReboot() (bool, string) {
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -708,22 +726,112 @@ func checkIfMACIsSet() (bool, string) {
 	}
 	defer session.Close()
 
-	commands := "if [ -f /work/uuid ]; then echo 'File exists'; else echo 'File does not exist'; fi"
+	commands := "if [ -f /work/uuid ]; then cat /work/uuid; else echo 'File does not exist'; fi"
 
 	// Run a command on the remote server and capture the output.
-	var stdoutBuf bytes.Buffer
-	session.Stdout = &stdoutBuf
-	err = session.Run(commands)
+	outputBytes, err := session.CombinedOutput(commands)
 	if err != nil {
 		return false, fmt.Sprintf("mac not found: %s", err)
 	}
 
-	output := stdoutBuf.String()
-	if output == "File exists\n" {
-		return true, "File exists"
+	p4pkgMatch := false
+	uuidFileExists := false
+	lcpkgFileMatch := false
+
+	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
+
+	if outputStr == "File does not exist\n" {
+		log.Infof("UUID File does not exist")
 	} else {
-		return false, "File does not exist"
+		log.Infof("UUID File exists, uuid->%v", outputStr)
+		uuidFileExists = true
 	}
+	if !uuidFileExists {
+		return false, "UUID File does not exist"
+	}
+
+	session, err = client.NewSession()
+	if err != nil {
+		log.Errorf("failed to create session: %v", err)
+		return false, fmt.Sprintf("failed to create session: %v", err)
+	}
+	defer session.Close()
+
+	//compute md5sum of pkg file on IMC
+	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
+	commands = "cd /work/scripts; md5sum " + p4PkgName + " |  awk '{print $1}'"
+	imcOutput, err := session.CombinedOutput(commands)
+	if err != nil {
+		log.Errorf("Error->%v, running command->%s:", err, commands)
+		return false, fmt.Sprintf("Error->%v, running command->%s:", err, commands)
+	}
+	log.Infof("md5 of pkg on imc->%s", string(imcOutput))
+
+	//compute md5sum of pkg file in ipu-plugin container
+	commands = "md5sum /" + p4PkgName + " |  awk '{print $1}'"
+	pluginOutput, err := utils.ExecuteScript(commands)
+	if err != nil {
+		log.Errorf("Error->%v, for md5sum command->%v", err, commands)
+		return false, fmt.Sprintf("Error->%v, for md5sum command->%v", err, commands)
+	}
+	log.Infof("md5 of pkg in ipu-plugin->%v", pluginOutput)
+
+	if pluginOutput != string(imcOutput) {
+		log.Infof("md5sum mismatch, in ipu-plugin->%v, on IMC->%v", pluginOutput, string(imcOutput))
+	} else {
+		log.Infof("md5sum match, in ipu-plugin->%v, on IMC->%v", pluginOutput, string(imcOutput))
+		p4pkgMatch = true
+	}
+
+	if !p4pkgMatch {
+		return false, "md5sum mismatch"
+	}
+
+	genLcpkgFileStr := genLoadCustomPkgFile(outputStr)
+	log.Infof("loadCustomPkgFileStr->%v", genLcpkgFileStr)
+	genLcpkgFileHash := md5.Sum([]byte(genLcpkgFileStr))
+	genLcpkgFileHashStr := hex.EncodeToString(genLcpkgFileHash[:])
+
+	// Create an SFTP client.
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		log.Errorf("failed to create SFTP client: %s", err)
+		return false, fmt.Sprintf("failed to create SFTP client: %s", err)
+	}
+	defer sftpClient.Close()
+
+	// destination file on IMC.
+	remoteFilePath := "/work/scripts/load_custom_pkg.sh"
+	dstFile, err := sftpClient.Open(remoteFilePath)
+	if err != nil {
+		log.Errorf("failed to create remote file: %s", err)
+		return false, fmt.Sprintf("failed to create remote file: %s", err)
+	}
+	defer dstFile.Close()
+
+	imcLcpkgFileBytes, err := io.ReadAll(dstFile)
+	if err != nil {
+		log.Errorf("failed to read load_custom_pkg.sh: %s", err)
+		return false, fmt.Sprintf("failed to read load_custom_pkg.sh: %s", err)
+	}
+
+	imcLcpkgFileHash := md5.Sum(imcLcpkgFileBytes)
+	imcLcpkgFileHashStr := hex.EncodeToString(imcLcpkgFileHash[:])
+
+	if genLcpkgFileHashStr != imcLcpkgFileHashStr {
+		log.Infof("load_custom md5 mismatch, generated->%v, on IMC->%v", genLcpkgFileHashStr, imcLcpkgFileHashStr)
+	} else {
+		log.Infof("load_custom md5 match, generated->%v, on IMC->%v", genLcpkgFileHashStr, imcLcpkgFileHashStr)
+		lcpkgFileMatch = true
+	}
+
+	if !lcpkgFileMatch {
+		return false, "lcpkgFileMatch mismatch"
+	}
+
+	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v", uuidFileExists, p4pkgMatch, lcpkgFileMatch)
+	return true, fmt.Sprintf("checks pass, imc reboot not required")
+
 }
 
 func (e *ExecutableHandlerImpl) validate() bool {
@@ -732,8 +840,8 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	in SetupAccApfs, prior to 1 interface(for Phy Port),
 	getting moved to p4 container in configureFxp */
 
-	if macPreFix, mac := checkIfMACIsSet(); !macPreFix {
-		fmt.Printf("incorrect Mac assigned : %v\n", mac)
+	if noReboot, infoStr := skipIMCReboot(); !noReboot {
+		fmt.Printf("IMC reboot required : %v\n", infoStr)
 		return false
 	}
 
