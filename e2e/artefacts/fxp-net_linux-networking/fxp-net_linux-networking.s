@@ -1,7 +1,7 @@
 /* p4c-pna-xxp version: 3.0.70.124 */ 
 
-name "Sample P4 Program pkg";
-version 1.0.73.35;
+name "linux_networking";
+version 1.0.73.29;
 
 segment IDPF_FXP {
     label REG 0 PMD_COMMON;
@@ -131,8 +131,8 @@ segment IDPF_CXP {
 
 segment IDPF_CXP {
 
-    name "Sample P4 Program pkg";
-    version 1.0.73.35;
+    name "linux_networking";
+    version 1.0.73.29;
     label PROTOCOL_ID 255 PROTO_ID_INVALID;
     label PROTOCOL_ID 1 MAC_IN0;
     label PROTOCOL_ID 2 MAC_IN1;
@@ -603,12 +603,12 @@ block PARSER {
 block LEM {
     table PROFILE_CFG(%PROFILE) {
 		0 : 
-			HASH_SIZE0(14), 
-			HASH_SIZE1(11), 
-			HASH_SIZE2(10), 
-			HASH_SIZE3(9), 
-			HASH_SIZE4(8), 
-			HASH_SIZE5(7), 
+			HASH_SIZE0(1), 
+			HASH_SIZE1(1), 
+			HASH_SIZE2(1), 
+			HASH_SIZE3(1), 
+			HASH_SIZE4(1), 
+			HASH_SIZE5(1), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(0), 
 			LUT {
@@ -616,12 +616,12 @@ block LEM {
 				OBJECT_ID(0)
 			};
 		1 : 
-			HASH_SIZE0(14), 
-			HASH_SIZE1(11), 
-			HASH_SIZE2(10), 
-			HASH_SIZE3(9), 
-			HASH_SIZE4(8), 
-			HASH_SIZE5(7), 
+			HASH_SIZE0(1), 
+			HASH_SIZE1(1), 
+			HASH_SIZE2(1), 
+			HASH_SIZE3(1), 
+			HASH_SIZE4(1), 
+			HASH_SIZE5(1), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(1), 
 			LUT {
@@ -629,12 +629,12 @@ block LEM {
 				OBJECT_ID(0)
 			};
 		10 : 
-			HASH_SIZE0(14), 
-			HASH_SIZE1(11), 
-			HASH_SIZE2(10), 
-			HASH_SIZE3(9), 
-			HASH_SIZE4(8), 
-			HASH_SIZE5(7), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(10), 
 			LUT {
@@ -656,6 +656,8 @@ block LEM {
     table HASH_SPACE_CFG(%HASH_SPACE_ID) {
 		0 : 
 			BASE('h0);
+		1 : 
+			BASE('h24000);
 
     }
     table HASH_SPACE_MAP(%OBJECT_ID) {
@@ -688,11 +690,11 @@ block ICE_MISC {
 segment IDPF_FXP {
 
     domain 0 {
-        name "Sample P4 Program pkg";
+        name "linux_networking";
     }
     domain 0 {
-        version 1.0.73.35;
-        external_version 0 1.0.73.35;
+        version 1.0.73.29;
+        external_version 0 1.0.73.29;
     }
     label PROTOCOL_ID 255 PROTO_ID_INVALID;
     label PROTOCOL_ID 1 MAC_IN0;
@@ -3038,22 +3040,21 @@ block SEM {
 
     table OBJECT_CACHE_CFG(%OBJECT_ID) {
 
-        2 : BASE(2605056), ENTRY_SIZE(32), START_BANK(0), NUM_BANKS(1);
-        0 : BASE(0), ENTRY_SIZE(64), START_BANK(0), NUM_BANKS(2);
-        3 : BASE(3907584), ENTRY_SIZE(32), START_BANK(1), NUM_BANKS(1);
-        1 : BASE(1302528), ENTRY_SIZE(64), START_BANK(2), NUM_BANKS(2);
+        0 : BASE(0), ENTRY_SIZE(32), START_BANK(0), NUM_BANKS(2);
+        1 : BASE(10424320), ENTRY_SIZE(64), START_BANK(2), NUM_BANKS(2);
+        2 : BASE(31272960), ENTRY_SIZE(64), START_BANK(4), NUM_BANKS(2);
     }
 
     table PROFILE_CFG(%PROFILE) {
 
-        11 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        11 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// rx_phy_port_to_pr_map
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(1),
-				MISS_ACTION0(3774874625),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3825336332),
 				EXTRACT {
 					WORD0 (224, 5, 'h18),
 					WORD1 (228, 4, 'hFFFF)
@@ -3061,37 +3062,37 @@ block SEM {
 
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 ;
-        13 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        13 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// ipv4_ipsec_tunnel_term_table
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(1),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(4),
+				NUM_ACTIONS(8),
 				MISS_ACTION0(3774988352),
 				EXTRACT {
 					WORD0 (33, 12, 'hFFFF),
@@ -3102,34 +3103,18 @@ block SEM {
 
 			}
 , 
-			// empty_sem_2
+			// empty_sem_1
 			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(1),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 ;
-        15 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// empty_sem_2
+        15 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
@@ -3137,10 +3122,10 @@ block SEM {
 , 
 			// always_recirculate_table
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(1),
+				NUM_ACTIONS(4),
 				MISS_ACTION0(3774988352),
 				EXTRACT {
 					WORD0 (4, 0, 'hFFFF),
@@ -3149,29 +3134,29 @@ block SEM {
 
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 ;
-        1 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        1 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// rx_ipv4_tunnel_source_port
 			LUT {
-				OBJECT_ID(3),
+				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(1),
+				NUM_ACTIONS(4),
 				MISS_ACTION0(3774874625),
 				EXTRACT {
 					WORD0 (33, 12, 'hFFFF),
@@ -3184,10 +3169,10 @@ block SEM {
 , 
 			// ipv4_tunnel_term_table
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(2),
+				NUM_ACTIONS(4),
 				MISS_ACTION0(3774988352),
 				MISS_ACTION1(3896508673),
 				EXTRACT {
@@ -3199,29 +3184,29 @@ block SEM {
 
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 , 
-			// empty_sem_2
+			// empty_sem_0
 			LUT {
-				OBJECT_ID(2),
+				OBJECT_ID(0),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 ;
-        2 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(14), HASH_SIZE1(11), HASH_SIZE2(10), HASH_SIZE3(9), HASH_SIZE4(8), HASH_SIZE5(7), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        2 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// rx_ipv6_tunnel_source_port
 			LUT {
-				OBJECT_ID(1),
+				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(1),
+				NUM_ACTIONS(4),
 				MISS_ACTION0(3774874625),
 				EXTRACT {
 					WORD0 (41, 8, 'hFFFF),
@@ -3240,10 +3225,10 @@ block SEM {
 , 
 			// ipv6_tunnel_term_table
 			LUT {
-				OBJECT_ID(0),
+				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(2),
+				NUM_ACTIONS(4),
 				EXTRACT {
 					WORD0 (41, 8, 'hFFFF),
 					WORD1 (41, 10, 'hFFFF),
@@ -3259,253 +3244,17 @@ block SEM {
 
 			}
 ;
-        3 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        3 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// rx_source_port
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(1),
-				MISS_ACTION0(3774874625),
-				EXTRACT {
-					WORD0 (224, 5, 'h18),
-					WORD1 (228, 4, 'hFFFF)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        6 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// source_port_to_pr_map
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(1),
-				MISS_ACTION0(3774874625),
-				EXTRACT {
-					WORD0 (228, 8, 'hFFFF),
-					WORD1 (228, 5, 'hFF)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        5 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// rx_lag_table
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(1),
-				MISS_ACTION0(3774874625),
-				EXTRACT {
-					WORD0 (224, 5, 'h18),
-					WORD1 (228, 1, 'hFF)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        4 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// vsi_to_vsi_loopback
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(1),
-				MISS_ACTION0(3774874625),
-				EXTRACT {
-					WORD0 (224, 24, 'h7FF),
-					WORD1 (230, 2, 'hFFE)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        16 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// always_trap_arp_table
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(2),
-				MISS_ACTION0(3774988352),
-				MISS_ACTION1(3896508673),
-				EXTRACT {
-					WORD0 (4, 0, 'hFFFF),
-					WORD1 (4, 0, 'hFFFF)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        10 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(15), HASH_SIZE1(12), HASH_SIZE2(11), HASH_SIZE3(10), HASH_SIZE4(9), HASH_SIZE5(8), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// tx_acc_vsi
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(1),
-				INV_ACTION(0),
-				NUM_ACTIONS(2),
-				MISS_ACTION0(3774874625),
-				EXTRACT {
-					WORD0 (224, 24, 'h7FF),
-					WORD1 (228, 4, 'hFFFF)
-				}
-
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-, 
-			// empty_sem_2
-			LUT {
-				OBJECT_ID(2),
-				VSI_LIST_EN(0),
-				INV_ACTION(0),
-				NUM_ACTIONS(1)
-			}
-;
-        8 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(14), HASH_SIZE1(11), HASH_SIZE2(10), HASH_SIZE3(9), HASH_SIZE4(8), HASH_SIZE5(7), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// l2_to_tunnel_v4
 			LUT {
 				OBJECT_ID(0),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
-				MISS_ACTION0(3774988352),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3921936385),
 				EXTRACT {
-					WORD0 (1, 0, 'hFFFF),
-					WORD1 (1, 2, 'hFFFF),
-					WORD2 (1, 4, 'hFFFF)
+					WORD0 (224, 5, 'h18),
+					WORD1 (228, 4, 'hFFFF)
 				}
 
 			}
@@ -3517,11 +3266,192 @@ block SEM {
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
-;
-        9 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(14), HASH_SIZE1(11), HASH_SIZE2(10), HASH_SIZE3(9), HASH_SIZE4(8), HASH_SIZE5(7), PINNED_LOOKUP(0), AGING_MODE(NONE), 
-			// l2_to_tunnel_v6
+, 
+			// empty_sem_0
 			LUT {
 				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        6 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// source_port_to_pr_map
+			LUT {
+				OBJECT_ID(1),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3825336332),
+				EXTRACT {
+					WORD0 (228, 8, 'hFFFF),
+					WORD1 (228, 5, 'hFF)
+				}
+
+			}
+, 
+			// empty_sem_1
+			LUT {
+				OBJECT_ID(1),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        5 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// rx_lag_table
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3774874625),
+				EXTRACT {
+					WORD0 (224, 5, 'h18),
+					WORD1 (228, 1, 'hFF)
+				}
+
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        4 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// vsi_to_vsi_loopback
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3774874625),
+				EXTRACT {
+					WORD0 (224, 24, 'h7FF),
+					WORD1 (230, 2, 'hFFE)
+				}
+
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        16 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// always_trap_arp_table
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3774988352),
+				MISS_ACTION1(3896508673),
+				EXTRACT {
+					WORD0 (4, 0, 'hFFFF),
+					WORD1 (4, 0, 'hFFFF)
+				}
+
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+, 
+			// empty_sem_0
+			LUT {
+				OBJECT_ID(0),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        10 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// tx_acc_vsi
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(4),
+				MISS_ACTION0(3825369089),
+				MISS_ACTION1(3897757712),
+				EXTRACT {
+					WORD0 (224, 24, 'h7FF),
+					WORD1 (228, 4, 'hFFFF)
+				}
+
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        8 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// l2_to_tunnel_v4
+			LUT {
+				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
 				NUM_ACTIONS(12),
@@ -3534,18 +3464,42 @@ block SEM {
 
 			}
 , 
-			// empty_sem_0
+			// empty_sem_2
 			LUT {
-				OBJECT_ID(0),
+				OBJECT_ID(2),
 				VSI_LIST_EN(0),
 				INV_ACTION(0),
 				NUM_ACTIONS(1)
 			}
 ;
-        14 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(14), HASH_SIZE1(11), HASH_SIZE2(10), HASH_SIZE3(9), HASH_SIZE4(8), HASH_SIZE5(7), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+        9 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
+			// l2_to_tunnel_v6
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(1),
+				INV_ACTION(0),
+				NUM_ACTIONS(12),
+				MISS_ACTION0(3774988352),
+				EXTRACT {
+					WORD0 (1, 0, 'hFFFF),
+					WORD1 (1, 2, 'hFFFF),
+					WORD2 (1, 4, 'hFFFF)
+				}
+
+			}
+, 
+			// empty_sem_2
+			LUT {
+				OBJECT_ID(2),
+				VSI_LIST_EN(0),
+				INV_ACTION(0),
+				NUM_ACTIONS(1)
+			}
+;
+        14 : SWID_SRC(DERIVE), COMPRESS_KEY(0), AUX_PREC(0), HASH_SIZE0(18), HASH_SIZE1(15), HASH_SIZE2(14), HASH_SIZE3(13), HASH_SIZE4(12), HASH_SIZE5(11), PINNED_LOOKUP(0), AGING_MODE(NONE), 
 			// nexthop_table
 			LUT {
-				OBJECT_ID(0),
+				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
 				NUM_ACTIONS(12),
@@ -3558,10 +3512,10 @@ block SEM {
 , 
 			// ipsec_tx_sa_classification_table
 			LUT {
-				OBJECT_ID(1),
+				OBJECT_ID(2),
 				VSI_LIST_EN(1),
 				INV_ACTION(0),
-				NUM_ACTIONS(8),
+				NUM_ACTIONS(12),
 				EXTRACT {
 					WORD0 (32, 16, 'hFFFF),
 					WORD1 (32, 18, 'hFFFF),
@@ -3623,22 +3577,26 @@ block LEM {
 		0 : 
 			ENTRY_SIZE(64), 
 			START_BANK(0), 
-			NUM_BANKS(1);
+			NUM_BANKS(2);
+		1 : 
+			ENTRY_SIZE(64), 
+			START_BANK(2), 
+			NUM_BANKS(2);
 
     }
     table PROFILE_CFG(%PROFILE) {
 		7 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(7), 
 			LUT {
-				NUM_ACTIONS(3), 
+				NUM_ACTIONS(4), 
 				OBJECT_ID(0), 
 				EXTRACT {
 					WORD0(32, 12, 'hFFFF), 
@@ -3647,16 +3605,16 @@ block LEM {
 			};
 		8 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(8), 
 			LUT {
-				NUM_ACTIONS(3), 
+				NUM_ACTIONS(4), 
 				OBJECT_ID(0), 
 				EXTRACT {
 					WORD0(32, 16, 'hFFFF), 
@@ -3665,16 +3623,16 @@ block LEM {
 			};
 		1 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(1), 
 			LUT {
-				NUM_ACTIONS(7), 
+				NUM_ACTIONS(8), 
 				OBJECT_ID(0), 
 				MISS_ACTION0(964689920), 
 				MISS_ACTION1(3774988352), 
@@ -3688,16 +3646,16 @@ block LEM {
 			};
 		9 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(9), 
 			LUT {
-				NUM_ACTIONS(3), 
+				NUM_ACTIONS(8), 
 				OBJECT_ID(0), 
 				MISS_ACTION0(964689920), 
 				MISS_ACTION1(3774988352), 
@@ -3711,16 +3669,16 @@ block LEM {
 			};
 		4 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(4), 
 			LUT {
-				NUM_ACTIONS(7), 
+				NUM_ACTIONS(8), 
 				OBJECT_ID(0), 
 				MISS_ACTION0(964689920), 
 				MISS_ACTION1(3774988352), 
@@ -3736,16 +3694,16 @@ block LEM {
 			};
 		10 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(10), 
 			LUT {
-				NUM_ACTIONS(6), 
+				NUM_ACTIONS(12), 
 				OBJECT_ID(0), 
 				EXTRACT {
 					WORD0(32, 16, 'hFFFF), 
@@ -3755,16 +3713,16 @@ block LEM {
 			};
 		11 : 
 			PINNED(0), 
-			HASH_SIZE0(15), 
-			HASH_SIZE1(12), 
-			HASH_SIZE2(11), 
-			HASH_SIZE3(10), 
-			HASH_SIZE4(9), 
-			HASH_SIZE5(8), 
+			HASH_SIZE0(18), 
+			HASH_SIZE1(15), 
+			HASH_SIZE2(14), 
+			HASH_SIZE3(13), 
+			HASH_SIZE4(12), 
+			HASH_SIZE5(11), 
 			AUX_PREC(0), 
 			PROFILE_GROUP(11), 
 			LUT {
-				NUM_ACTIONS(2), 
+				NUM_ACTIONS(12), 
 				OBJECT_ID(0), 
 				EXTRACT {
 					WORD0(224, 15, 'hFFFF), 
@@ -3787,6 +3745,8 @@ block LEM {
     }
     table HASH_SPACE_CFG(%HASH_SPACE_ID) {
 		0 : 
+			BASE('h0);
+		1 : 
 			BASE('h0);
 
     }

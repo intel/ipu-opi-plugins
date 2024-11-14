@@ -71,3 +71,9 @@ func (brCtlr *mockBrCtlr) DeletePort(portName string) error {
 	}
 	return fmt.Errorf("invalid mock function called")
 }
+func (brCtlr *mockBrCtlr) DeleteBridges() error {
+	if brCtlr.fnCalled == "DeleteBridges" {
+		return brCtlr.retValues[0].(error)
+	}
+	return fmt.Errorf("invalid mock function called")
+}

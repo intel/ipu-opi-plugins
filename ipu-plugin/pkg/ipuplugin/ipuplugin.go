@@ -41,7 +41,7 @@ type server struct {
 	listener        net.Listener
 	log             *log.Entry
 	p4cpInstall     string
-	Ports           map[string]*pb.BridgePort
+	Ports           map[string]*types.BridgePortInfo
 	bridgeCtlr      types.BridgeController
 	p4RtClient      types.P4RTClient
 	mode            string
@@ -62,7 +62,7 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 		grpcSrvr:        grpc.NewServer(),
 		log:             log.WithField("pkg", "ipuplugin"),
 		p4cpInstall:     p4cpInstall,
-		Ports:           make(map[string]*pb.BridgePort),
+		Ports:           make(map[string]*types.BridgePortInfo),
 		bridgeCtlr:      brCtlr,
 		p4RtClient:      p4Client,
 		mode:            mode,
@@ -83,15 +83,23 @@ func (s *server) Run() error {
 		return fmt.Errorf("unable to run IPU plugin")
 	}
 
-	if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-		log.Fatalf("error while checking host bridge existance: %v", err)
-		return fmt.Errorf("host bridge error")
+	if s.mode == types.IpuMode {
+		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
+			log.Errorf("error while checking host bridge existance: %v", err)
+			//log.Fatalf("error while checking host bridge existance: %v", err)
+			//return fmt.Errorf("host bridge error")
+		}
+		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
+			log.Errorf("error from  SetupAccApfs %v", err)
+			return fmt.Errorf("error from  SetupAccApfs %v", err)
+		} else {
+			log.Info("ipuplugin: setup ACC APFs")
+		}
 	}
-
-	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin))
+	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin, s.bridgeCtlr))
 	if s.mode == types.IpuMode {
 		pb.RegisterBridgePortServiceServer(s.grpcSrvr, s)
-		pb2.RegisterNetworkFunctionServiceServer(s.grpcSrvr, NewNetworkFunctionService(s.p4rtbin))
+		pb2.RegisterNetworkFunctionServiceServer(s.grpcSrvr, NewNetworkFunctionService(s.Ports, s.bridgeCtlr, s.p4RtClient, s.p4rtbin))
 	}
 	pb2.RegisterDeviceServiceServer(s.grpcSrvr, NewDevicePluginService(s.mode))
 
@@ -112,6 +120,10 @@ func (s *server) Run() error {
 
 func (s *server) Stop() {
 	s.log.Info("Stopping IPU plugin")
+	if s.mode == types.IpuMode {
+		//Note: Deletes bridge created in EnsureBridgeExists in  Run api.
+		s.bridgeCtlr.DeleteBridges()
+	}
 	s.grpcSrvr.GracefulStop()
 	if s.listener != nil {
 		s.listener.Close()

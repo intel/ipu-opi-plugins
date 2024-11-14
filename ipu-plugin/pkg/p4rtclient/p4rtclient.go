@@ -15,7 +15,10 @@
 package p4rtclient
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"strconv"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -29,6 +32,13 @@ type p4rtclient struct {
 	bridgeType types.BridgeType
 }
 
+type fxpRuleBuilder struct {
+	Action   string
+	P4br     string
+	Control  string
+	Metadata string
+}
+
 type fxpRuleParams []string
 
 func NewP4RtClient(p4RtBin string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
@@ -39,6 +49,364 @@ func NewP4RtClient(p4RtBin string, portMuxVsi int, p4BridgeName string, brType t
 		p4br:       p4BridgeName,
 		bridgeType: brType,
 	}
+}
+
+// TODO: Move this under utils pkg
+func checkMacAddresses(macAddresses ...string) ([]byte, error) {
+	for _, mac := range macAddresses {
+		hwAddr, err := net.ParseMAC(mac)
+		if err != nil {
+			return hwAddr, errors.New("Invalid Mac Address format")
+		}
+	}
+	return []byte{}, nil
+}
+
+// TODO: Move this under utils pkg
+func programFXPP4Rules(p4RtBin string, ruleSets []fxpRuleBuilder) error {
+	for _, r := range ruleSets {
+		p4rule := []string{r.Action, r.P4br, r.Control, r.Metadata}
+		err := utils.RunP4rtCtlCommand(p4RtBin, p4rule...)
+		if err != nil {
+			log.Info("WARNING: Failed to program p4rule: ", p4rule)
+		}
+	}
+	return nil
+}
+
+// TODO: Move this under utils pkg
+func getVsiVportInfo(macAddr string) (int, int) {
+	macAddrByte, _ := utils.GetMacAsByteArray(macAddr)
+	vfVsi := int(macAddrByte[1])
+	vfVport := utils.GetVportForVsi(vfVsi)
+	return vfVsi, vfVport
+}
+
+func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
+	vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+	if err != nil {
+		log.Info("AddPhyPortRules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
+		return err
+	}
+	//skip 0x in front of vsi
+	vsi = vsi[2:]
+	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+	if err != nil {
+		log.Info("error from ParseInt ", err)
+		return err
+	}
+	prVsi := int(vsiInt64)
+
+	prVport := utils.GetVportForVsi(prVsi)
+
+	phyVportP4ruleSets := []fxpRuleBuilder{
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.rx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.port_id=%d,zero_padding=0,action=linux_networking_control.set_source_port(%d)",
+				phyPort, phyPort,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.rx_phy_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.port_id=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+				phyPort, prVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+				phyPort, prVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+				prVsi, phyPort,
+			),
+		},
+	}
+	return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
+}
+
+func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
+	vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+	if err != nil {
+		log.Info("DeletePhyPortRules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
+		return err
+	}
+	//skip 0x in front of vsi
+	vsi = vsi[2:]
+	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+	if err != nil {
+		log.Info("error from ParseInt ", err)
+		return err
+	}
+	prVsi := int(vsiInt64)
+
+	phyVportP4ruleSets := []fxpRuleBuilder{
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.rx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.port_id=%d,zero_padding=0",
+				phyPort,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.rx_phy_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.port_id=%d,zero_padding=0",
+				phyPort,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0",
+				phyPort,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0",
+				prVsi,
+			),
+		},
+	}
+
+	return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
+}
+
+func programPhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
+	phyBridgeIdP4ruleSet := []fxpRuleBuilder{
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_bridge_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1,action=linux_networking_control.set_bridge_id(bridge_id=%d)",
+				phyPort, bridgeId,
+			),
+		},
+	}
+	return programFXPP4Rules(p4RtBin, phyBridgeIdP4ruleSet)
+}
+
+func deletePhyVportBridgeId(p4RtBin string, phyPort, bridgeId int) error {
+	phyBridgeIdP4ruleSet := []fxpRuleBuilder{
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_bridge_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=0/0xfff,priority=1",
+				phyPort,
+			),
+		},
+	}
+	return programFXPP4Rules(p4RtBin, phyBridgeIdP4ruleSet)
+}
+
+func programNfPrVportP4Rules(p4RtBin, ingressMac, egressMac string) error {
+	ingressVsi, ingressVport := getVsiVportInfo(ingressMac)
+	egressVsi, egressVport := getVsiVportInfo(egressMac)
+
+	nfPrVportP4RuleSets := []fxpRuleBuilder{
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port(%d)",
+				ingressVsi, ingressVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+				ingressVsi, egressVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+				egressVsi, ingressVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				egressVsi, ingressVsi, ingressVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				ingressVsi, egressVsi, egressVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+				ingressVport, egressVport,
+			),
+		},
+	}
+
+	return programFXPP4Rules(p4RtBin, nfPrVportP4RuleSets)
+}
+
+func deleteNfPrVportP4Rules(p4RtBin, ingressMac, egressMac string) error {
+	ingressVsi, ingressVport := getVsiVportInfo(ingressMac)
+	egressVsi, _ := getVsiVportInfo(egressMac)
+
+	nfPrVportP4RuleSets := []fxpRuleBuilder{
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d/0x7ff,priority=1",
+				ingressVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0",
+				ingressVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0",
+				egressVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				egressVsi, ingressVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				ingressVsi, egressVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0",
+				ingressVport,
+			),
+		},
+	}
+
+	return programFXPP4Rules(p4RtBin, nfPrVportP4RuleSets)
+}
+
+func programVsiToVsiP4Rules(p4RtBin, mac1, mac2 string) error {
+	mac1Vsi, mac1Vport := getVsiVportInfo(mac1)
+	mac2Vsi, mac2Vport := getVsiVportInfo(mac2)
+
+	VsiToVsip4RuleSets := []fxpRuleBuilder{
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				mac1Vsi, mac2Vsi, mac2Vport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				mac2Vsi, mac1Vsi, mac1Vport,
+			),
+		},
+	}
+	return programFXPP4Rules(p4RtBin, VsiToVsip4RuleSets)
+}
+
+func deleteVsiToVsiP4Rules(p4RtBin, mac1, mac2 string) error {
+	mac1Vsi, _ := getVsiVportInfo(mac1)
+	mac2Vsi, _ := getVsiVportInfo(mac2)
+
+	VsiToVsip4RuleSets := []fxpRuleBuilder{
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				mac1Vsi, mac2Vsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				mac2Vsi, mac1Vsi,
+			),
+		},
+	}
+	return programFXPP4Rules(p4RtBin, VsiToVsip4RuleSets)
 }
 
 func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
@@ -139,4 +507,395 @@ func (p *p4rtclient) getDelRuleSets(macAddr []byte, vlan int) []fxpRuleParams {
 	}
 
 	return ruleSets
+}
+
+func AddPhyPortRules(p4RtBin string, prP0mac string, prP1mac string) error {
+	macAddr, macErr := checkMacAddresses(prP0mac, prP1mac)
+	if macErr != nil {
+		// We do not have a valid mac address
+		log.WithField("mac address", macAddr).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+	//Add Port 0 P4 rules
+	programPhyVportP4Rules(p4RtBin, 0, prP0mac)
+	//Add Port 1 P4 rules
+	programPhyVportP4Rules(p4RtBin, 1, prP1mac)
+	//Add bridge id for non P4 OVS bridge ports
+	programPhyVportBridgeId(p4RtBin, 1, 77)
+
+	return nil
+}
+
+func DeletePhyPortRules(p4RtBin string, prP0mac string, prP1mac string) error {
+	macAddr, macErr := checkMacAddresses(prP0mac, prP1mac)
+	if macErr != nil {
+		// We do not have a valid mac address
+		log.WithField("mac address", macAddr).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+	//Add Port 0 P4 rules
+	deletePhyVportP4Rules(p4RtBin, 0, prP0mac)
+	//Add Port 1 P4 rules
+	deletePhyVportP4Rules(p4RtBin, 1, prP1mac)
+	//Add bridge id for non P4 OVS bridge ports
+	deletePhyVportBridgeId(p4RtBin, 1, 77)
+
+	return nil
+
+}
+
+func AddHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
+	hostMacAddr := net.HardwareAddr(hostVfMac)
+	vfMac, hostMacErr := checkMacAddresses(hostMacAddr.String())
+	if hostMacErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", vfMac).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+
+	accAddr, apfMacErr := checkMacAddresses(accMac)
+	if apfMacErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", accAddr).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+
+	hostVfVsi, hostVfVport := getVsiVportInfo(hostMacAddr.String())
+	apfPrVsi, apfPrVport := getVsiVportInfo(accMac)
+
+	hostVfP4ruleSets := []fxpRuleBuilder{
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d/0x7ff,priority=1,action=linux_networking_control.set_source_port(%d)",
+				hostVfVsi, hostVfVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+				apfPrVsi, hostVfVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				apfPrVsi, hostVfVsi, hostVfVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d,action=linux_networking_control.fwd_to_vsi(%d)",
+				hostVfVsi, apfPrVsi, apfPrVport,
+			),
+		},
+		{
+			Action:  "add-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0,action=linux_networking_control.fwd_to_vsi(%d)",
+				hostVfVport, apfPrVport,
+			),
+		},
+	}
+
+	log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("adding FXP rules")
+
+	err := programFXPP4Rules(p4RtBin, hostVfP4ruleSets)
+	if err != nil {
+		log.Info("Host VF FXP P4 rules add failed")
+		return err
+	} else {
+		log.Info("Host VF FXP P4 rules were added successfully")
+	}
+	return nil
+}
+
+func DeleteHostVfP4Rules(p4RtBin string, hostVfMac []byte, accMac string) error {
+	hostMacAddr := net.HardwareAddr(hostVfMac)
+	vfMac, hostMacErr := checkMacAddresses(hostMacAddr.String())
+	if hostMacErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", vfMac).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+
+	accMacAddr, apfMacErr := checkMacAddresses(accMac)
+	if apfMacErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", accMacAddr).Error("Invalid mac address")
+		return errors.New("Invalid Mac Address")
+	}
+
+	hostVfVsi, hostVfVport := getVsiVportInfo(hostMacAddr.String())
+	apfPrVsi, _ := getVsiVportInfo(accMac)
+
+	hostVfP4ruleSets := []fxpRuleBuilder{
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_source_port",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d/0x7ff,priority=1",
+				hostVfVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.tx_acc_vsi",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,zero_padding=0",
+				apfPrVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				apfPrVsi, hostVfVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.vsi_to_vsi_loopback",
+			Metadata: fmt.Sprintf(
+				"vmeta.common.vsi=%d,target_vsi=%d",
+				hostVfVsi, apfPrVsi,
+			),
+		},
+		{
+			Action:  "del-entry",
+			P4br:    "br0",
+			Control: "linux_networking_control.source_port_to_pr_map",
+			Metadata: fmt.Sprintf(
+				"user_meta.cmeta.source_port=%d,zero_padding=0",
+				hostVfVport,
+			),
+		},
+	}
+
+	log.WithField("number of rules", len(hostVfP4ruleSets)).Debug("Deleting FXP rules")
+
+	err := programFXPP4Rules(p4RtBin, hostVfP4ruleSets)
+	if err != nil {
+		log.Info("Host VF FXP P4 rules delete failed")
+		return err
+	} else {
+		log.Info("Host VF FXP P4 rules were deleted successfully")
+	}
+	return nil
+}
+
+func AddNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressMac string, ingressPRMac string, egressPRMac string) error {
+	for _, vfMac := range vfMacList {
+		macAddr, macErr := checkMacAddresses(vfMac)
+		if macErr != nil {
+			// We do not have a valid mac address for the host or apf interface
+			log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+			return errors.New("Invalid Mac Address")
+		}
+	}
+
+	macAddr, macErr := checkMacAddresses(ingressMac, egressMac, ingressPRMac, egressPRMac)
+	if macErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+		return errors.New("Invalid Mac Address")
+	}
+
+	err := programNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
+	if err != nil {
+		log.Info("Add NF FXP P4 rules add failed for ", ingressMac, ingressPRMac)
+		return err
+	} else {
+		log.Info("Add NF FXP P4 rules were added successfully for ", ingressMac, ingressPRMac)
+	}
+
+	err = programNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
+	if err != nil {
+		log.Info("Add NF FXP P4 rules add failed for ", egressMac, egressPRMac)
+		return err
+	} else {
+		log.Info("Add NF FXP P4 rules were added successfully for ", egressMac, egressPRMac)
+	}
+
+	for _, vfMacAddr := range vfMacList {
+		nfMacList := []string{ingressMac, egressMac}
+		for _, nfMacAddr := range nfMacList {
+			programVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
+		}
+	}
+	return nil
+}
+
+func DeleteNFP4Rules(p4RtBin string, vfMacList []string, ingressMac string, egressMac string, ingressPRMac string, egressPRMac string) error {
+	for _, vfMac := range vfMacList {
+		macAddr, macErr := checkMacAddresses(vfMac)
+		if macErr != nil {
+			// We do not have a valid mac address for the host or apf interface
+			log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+			return errors.New("Invalid Mac Address")
+		}
+	}
+
+	macAddr, macErr := checkMacAddresses(ingressMac, egressMac, ingressPRMac, egressPRMac)
+	if macErr != nil {
+		// We do not have a valid mac address for the host or apf interface
+		log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+		return errors.New("Invalid Mac Address")
+	}
+
+	err := deleteNfPrVportP4Rules(p4RtBin, ingressMac, ingressPRMac)
+	if err != nil {
+		log.Info("Delete NF FXP P4 rules add failed for ", ingressMac, ingressPRMac)
+		return err
+	} else {
+		log.Info("Delete NF FXP P4 rules were added successfully for ", ingressMac, ingressPRMac)
+	}
+
+	err = deleteNfPrVportP4Rules(p4RtBin, egressMac, egressPRMac)
+	if err != nil {
+		log.Info("Delete NF FXP P4 rules add failed for ", egressMac, egressPRMac)
+		return err
+	} else {
+		log.Info("Delete NF FXP P4 rules were added successfully for ", egressMac, egressPRMac)
+	}
+
+	for _, vfMacAddr := range vfMacList {
+		nfMacList := []string{ingressMac, egressMac}
+		for _, nfMacAddr := range nfMacList {
+			deleteVsiToVsiP4Rules(p4RtBin, vfMacAddr, nfMacAddr)
+		}
+	}
+	return nil
+}
+
+func AddPeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
+	for _, vfMac := range vfMacList {
+		macAddr, macErr := checkMacAddresses(vfMac)
+		if macErr != nil {
+			// We do not have a valid mac address for the host VF interface
+			log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+			return errors.New("Invalid Mac Address")
+		}
+	}
+	for i := 0; i < len(vfMacList); i++ {
+		for j := i + 1; j < len(vfMacList); j++ {
+			programVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
+		}
+	}
+	log.Info("AddPeerToPeerP4Rules FXP P4 rules added Successfully")
+	return nil
+}
+
+func DeletePeerToPeerP4Rules(p4RtBin string, vfMacList []string) error {
+	for _, vfMac := range vfMacList {
+		macAddr, macErr := checkMacAddresses(vfMac)
+		if macErr != nil {
+			// We do not have a valid mac address for the host VF interface
+			log.WithField("mac address", macAddr).Error("Invalid mac address in the VF Mac list")
+			return errors.New("Invalid Mac Address")
+		}
+	}
+	for i := 0; i < len(vfMacList); i++ {
+		for j := i + 1; j < len(vfMacList); j++ {
+			deleteVsiToVsiP4Rules(p4RtBin, vfMacList[i], vfMacList[j])
+		}
+	}
+	log.Info("AddPeerToPeerP4Rules FXP P4 rules deleted Successfully for")
+	return nil
+}
+
+func AddLAGP4Rules(p4RtBin string) error {
+	var LAGP4ruleSets []fxpRuleBuilder
+
+	LAGP4ruleSets = append(LAGP4ruleSets,
+		fxpRuleBuilder{
+			Action:   "add-entry",
+			P4br:     "br0",
+			Control:  "linux_networking_control.ipv4_lpm_root_lut",
+			Metadata: "user_meta.cmeta.bit16_zeros=4/65535,priority=2048,action=linux_networking_control.ipv4_lpm_root_lut_action(0)",
+		})
+	err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+	if err != nil {
+		log.Info("LAG LPM ROOT LUT FXP P4 rules add failed")
+	} else {
+		log.Info("LAG LPM ROOT LUT FXP P4 rules were added successfully")
+	}
+
+	LAGP4ruleSets = []fxpRuleBuilder{}
+
+	for idx := 0; idx < 8; idx++ {
+		LAGP4ruleSets = append(LAGP4ruleSets,
+			fxpRuleBuilder{
+				Action:   "add-entry",
+				P4br:     "br0",
+				Control:  "linux_networking_control.tx_lag_table",
+				Metadata: fmt.Sprintf("user_meta.cmeta.lag_group_id=0/255,hash=%d/7,priority=1,action=linux_networking_control.bypass", idx),
+			},
+		)
+	}
+	err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+	if err != nil {
+		log.Info("AddLAGP4Rules FXP P4 rules add failed")
+		return err
+	} else {
+		log.Info("AddLAGP4Rules FXP P4 rules were added successfully")
+	}
+	return nil
+}
+
+func DeleteLAGP4Rules(p4RtBin string) error {
+	var LAGP4ruleSets []fxpRuleBuilder
+
+	LAGP4ruleSets = append(LAGP4ruleSets,
+		fxpRuleBuilder{
+			Action:   "del-entry",
+			P4br:     "br0",
+			Control:  "linux_networking_control.ipv4_lpm_root_lut",
+			Metadata: "user_meta.cmeta.bit16_zeros=4/65535,priority=2048",
+		})
+	err := programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+	if err != nil {
+		log.Info("LAG FXP P4 rules delete failed")
+	} else {
+		log.Info("LAG FXP P4 rules were delete successfully")
+	}
+
+	LAGP4ruleSets = []fxpRuleBuilder{}
+
+	for idx := 0; idx < 8; idx++ {
+		LAGP4ruleSets = append(LAGP4ruleSets,
+			fxpRuleBuilder{
+				Action:   "del-entry",
+				P4br:     "br0",
+				Control:  "linux_networking_control.tx_lag_table",
+				Metadata: fmt.Sprintf("user_meta.cmeta.lag_group_id=0/255,hash=%d/7,priority=1", idx),
+			},
+		)
+	}
+	err = programFXPP4Rules(p4RtBin, LAGP4ruleSets)
+	if err != nil {
+		log.Info("DeleteLAGP4Rules FXP P4 rules delete failed")
+		return err
+	} else {
+		log.Info("DeleteLAGP4Rules FXP P4 rules were delete successfully")
+	}
+	return nil
 }

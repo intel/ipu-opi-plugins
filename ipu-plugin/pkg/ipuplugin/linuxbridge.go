@@ -43,6 +43,27 @@ func NewLinuxBridgeController(bridge string) types.BridgeController {
 	}
 }
 
+// Note:: This is expected to be called, when plugin exits(Stop),
+func (b *linuxBridge) DeleteBridges() error {
+	if b.brName == "" {
+		return fmt.Errorf("bridge name is empty")
+	}
+	br, err := linkByNameFn(b.brName)
+	if err == nil {
+		if br.Type() == "bridge" {
+			// Bridge exists
+			log.Infof("bridge %s found", b.brName)
+			if err := linkDelFn(br); err != nil {
+				return fmt.Errorf("error deleting bridge %s: %s", b.brName, err.Error())
+			}
+		} else {
+			// a link is found with same name but not a bridge
+			return fmt.Errorf("a link is found with name %s but link type is not bridge", b.brName)
+		}
+	}
+	return fmt.Errorf("bridge-> %s does not exist, error->%v", b.brName, err)
+}
+
 func (b *linuxBridge) EnsureBridgeExists() error {
 	if b.brName == "" {
 		return fmt.Errorf("bridge name is empty")

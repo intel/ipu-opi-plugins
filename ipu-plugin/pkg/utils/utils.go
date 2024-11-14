@@ -149,3 +149,15 @@ func GetVfMacList() ([]string, error) {
 
 	return strings.Split(strings.TrimSpace(output), "\n"), nil
 }
+
+func GetAccApfMacList() ([]string, error) {
+	// reach out to the IMC to get the mac addresses of the VFs
+	output, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
+		| awk '{if(($2 == "0x4") && ($4 == "0x4")) {print $17}}'`)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	return strings.Split(strings.TrimSpace(output), "\n"), nil
+}

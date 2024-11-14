@@ -5,7 +5,8 @@
         "chip_family": "mev",
         "instance": 0,
         "pcie_bdf": "$CPF_BDF",
-        "iommu_grp_num": $IOMMU_GROUP
+        "iommu_grp_num": $IOMMU_GROUP,
+        "ctrl_map" : ["NETDEV",${ACC_PR_CTRL_MAP}1]
     }
     ],
     "instance": 0,

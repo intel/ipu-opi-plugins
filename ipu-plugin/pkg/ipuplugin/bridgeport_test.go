@@ -17,6 +17,7 @@ package ipuplugin
 import (
 	"context"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
@@ -25,54 +26,14 @@ import (
 )
 
 var _ = Describe("bridgeport", Serial, func() {
-	Describe("createInnerVlanInterface", Serial, func() {
-		Context("when vlan interface is found but not a valid vlan interface type", func() {
-			It("should return error", func() {
-				linkByNameFn = fakeLinkByName // it returns a dummy netlink instance; not a valid vlan interface
-				dummyMasterLink := &netlink.Dummy{}
-				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
-				Expect(err).To(HaveOccurred())
-			})
-		})
-		Context("when vlan interface is found and is a valid vlan interface type", func() {
-			It("should create a new vlan interface and not return any error", func() {
-				linkByNameFn = func(ifName string) (netlink.Link, error) {
-					vLink := &netlink.Vlan{}
-					vLink.Name = ifName
-					return vLink, nil
-				}
-				linkAddFn = fakeLinkAdd
-				dummyMasterLink := &netlink.Dummy{}
-				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
-				Expect(err).NotTo(HaveOccurred())
-			})
-		})
-		Context("when vlan interface is not found", func() {
-			It("should create a new vlan interface and not return any error", func() {
-				linkByNameFn = fakeLinkByNameWithErr
-				linkAddFn = fakeLinkAdd
-				dummyMasterLink := &netlink.Dummy{}
-				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
-				Expect(err).NotTo(HaveOccurred())
-			})
-		})
-		Context("when vlan interface is found but error occurred when adding it via netlink", func() {
-			It("should create a new vlan interface and not return any error", func() {
-				linkByNameFn = fakeLinkByNameWithErr
-				linkAddFn = fakeLinkAddWithErr
-				dummyMasterLink := &netlink.Dummy{}
-				err := createInnerVlanInterface(dummyMasterLink, "dummyVlanIntf", 100)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error creating vlan interface"))
-			})
-		})
-	})
 
 	Describe("CreateBridgePort", Serial, func() {
 		var ipuServer *server
 		BeforeEach(func() {
 			fakeBrCtlr := &mockBrCtlr{}
 			fakeP4rtClient := &mockP4rtClient{}
+			ExecutableHandlerGlobal = &MockExecutableHandlerImpl{}
+			ExecutableHandlerGlobal.SetupAccApfs()
 			ipuServer = &server{
 				bridgeCtlr: fakeBrCtlr,
 				p4RtClient: fakeP4rtClient,
@@ -145,10 +106,14 @@ var _ = Describe("bridgeport", Serial, func() {
 						LogicalBridges: []string{"100"},
 					},
 				}
+				fakePortBridgeInfo := &types.BridgePortInfo{
+					fakePort, "fakePort1",
+				}
+
 				fakeReq := &pb.CreateBridgePortRequest{BridgePort: fakePort}
 
-				ipuServer.Ports = make(map[string]*pb.BridgePort)
-				ipuServer.Ports["fakePort"] = fakePort // fakePort already exists in internal Map
+				ipuServer.Ports = make(map[string]*types.BridgePortInfo)
+				ipuServer.Ports["fakePort"] = fakePortBridgeInfo // fakePort already exists in internal Map
 				_, err := ipuServer.CreateBridgePort(context.TODO(), fakeReq)
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -156,7 +121,7 @@ var _ = Describe("bridgeport", Serial, func() {
 
 		Context("when CreateBridgePortRequest is valid and port is present in internal Port Map", func() {
 			It("should return without any error", func() {
-				ipuServer.Ports = make(map[string]*pb.BridgePort)
+				ipuServer.Ports = make(map[string]*types.BridgePortInfo)
 				fakeMacAddr := []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
 				fakePort := &pb.BridgePort{
 					Name: "fakePort",
@@ -165,6 +130,10 @@ var _ = Describe("bridgeport", Serial, func() {
 						LogicalBridges: []string{"100"},
 					},
 				}
+				fakePortBridgeInfo := &types.BridgePortInfo{
+					fakePort, "fakePort1",
+				}
+				ipuServer.Ports["fakePort"] = fakePortBridgeInfo // fakePort already exists in internal Map
 
 				// mock other internal functions and other dependencies
 				linkByNameFn = func(ifName string) (netlink.Link, error) {

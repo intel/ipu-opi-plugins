@@ -45,25 +45,42 @@ type LifeCycleServiceServer struct {
 	daemonPort   int
 	mode         string
 	p4rtbin      string
+	bridgeCtlr   types.BridgeController
 }
 
 const (
-	hostVportId         = "03"
-	accVportId          = "04"
+	hostVportId         = "02"
+	accVportId          = "03"
 	deviceId            = "0x1452"
 	vendorId            = "0x8086"
 	imcAddress          = "192.168.0.1:22"
-	apfNumber           = 16
+	ApfNumber           = 16
 	last_byte_mac_range = 239
 )
 
-func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string) *LifeCycleServiceServer {
+var InitAccApfMacs = false
+var AccApfMacList []string
+
+// Reserved ACC interfaces(using vport_id or last digit of interface name, like 4 represents-> enp0s1f0d4)
+const (
+	PHY_PORT0_INTF_INDEX = 4
+	PHY_PORT1_INTF_INDEX = 5
+	NF_IN_PR_INTF_INDEX  = 9
+	NF_OUT_PR_INTF_INDEX = 10
+)
+
+// TODO: GetFilteredPFs can be used to fill the array.
+var AccIntfNames = [ApfNumber]string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4", "enp0s1f0d5", "enp0s1f0d6",
+	"enp0s1f0d7", "enp0s1f0d8", "enp0s1f0d9", "enp0s1f0d10", "enp0s1f0d11", "enp0s1f0d12", "enp0s1f0d13", "enp0s1f0d14", "enp0s1f0d15"}
+
+func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string, brCtlr types.BridgeController) *LifeCycleServiceServer {
 	return &LifeCycleServiceServer{
 		daemonHostIp: daemonHostIp,
 		daemonIpuIp:  daemonIpuIp,
 		daemonPort:   daemonPort,
 		mode:         mode,
 		p4rtbin:      p4rtbin,
+		bridgeCtlr:   brCtlr,
 	}
 }
 
@@ -101,6 +118,7 @@ func (fs *FileSystemHandlerImpl) GetVendor(iface string) ([]byte, error) {
 type ExecutableHandler interface {
 	validate() bool
 	nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error
+	SetupAccApfs() error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -112,14 +130,14 @@ type SSHHandler interface {
 type SSHHandlerImpl struct{}
 
 type FXPHandler interface {
-	configureFXP(p4rtbin string) error
+	configureFXP(p4rtbin string, brCtlr types.BridgeController) error
 }
 
 type FXPHandlerImpl struct{}
 
 var fileSystemHandler FileSystemHandler
 var networkHandler NetworkHandler
-var executableHandler ExecutableHandler
+var ExecutableHandlerGlobal ExecutableHandler
 var sshHandler SSHHandler
 var fxpHandler FXPHandler
 
@@ -130,8 +148,8 @@ func InitHandlers() {
 	if networkHandler == nil {
 		networkHandler = &NetworkHandlerImpl{}
 	}
-	if executableHandler == nil {
-		executableHandler = &ExecutableHandlerImpl{}
+	if ExecutableHandlerGlobal == nil {
+		ExecutableHandlerGlobal = &ExecutableHandlerImpl{}
 	}
 	if sshHandler == nil {
 		sshHandler = &SSHHandlerImpl{}
@@ -197,7 +215,7 @@ func getCommPf(mode string, linkList []netlink.Link) (netlink.Link, error) {
 /*
 It can take time for network-manager's state for each interface, to become
 activated, when IP address is set, which can cause the IP address to not stick.
-TODO: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
+Note: Currently we only support nmcli/NetworkManager daemon combination(RHEL),
 this api can be extended for other distros that use different CLI/systemd-networkd.
 Option2: First set IP address, sleep for a while, and check
 if interface is activated thro nmcli. Retry for few times,
@@ -297,7 +315,7 @@ func setIP(link netlink.Link, ip string) error {
 		// Set the IP address on PF
 		addr := &netlink.Addr{IPNet: &net.IPNet{IP: ipAddr, Mask: net.CIDRMask(24, 32)}}
 
-		if err = executableHandler.nmcliSetupIpAddress(link, ip, addr); err != nil {
+		if err = ExecutableHandlerGlobal.nmcliSetupIpAddress(link, ip, addr); err != nil {
 			log.Errorf("setIP: err->%v from nmcliSetup\n", err)
 			return fmt.Errorf("setIP: err->%v from nmcliSetup", err)
 		}
@@ -329,6 +347,7 @@ func GetMacforNetworkInterface(intf string, linkList []netlink.Link) (string, er
 	return "", fmt.Errorf("Couldnt find mac for interface->%v\n", intf)
 }
 
+// TODO: Can we cache 2 PF lists for host and ACC, to avoid repeated calls to GetFilteredPFs
 func GetFilteredPFs(pfList *[]netlink.Link) error {
 
 	linkList, err := networkHandler.LinkList()
@@ -346,6 +365,53 @@ func GetFilteredPFs(pfList *[]netlink.Link) error {
 	}
 
 	return nil
+}
+
+func FindInterfaceIdForGivenMac(macAddr string) (int, error) {
+	intfIndex := 0
+	found := false
+	if !InitAccApfMacs {
+		log.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
+		return 0, fmt.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
+	}
+	for i := 0; i < len(AccApfMacList); i++ {
+		if AccApfMacList[i] == macAddr {
+			intfIndex = i
+			log.Debugf("found intfIndex->%v for mac->%v\n", intfIndex, macAddr)
+			found = true
+			break
+		}
+	}
+	if found == true {
+		return intfIndex, nil
+	}
+	log.Errorf("Couldnt find intfIndex for mac->%v\n", macAddr)
+	return 0, fmt.Errorf("Couldnt find intfIndex for mac->%v\n", macAddr)
+}
+
+func FindInterfaceForGivenMac(macAddr string) (string, error) {
+	var pfList []netlink.Link
+	InitHandlers()
+	if err := GetFilteredPFs(&pfList); err != nil {
+		log.Errorf("FindInterfaceForGivenMac: err->%v from GetFilteredPFs", err)
+		return "", status.Error(codes.Internal, err.Error())
+	}
+
+	intfName := ""
+	found := false
+	for i := 0; i < len(pfList); i++ {
+		if pfList[i].Attrs().HardwareAddr.String() == macAddr {
+			intfName = pfList[i].Attrs().Name
+			log.Debugf("found intfName->%v for mac->%v\n", intfName, macAddr)
+			found = true
+			break
+		}
+	}
+	if found == true {
+		return intfName, nil
+	}
+	log.Errorf("Couldnt find intfName for mac->%v\n", macAddr)
+	return "", fmt.Errorf("Couldnt find intfName for mac->%v\n", macAddr)
 }
 
 /*
@@ -447,6 +513,8 @@ func setBaseMacAddr() (string, error) {
 	return macAddress, nil
 }
 
+// TODO: Replace pkg name->fxp-net_linux-networking.pkg, using
+// a const variable in this function.
 func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
@@ -471,7 +539,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer sftpClient.Close()
 
 	// Open the source file.
-	localFilePath := "/rh_mvp.pkg"
+	localFilePath := "/fxp-net_linux-networking.pkg"
 	srcFile, err := os.Open(localFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to open local file: %s", err)
@@ -479,7 +547,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer srcFile.Close()
 
 	// Create the destination file on the remote server.
-	remoteFilePath := "/work/scripts/rh_mvp.pkg"
+	remoteFilePath := "/work/scripts/fxp-net_linux-networking.pkg"
 	dstFile, err := sftpClient.Create(remoteFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create remote file: %s", err)
@@ -517,18 +585,27 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("error from setBaseMacAddr()->%v", err)
 	}
 
+	//Note: Ensure pacakge name here matches with Makefile/Dockerfile in VSP similar to P4SDK
+	//Note: Ensure configureChannel/setIP according to host<->ACC comm_vports.
 	shellScript := fmt.Sprintf(`#!/bin/sh
 CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
+cd /work/scripts
 echo "Checking for custom package..."
-if [ -e rh_mvp.pkg ]; then
-    echo "Custom package rh_mvp.pkg found. Overriding default package"
-    cp rh_mvp.pkg /etc/dpcp/package/
+if [ -e fxp-net_linux-networking.pkg ]; then
+    echo "Custom package fxp-net_linux-networking.pkg found. Overriding default package"
+    cp fxp-net_linux-networking.pkg /etc/dpcp/package/
     rm -rf /etc/dpcp/package/default_pkg.pkg
-    ln -s /etc/dpcp/package/rh_mvp.pkg /etc/dpcp/package/default_pkg.pkg
-    sed -i 's/sem_num_pages = 1;/sem_num_pages = 25;/g' $CP_INIT_CFG
+    ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
+    sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' $CP_INIT_CFG
+    sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' $CP_INIT_CFG
+    sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
+    sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' $CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
-    sed -i 's/comm_vports = .*/comm_vports = ((\[5,0\],\[4,0\]),(\[0,3\],\[4,4\]));/g' $CP_INIT_CFG
+    sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
+    sed -i 's/uplink_vports = .*/uplink_vports = ([0,0,0],[0,1,1],[4,1,0],[4,5,1],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
+    sed -i 's/rep_vports = .*/rep_vports = ([0,0,0],[4,5,1]);/g' $CP_INIT_CFG
+    sed -i 's/exception_vports = .*/exception_vports = ([0,0,0],[4,5,1]); /g' $CP_INIT_CFG
 else
     echo "No custom package found. Continuing with default package"
 fi
@@ -651,10 +728,9 @@ func checkIfMACIsSet() (bool, string) {
 
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := countAPFDevices(); numAPFs < apfNumber {
-		fmt.Printf("Not enough APFs %v", numAPFs)
-		return false
-	}
+	/*Note: Num of APFs gets validated early on,
+	in SetupAccApfs, prior to 1 interface(for Phy Port),
+	getting moved to p4 container in configureFxp */
 
 	if macPreFix, mac := checkIfMACIsSet(); !macPreFix {
 		fmt.Printf("incorrect Mac assigned : %v\n", mac)
@@ -664,19 +740,63 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	return true
 }
 
-func (s *FXPHandlerImpl) configureFXP(p4rtbin string) error {
+func (e *ExecutableHandlerImpl) SetupAccApfs() error {
+	var err error
+
+	if !InitAccApfMacs {
+		AccApfMacList, err = utils.GetAccApfMacList()
+
+		if err != nil {
+			log.Errorf("unable to reach the IMC %v", err)
+			return fmt.Errorf("unable to reach the IMC %v", err)
+		}
+
+		if len(AccApfMacList) != ApfNumber {
+			log.Errorf("not enough APFs initialized on ACC, total APFs->%d, APFs->%v", len(AccApfMacList), AccApfMacList)
+			return fmt.Errorf("not enough APFs initialized on ACC, total APFs->%d", len(AccApfMacList))
+		}
+		log.Infof("On ACC, total APFs->%d", len(AccApfMacList))
+		for i := 0; i < len(AccApfMacList); i++ {
+			log.Infof("index->%d, mac->%s", i, AccApfMacList[i])
+		}
+		InitAccApfMacs = true
+	}
+	return nil
+}
+
+func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
 	vfMacList, err := utils.GetVfMacList()
-
 	if err != nil {
-		return fmt.Errorf("unable to reach the IMC %v", err)
+		return fmt.Errorf("Unable to reach the IMC %v", err)
 	}
-
 	if len(vfMacList) == 0 {
-		return fmt.Errorf("no NFs initialized on the host")
+		return fmt.Errorf("No NFs initialized on the host")
 	}
+	if !InitAccApfMacs {
+		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
+		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
+	}
+	//Add Phy Port0 to ovs bridge
+	//Note: Per current design, Phy Port1 is added to a different bridge(through P4 rules).
+	if err := brCtlr.AddPort(AccIntfNames[PHY_PORT0_INTF_INDEX]); err != nil {
+		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
+		//return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
+	}
+	//Add P4 rules for phy ports
+	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.DeletePhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.AddPhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 
-	p4rtclient.DeletePointToPointVFRules(p4rtbin, vfMacList)
-	p4rtclient.CreatePointToPointVFRules(p4rtbin, vfMacList)
+	log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
+	p4rtclient.DeletePeerToPeerP4Rules(p4rtbin, vfMacList)
+	log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
+	p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+
+	log.Infof("DeleteLAGP4Rules, path->%s", p4rtbin)
+	p4rtclient.DeleteLAGP4Rules(p4rtbin)
+	log.Infof("AddLAGP4Rules, path->%v", p4rtbin)
+	p4rtclient.AddLAGP4Rules(p4rtbin)
 
 	return nil
 }
@@ -689,7 +809,7 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 	}
 
 	if in.DpuMode {
-		if val := executableHandler.validate(); !val {
+		if val := ExecutableHandlerGlobal.validate(); !val {
 			log.Info("forcing state")
 			if err := sshHandler.sshFunc(); err != nil {
 				return nil, fmt.Errorf("error calling sshFunc %s", err)
@@ -697,9 +817,15 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		} else {
 			log.Info("not forcing state")
 		}
+		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
+			log.Errorf("error from  SetupAccApfs %v", err)
+			return nil, fmt.Errorf("error from  SetupAccApfs %v", err)
+		} else {
+			log.Info("setup ACC APFs")
+		}
 
 		// Preconfigure the FXP with point-to-point rules between host VFs
-		if err := fxpHandler.configureFXP(s.p4rtbin); err != nil {
+		if err := fxpHandler.configureFXP(s.p4rtbin, s.bridgeCtlr); err != nil {
 			return nil, status.Errorf(codes.Internal, "Error when preconfiguring the FXP: %v", err)
 		}
 	}
