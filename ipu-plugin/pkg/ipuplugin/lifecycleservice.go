@@ -685,7 +685,16 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
-func checkIfMACIsSet() (bool, string) {
+/*
+	IMC reboot needed for following cases:
+
+1. First time provisioning of IPU system(where MAC gets set in node policy)
+2. Upgrade-for any update to P4 package.
+3. (TODO) Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
+For now, supporting case1, 2 above.
+Returns-> bool(returns false, if IMC reboot is required), string->for any error or success string.
+*/
+func skipIMCReboot() (bool, string) {
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -718,12 +727,59 @@ func checkIfMACIsSet() (bool, string) {
 		return false, fmt.Sprintf("mac not found: %s", err)
 	}
 
+	p4pkgMatch := false
+	uuidFileExists := false
 	output := stdoutBuf.String()
 	if output == "File exists\n" {
-		return true, "File exists"
+		log.Infof("UUID File exists")
+		uuidFileExists = true
 	} else {
-		return false, "File does not exist"
+		log.Infof("UUID File does not exist")
 	}
+	if !uuidFileExists {
+		return false, "UUID File does not exist"
+	}
+
+	session, err = client.NewSession()
+	if err != nil {
+		log.Errorf("failed to create session: %v", err)
+		return false, fmt.Sprintf("failed to create session: %v", err)
+	}
+	defer session.Close()
+
+	//compute md5sum of pkg file on IMC
+	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
+	commands = "cd /work/scripts; md5sum " + p4PkgName + " |  awk '{print $1}'"
+	imcOutput, err := session.CombinedOutput(commands)
+	if err != nil {
+		log.Errorf("Error->%v, running command->%s:", err, commands)
+		return false, fmt.Sprintf("Error->%v, running command->%s:", err, commands)
+	}
+	log.Infof("md5 of pkg on imc->%s", string(imcOutput))
+
+	//compute md5sum of pkg file in ipu-plugin container
+	commands = "md5sum /" + p4PkgName + " |  awk '{print $1}'"
+	output, err = utils.ExecuteScript(commands)
+	if err != nil {
+		log.Errorf("Error->%v, for md5sum command->%v", err, commands)
+		return false, fmt.Sprintf("Error->%v, for md5sum command->%v", err, commands)
+	}
+	log.Infof("md5 of pkg in ipu-plugin->%v", output)
+
+	if output != string(imcOutput) {
+		log.Infof("md5sum mismatch, in ipu-plugin->%v, on IMC->%v", output, string(imcOutput))
+	} else {
+		log.Infof("md5sum match, in ipu-plugin->%v, on IMC->%v", output, string(imcOutput))
+		p4pkgMatch = true
+	}
+
+	if !p4pkgMatch {
+		return false, "md5sum mismatch"
+	}
+
+	log.Infof("uuidFileExists->%v, p4pkgMatch->%v", uuidFileExists, p4pkgMatch)
+	return true, fmt.Sprintf("uuidFileExists->%v, p4pkgMatch->%v", uuidFileExists, p4pkgMatch)
+
 }
 
 func (e *ExecutableHandlerImpl) validate() bool {
@@ -732,8 +788,8 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	in SetupAccApfs, prior to 1 interface(for Phy Port),
 	getting moved to p4 container in configureFxp */
 
-	if macPreFix, mac := checkIfMACIsSet(); !macPreFix {
-		fmt.Printf("incorrect Mac assigned : %v\n", mac)
+	if noReboot, infoStr := skipIMCReboot(); !noReboot {
+		fmt.Printf("IMC reboot required : %v\n", infoStr)
 		return false
 	}
 
