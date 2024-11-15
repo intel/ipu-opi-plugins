@@ -37,7 +37,7 @@ func_start_ovs() {
     export PATH="$PATH:$P4CP_INSTALL/bin:$P4CP_INSTALL/sbin:"
     ovsdb-tool create $P4CP_INSTALL/etc/openvswitch/conf.db $P4CP_INSTALL/share/openvswitch/vswitch.ovsschema
     ovsdb-server --remote=punix:$P4CP_INSTALL/var/run/openvswitch/db.sock --remote=db:Open_vSwitch,Open_vSwitch,manager_options --pidfile --detach
-    ovs-vswitchd --pidfile --detach  --log-file=/var/log/messages/ovs-vswitchd.log
+    ovs-vswitchd --pidfile --detach  --log-file=/var/log/ovs-vswitchd.log
 }
 
 LOGFILE=/var/log/entrypoint.log;
