@@ -515,8 +515,6 @@ func setBaseMacAddr() (string, error) {
 	return macAddress, nil
 }
 
-// TODO: Replace pkg name->fxp-net_linux-networking.pkg, using
-// a const variable in this function.
 func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
@@ -541,7 +539,8 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer sftpClient.Close()
 
 	// Open the source file.
-	localFilePath := "/fxp-net_linux-networking.pkg"
+	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
+	localFilePath := "/" + p4PkgName
 	srcFile, err := os.Open(localFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to open local file: %s", err)
@@ -549,7 +548,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	defer srcFile.Close()
 
 	// Create the destination file on the remote server.
-	remoteFilePath := "/work/scripts/fxp-net_linux-networking.pkg"
+	remoteFilePath := "/work/scripts/" + p4PkgName
 	dstFile, err := sftpClient.Create(remoteFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create remote file: %s", err)
@@ -663,18 +662,18 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
-// TODO: Ensure package name here matches with Makefile/Dockerfile in VSP, using os.getEnv
 func genLoadCustomPkgFile(macAddress string) string {
 
+	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
 	shellScript := fmt.Sprintf(`#!/bin/sh
 CP_INIT_CFG=/etc/dpcp/cfg/cp_init.cfg
 cd /work/scripts
 echo "Checking for custom package..."
-if [ -e fxp-net_linux-networking.pkg ]; then
-    echo "Custom package fxp-net_linux-networking.pkg found. Overriding default package"
-    cp fxp-net_linux-networking.pkg /etc/dpcp/package/
+if [ -e %s ]; then
+    echo "Custom package %s found. Overriding default package"
+    cp %s /etc/dpcp/package/
     rm -rf /etc/dpcp/package/default_pkg.pkg
-    ln -s /etc/dpcp/package/fxp-net_linux-networking.pkg /etc/dpcp/package/default_pkg.pkg
+    ln -s /etc/dpcp/package/%s /etc/dpcp/package/default_pkg.pkg
     sed -i 's/sem_num_pages = 1;/sem_num_pages = 256;/g' $CP_INIT_CFG
     sed -i 's/lem_num_pages = 6;/lem_num_pages = 32;/g' $CP_INIT_CFG
     sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
@@ -688,7 +687,7 @@ if [ -e fxp-net_linux-networking.pkg ]; then
 else
     echo "No custom package found. Continuing with default package"
 fi
-`, macAddress) // Insert the MAC address variable into the script.
+`, p4PkgName, p4PkgName, p4PkgName, p4PkgName, macAddress)
 
 	return shellScript
 
@@ -700,7 +699,6 @@ fi
 1. First time provisioning of IPU system(where MAC gets set in node policy)
 2. Upgrade-for any update to P4 package.
 3. Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
-For now, supporting case1, 2 above.
 Returns-> bool(returns false, if IMC reboot is required), string->for any error or success string.
 */
 func skipIMCReboot() (bool, string) {
@@ -740,7 +738,7 @@ func skipIMCReboot() (bool, string) {
 
 	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
 
-	if outputStr == "File does not exist\n" {
+	if outputStr == "File does not exist" {
 		log.Infof("UUID File does not exist")
 	} else {
 		log.Infof("UUID File exists, uuid->%v", outputStr)
@@ -765,7 +763,6 @@ func skipIMCReboot() (bool, string) {
 		log.Errorf("Error->%v, running command->%s:", err, commands)
 		return false, fmt.Sprintf("Error->%v, running command->%s:", err, commands)
 	}
-	log.Infof("md5 of pkg on imc->%s", string(imcOutput))
 
 	//compute md5sum of pkg file in ipu-plugin container
 	commands = "md5sum /" + p4PkgName + " |  awk '{print $1}'"
@@ -774,7 +771,6 @@ func skipIMCReboot() (bool, string) {
 		log.Errorf("Error->%v, for md5sum command->%v", err, commands)
 		return false, fmt.Sprintf("Error->%v, for md5sum command->%v", err, commands)
 	}
-	log.Infof("md5 of pkg in ipu-plugin->%v", pluginOutput)
 
 	if pluginOutput != string(imcOutput) {
 		log.Infof("md5sum mismatch, in ipu-plugin->%v, on IMC->%v", pluginOutput, string(imcOutput))
