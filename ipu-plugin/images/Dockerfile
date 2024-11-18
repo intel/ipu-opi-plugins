@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
-FROM golang:1.22.5-alpine@sha256:0d3653dd6f35159ec6e3d10263a42372f6f194c3dea0b35235d72aabde86486e as builder
+FROM golang:1.22.5-alpine@sha256:0d3653dd6f35159ec6e3d10263a42372f6f194c3dea0b35235d72aabde86486e AS builder
 RUN apk add --no-cache git
 ARG TARGETOS
 ARG TARGETARCH
@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o bi
 
 FROM alpine:3@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b
 ARG P4_NAME
-ENV P4_NAME $P4_NAME
+ENV P4_NAME=$P4_NAME
 
 COPY --from=builder /usr/src/ipu-opi-plugin/bin/ipuplugin /usr/bin/
 COPY ${P4_NAME}/${P4_NAME}.pkg /
