@@ -18,14 +18,16 @@ RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
 COPY p4 /opt/p4/${P4_NAME}
 COPY images/entrypoint.sh /
 COPY images/es2k_skip_p4.conf.template /
-RUN dnf -y install   kmod-28-9.el9 \
+RUN dnf -y install   kmod-28-10.el9 \
       gettext-0.21-8.el9 \
-      python3-pip-21.2.3-8.el9 \
+      python3-pip-21.3.1-1.el9 \
       pciutils-3.7.0-5.el9 \
       libnl3-3.9.0-1.el9 \
       libedit-3.1-38.20210216cvs.el9 \
-      net-tools-2.0-0.62.20160912git.el9 \
-      libatomic-11.4.1-3.el9 && dnf clean all
+      net-tools-2.0-0.64.20160912git.el9 \
+      libatomic-11.5.0-2.el9 \
+      iputils-20210202-9.el9 \
+      && dnf clean all
 
 RUN if [ "$TARGETARCH" = "amd64" ]; then export ARCHSUFFIX="x86_64"; \
     else export ARCHSUFFIX="aarch64"; fi; \
