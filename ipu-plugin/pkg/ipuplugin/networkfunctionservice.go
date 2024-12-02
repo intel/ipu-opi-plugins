@@ -54,21 +54,21 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
 	}
 
-	if err := s.bridgeCtlr.AddPort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
-		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
+	if err := s.bridgeCtlr.AddPort(AccApfInfo[NF_IN_PR_INTF_INDEX].Name); err != nil {
+		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_IN_PR_INTF_INDEX].Name)
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_IN_PR_INTF_INDEX].Name)
 	}
-	if err := s.bridgeCtlr.AddPort(AccIntfNames[NF_OUT_PR_INTF_INDEX]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
-		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	if err := s.bridgeCtlr.AddPort(AccApfInfo[NF_OUT_PR_INTF_INDEX].Name); err != nil {
+		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
 	}
-	log.Infof("added interfaces:inPR->%s, outPR->%s", AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	log.Infof("added interfaces:inPR->%s, outPR->%s", AccApfInfo[NF_IN_PR_INTF_INDEX].Name, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
 	/*Note: Currently this API does not have host-VF info, since there is no reference to what was passed by DPU in CreateBridgePort.
 	As a work-around, we take full vfMacList, and write P4 rules, to connect all host VFs to NF.	*/
 	// Generate the P4 rules and program the FXP with NF comms
 	log.Infof("AddNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
-		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
-	p4rtclient.AddNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR_INTF_INDEX].Mac, AccApfInfo[NF_OUT_PR_INTF_INDEX].Mac)
+	p4rtclient.AddNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR_INTF_INDEX].Mac, AccApfInfo[NF_OUT_PR_INTF_INDEX].Mac)
 
 	return &pb.Empty{}, nil
 }
@@ -84,19 +84,19 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	if len(vfMacList) == 0 {
 		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
 	}
-	if err := s.bridgeCtlr.DeletePort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
-		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
-		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
+	if err := s.bridgeCtlr.DeletePort(AccApfInfo[NF_IN_PR_INTF_INDEX].Name); err != nil {
+		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccApfInfo[NF_IN_PR_INTF_INDEX].Name)
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_IN_PR_INTF_INDEX].Name)
 	}
-	if err := s.bridgeCtlr.DeletePort(AccIntfNames[NF_OUT_PR_INTF_INDEX]); err != nil {
-		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
-		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	if err := s.bridgeCtlr.DeletePort(AccApfInfo[NF_OUT_PR_INTF_INDEX].Name); err != nil {
+		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
 	}
-	log.Infof("deleted interfaces:inPR->%s, outPR->%s", AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
+	log.Infof("deleted interfaces:inPR->%s, outPR->%s", AccApfInfo[NF_IN_PR_INTF_INDEX].Name, AccApfInfo[NF_OUT_PR_INTF_INDEX].Name)
 
 	log.Infof("DeleteNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
-		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
-	p4rtclient.DeleteNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR_INTF_INDEX].Mac, AccApfInfo[NF_OUT_PR_INTF_INDEX].Mac)
+	p4rtclient.DeleteNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR_INTF_INDEX].Mac, AccApfInfo[NF_OUT_PR_INTF_INDEX].Mac)
 
 	return &pb.Empty{}, nil
 }

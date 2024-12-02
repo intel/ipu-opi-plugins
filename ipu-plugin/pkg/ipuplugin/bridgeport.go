@@ -28,18 +28,15 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	outerVlanId = 0 // hardcoded s-tag
-)
-
 var intfMapInit bool = false
 
 // Note: 3 reserved(last digit of interface name, for example, enp0s1f0d8, is 8) in exlude list in deviceplugin.
-var interfaces [3]string = [3]string{"6", "7", "8"}
+// var interfaces [3]string = [3]string{"6", "7", "8"}
+var interfaces []string
 var intfMap map[string]bool
 
 func initMap() error {
-	if intfMapInit == false {
+	if !intfMapInit {
 		intfMap = make(map[string]bool)
 		for _, intf := range interfaces {
 			intfMap[intf] = false
@@ -57,13 +54,13 @@ func initMap() error {
 func allocateAccInterface() (error, string) {
 	var intfName string = ""
 	log.Debugf("allocateAccInterface\n")
-	if intfMapInit == false {
+	if !intfMapInit {
 		initMap()
 	}
 	for _, key := range interfaces {
 		log.Debugf("intfName->%v\n", key)
 		value, present := intfMap[key]
-		if present == true && value == false {
+		if present && !value {
 			log.Debugf("Found avail Intf->%v: \n", key)
 			intfMap[key] = true
 			intfName = key
@@ -74,19 +71,19 @@ func allocateAccInterface() (error, string) {
 		return nil, intfName
 	}
 	log.Errorf("Interface not available\n")
-	return fmt.Errorf("Interface not available\n"), intfName
+	return fmt.Errorf("interface not available"), intfName
 }
 
 func freeAccInterface(intfName string) error {
 	log.Debugf("freeAccInterface\n")
 	value, present := intfMap[intfName]
-	if present == true && value == true {
+	if present && value {
 		log.Debugf("Found allocated Intf->%v: \n", intfName)
 		intfMap[intfName] = false
 		return nil
 	}
 	log.Errorf("Interface->%s not found in freeAccInterface\n", intfName)
-	return fmt.Errorf("Interface->%s not found in freeAccInterface\n", intfName)
+	return fmt.Errorf("interface->%s not found in freeAccInterface", intfName)
 }
 
 // CreateBridgePort executes the creation of the port
@@ -135,18 +132,18 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 		log.Errorf("error->%v converting, intfName->%v", err, intfName)
 		return nil, fmt.Errorf("error->%v converting, intfName->%v", err, intfName)
 	} else {
-		log.Infof("intIndex->%v, fullIntfName->%v", intIndex, AccIntfNames[intIndex])
+		log.Infof("intIndex->%v, fullIntfName->%v", intIndex, AccApfInfo[intIndex].Name)
 	}
 
-	if err := s.bridgeCtlr.AddPort(AccIntfNames[intIndex]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
+	if err := s.bridgeCtlr.AddPort(AccApfInfo[intIndex].Name); err != nil {
+		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[intIndex].Name)
 		freeAccInterface(intfName)
-		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
+		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[intIndex].Name)
 	}
 
 	// Add FXP rules
-	log.Infof("AddHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtbin, in.BridgePort.Spec.MacAddress, AccApfMacList[intIndex])
-	p4rtclient.AddHostVfP4Rules(s.p4rtbin, in.BridgePort.Spec.MacAddress, AccApfMacList[intIndex])
+	log.Infof("AddHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtbin, in.BridgePort.Spec.MacAddress, AccApfInfo[intIndex].Mac)
+	p4rtclient.AddHostVfP4Rules(s.p4rtbin, in.BridgePort.Spec.MacAddress, AccApfInfo[intIndex].Mac)
 
 	resp := proto.Clone(in.BridgePort).(*pb.BridgePort)
 	resp.Status = &pb.BridgePortStatus{OperStatus: pb.BPOperStatus_BP_OPER_STATUS_UP}
@@ -183,17 +180,17 @@ func (s *server) DeleteBridgePort(_ context.Context, in *pb.DeleteBridgePortRequ
 		log.Errorf("error->%v converting, intfName->%v", err, brPortInfo.PortInterface)
 		return nil, fmt.Errorf("error->%v converting, intfName->%v", err, brPortInfo.PortInterface)
 	} else {
-		log.Infof("intIndex->%v, fullIntfName->%v", intIndex, AccIntfNames[intIndex])
+		log.Infof("intIndex->%v, fullIntfName->%v", intIndex, AccApfInfo[intIndex].Name)
 	}
 
-	if err := s.bridgeCtlr.DeletePort(AccIntfNames[intIndex]); err != nil {
-		log.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
-		return nil, fmt.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccIntfNames[intIndex])
+	if err := s.bridgeCtlr.DeletePort(AccApfInfo[intIndex].Name); err != nil {
+		log.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccApfInfo[intIndex].Name)
+		return nil, fmt.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccApfInfo[intIndex].Name)
 	}
 	freeAccInterface(brPortInfo.PortInterface)
 	// Delete FXP rules
-	log.Infof("DeleteHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtbin, portInfo.Spec.MacAddress, AccApfMacList[intIndex])
-	p4rtclient.DeleteHostVfP4Rules(s.p4rtbin, portInfo.Spec.MacAddress, AccApfMacList[intIndex])
+	log.Infof("DeleteHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtbin, portInfo.Spec.MacAddress, AccApfInfo[intIndex].Mac)
+	p4rtclient.DeleteHostVfP4Rules(s.p4rtbin, portInfo.Spec.MacAddress, AccApfInfo[intIndex].Mac)
 
 	delete(s.Ports, in.Name)
 	return &emptypb.Empty{}, nil

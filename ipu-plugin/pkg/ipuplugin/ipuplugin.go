@@ -85,15 +85,8 @@ func (s *server) Run() error {
 
 	if s.mode == types.IpuMode {
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Errorf("error while checking host bridge existance: %v", err)
-			//log.Fatalf("error while checking host bridge existance: %v", err)
-			//return fmt.Errorf("host bridge error")
-		}
-		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
-			log.Errorf("error from  SetupAccApfs %v", err)
-			return fmt.Errorf("error from  SetupAccApfs %v", err)
-		} else {
-			log.Info("ipuplugin: setup ACC APFs")
+			log.Fatalf("error while checking host bridge existance: %v", err)
+			return fmt.Errorf("host bridge error")
 		}
 	}
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin, s.bridgeCtlr))
