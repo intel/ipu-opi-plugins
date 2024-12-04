@@ -41,7 +41,7 @@ PLATFORMS ?= linux/arm64,linux/amd64
 imagex: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{TARGETPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{TARGETPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
-	- $(IMGTOOL) buildx create --name image-builder-p4 --use --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
+	- $(IMGTOOL) buildx create --name image-builder-p4  --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
 	$(IMGTOOL) buildx use image-builder-p4
 	- $(IMGTOOL) buildx build --allow security.insecure --push --platform=$(PLATFORMS) --tag ${IMAGE_TAG_VERSION} -f $(DOCKERFILE).cross  $(CURDIR) $(DOCKERARGS)
 	- $(IMGTOOL) buildx rm image-builder-p4

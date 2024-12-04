@@ -22,7 +22,9 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
 
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
@@ -86,14 +88,8 @@ func (s *server) Run() error {
 	if s.mode == types.IpuMode {
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
 			log.Errorf("error while checking host bridge existance: %v", err)
-			//log.Fatalf("error while checking host bridge existance: %v", err)
-			//return fmt.Errorf("host bridge error")
-		}
-		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
-			log.Errorf("error from  SetupAccApfs %v", err)
-			return fmt.Errorf("error from  SetupAccApfs %v", err)
-		} else {
-			log.Info("ipuplugin: setup ACC APFs")
+			log.Fatalf("error while checking host bridge existance: %v", err)
+			return fmt.Errorf("host bridge error")
 		}
 	}
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtbin, s.bridgeCtlr))
@@ -124,6 +120,24 @@ func (s *server) Stop() {
 		//Note: Deletes bridge created in EnsureBridgeExists in  Run api.
 		s.bridgeCtlr.DeleteBridges()
 	}
+
+	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.DeletePhyPortRules(s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+
+	vfMacList, err := utils.GetVfMacList()
+	if err != nil {
+		log.Errorf("Unable to reach the IMC %v", err)
+	}
+	if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
+		log.Errorf("No NFs initialized on the host")
+	} else {
+		log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", s.p4rtbin, vfMacList)
+		p4rtclient.DeletePeerToPeerP4Rules(s.p4rtbin, vfMacList)
+	}
+
+	log.Infof("DeleteLAGP4Rules, path->%s", s.p4rtbin)
+	p4rtclient.DeleteLAGP4Rules(s.p4rtbin)
+
 	s.grpcSrvr.GracefulStop()
 	if s.listener != nil {
 		s.listener.Close()
