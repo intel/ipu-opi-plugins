@@ -129,7 +129,7 @@ func (s *server) Stop() {
 		log.Errorf("Unable to reach the IMC %v", err)
 	}
 	if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
-		log.Errorf("No NFs initialized on the host")
+		log.Errorf("No VFs initialized on the host")
 	} else {
 		log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", s.p4rtbin, vfMacList)
 		p4rtclient.DeletePeerToPeerP4Rules(s.p4rtbin, vfMacList)

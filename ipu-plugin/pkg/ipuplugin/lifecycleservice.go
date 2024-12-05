@@ -850,7 +850,7 @@ func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 
 // If ipu-plugin's Init function gets invoked on ACC, prior to getting invoked
 // on x86, then host VFs will not be setup yet. In that case, peer2peer rules
-// can get added in CreateBridgePort or CreateNetworkFunction.
+// will get added in CreateBridgePort or CreateNetworkFunction.
 func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
 	if !PeerToPeerP4RulesAdded {
 		vfMacList, err := utils.GetVfMacList()
@@ -860,7 +860,7 @@ func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
 		}
 		//with use of strings.split in utils, we can get list of length 1 with empty string.
 		if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
-			log.Infof("No NFs initialized on the host yet")
+			log.Infof("No VFs initialized on the host yet")
 		} else {
 			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
 			p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
