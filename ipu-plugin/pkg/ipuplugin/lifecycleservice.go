@@ -25,6 +25,7 @@ import (
 	math_rand "math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,6 +63,7 @@ const (
 
 var InitAccApfMacs = false
 var AccApfMacList []string
+var PeerToPeerP4RulesAdded = false
 
 // Reserved ACC interfaces(using vport_id or last digit of interface name, like 4 represents-> enp0s1f0d4)
 const (
@@ -369,28 +371,6 @@ func GetFilteredPFs(pfList *[]netlink.Link) error {
 	return nil
 }
 
-func FindInterfaceIdForGivenMac(macAddr string) (int, error) {
-	intfIndex := 0
-	found := false
-	if !InitAccApfMacs {
-		log.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
-		return 0, fmt.Errorf("FindInterfaceIdForGivenMac: AccApfs info not set, thro-> SetupAccApfs")
-	}
-	for i := 0; i < len(AccApfMacList); i++ {
-		if AccApfMacList[i] == macAddr {
-			intfIndex = i
-			log.Debugf("found intfIndex->%v for mac->%v\n", intfIndex, macAddr)
-			found = true
-			break
-		}
-	}
-	if found == true {
-		return intfIndex, nil
-	}
-	log.Errorf("Couldnt find intfIndex for mac->%v\n", macAddr)
-	return 0, fmt.Errorf("Couldnt find intfIndex for mac->%v\n", macAddr)
-}
-
 func FindInterfaceForGivenMac(macAddr string) (string, error) {
 	var pfList []netlink.Link
 	InitHandlers()
@@ -679,7 +659,7 @@ if [ -e %s ]; then
     sed -i 's/mod_num_pages = 1;/mod_num_pages = 2;/g' $CP_INIT_CFG
     sed -i 's/cxp_num_pages = 1;/cxp_num_pages = 6;/g' $CP_INIT_CFG
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
-    sed -i 's/acc_apf = 4;/acc_apf = 16;/g' $CP_INIT_CFG
+    sed -i 's/acc_apf = 4;/acc_apf = %s;/g' $CP_INIT_CFG
     sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
     sed -i 's/uplink_vports = .*/uplink_vports = ([0,0,0],[0,1,1],[4,1,0],[4,5,1],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
     sed -i 's/rep_vports = .*/rep_vports = ([0,0,0],[4,5,1]);/g' $CP_INIT_CFG
@@ -687,7 +667,7 @@ if [ -e %s ]; then
 else
     echo "No custom package found. Continuing with default package"
 fi
-`, p4PkgName, p4PkgName, p4PkgName, p4PkgName, macAddress)
+`, p4PkgName, p4PkgName, p4PkgName, p4PkgName, macAddress, strconv.Itoa(ApfNumber))
 
 	return shellScript
 
@@ -832,10 +812,10 @@ func skipIMCReboot() (bool, string) {
 
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	/*Note: Num of APFs gets validated early on,
-	in SetupAccApfs, prior to 1 interface(for Phy Port),
-	getting moved to p4 container in configureFxp */
-
+	if numAPFs := countAPFDevices(); numAPFs < ApfNumber {
+		log.Errorf("Not enough APFs %v, expected->%v", numAPFs, ApfNumber)
+		return false
+	}
 	if noReboot, infoStr := skipIMCReboot(); !noReboot {
 		fmt.Printf("IMC reboot required : %v\n", infoStr)
 		return false
@@ -868,14 +848,28 @@ func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 	return nil
 }
 
+// If ipu-plugin's Init function gets invoked on ACC, prior to getting invoked
+// on x86, then host VFs will not be setup yet. In that case, peer2peer rules
+// will get added in CreateBridgePort or CreateNetworkFunction.
+func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
+	if !PeerToPeerP4RulesAdded {
+		vfMacList, err := utils.GetVfMacList()
+		if err != nil {
+			log.Errorf("CheckAndAddPeerToPeerP4Rules: unable to reach the IMC %v", err)
+			return
+		}
+		//with use of strings.split in utils, we can get list of length 1 with empty string.
+		if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
+			log.Infof("No VFs initialized on the host yet")
+		} else {
+			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
+			p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+			PeerToPeerP4RulesAdded = true
+		}
+	}
+}
+
 func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
-	vfMacList, err := utils.GetVfMacList()
-	if err != nil {
-		return fmt.Errorf("Unable to reach the IMC %v", err)
-	}
-	if len(vfMacList) == 0 {
-		return fmt.Errorf("No NFs initialized on the host")
-	}
 	if !InitAccApfMacs {
 		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
 		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
@@ -884,21 +878,14 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 	//Note: Per current design, Phy Port1 is added to a different bridge(through P4 rules).
 	if err := brCtlr.AddPort(AccIntfNames[PHY_PORT0_INTF_INDEX]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
-		//return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
+		return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
 	}
 	//Add P4 rules for phy ports
-	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
-	p4rtclient.DeletePhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 	p4rtclient.AddPhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 
-	log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
-	p4rtclient.DeletePeerToPeerP4Rules(p4rtbin, vfMacList)
-	log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
-	p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+	CheckAndAddPeerToPeerP4Rules(p4rtbin)
 
-	log.Infof("DeleteLAGP4Rules, path->%s", p4rtbin)
-	p4rtclient.DeleteLAGP4Rules(p4rtbin)
 	log.Infof("AddLAGP4Rules, path->%v", p4rtbin)
 	p4rtclient.AddLAGP4Rules(p4rtbin)
 
