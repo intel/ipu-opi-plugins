@@ -163,6 +163,9 @@ func GetAccApfMacList() ([]string, error) {
 	return strings.Split(strings.TrimSpace(output), "\n"), nil
 }
 
+// Taken from the IPDK k8s-infra-offload project instead of including the full project as a module
+// https://github.com/ipdk-io/k8s-infra-offload/blob/30f0efb483d177df7ce052d014593c1a17def8bc/pkg/utils/utils.go#L157
+//
 // VerifiedFilePath validates a file for potential file path traversal attacks.
 // It returns the real filepath after cleaning and evaluiating any symlinks in the path.
 // It returns error if the "fileName" is not within the "allowedDir", point to a non-privileged location or "fileName" points to a file outside of allowed dir.

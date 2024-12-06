@@ -80,9 +80,9 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 
 func waitForInfraP4d() (string, error) {
 	ctx := context.Background()
-	// Wait for 300 x 3 secs total
-	maxRetries := 300
-	retryInterval := 3 * time.Second
+	// Wait for 100 x 4 secs total
+	maxRetries := 100
+	retryInterval := 4 * time.Second
 
 	var err error
 	var count int
@@ -119,6 +119,7 @@ func waitForInfraP4d() (string, error) {
 	}
 	defer conn.Close()
 	if count == maxRetries {
+		log.Errorf("Failed to wait for infrap4d")
 		return "", fmt.Errorf("Failed to wait for infrap4d")
 	}
 	return "", nil
