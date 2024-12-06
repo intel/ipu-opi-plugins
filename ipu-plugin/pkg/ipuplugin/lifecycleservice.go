@@ -33,11 +33,14 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb "github.com/openshift/dpu-operator/dpu-api/gen"
+	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -135,6 +138,7 @@ type SSHHandlerImpl struct{}
 
 type FXPHandler interface {
 	configureFXP(p4rtbin string, brCtlr types.BridgeController) error
+	waitForInfraP4d() (string, error)
 }
 
 type FXPHandlerImpl struct{}
@@ -869,6 +873,56 @@ func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
 	}
 }
 
+func GrpcDialInsecure(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	return grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+}
+
+func (s *FXPHandlerImpl) waitForInfraP4d() (string, error) {
+	ctx := context.Background()
+	// Wait for 300 x 3 secs total
+	maxRetries := 300
+	retryInterval := 3 * time.Second
+
+	var err error
+	var count int
+	var conn *grpc.ClientConn
+	port := "localhost:9559"
+
+	for count = 0; count < maxRetries; count++ {
+		time.Sleep(retryInterval)
+		conn, err = GrpcDialInsecure(port)
+		log.Infof("Connecting to server %s retry count:%d", port, count)
+		if err != nil {
+			log.Warnf("Cannot connect to server: %v", err)
+			continue
+		}
+		c := p4_v1.NewP4RuntimeClient(conn)
+		req := &p4_v1.GetForwardingPipelineConfigRequest{
+			DeviceId:     1,
+			ResponseType: p4_v1.GetForwardingPipelineConfigRequest_ResponseType(p4_v1.GetForwardingPipelineConfigRequest_ALL),
+		}
+		fwdResp, err := c.GetForwardingPipelineConfig(ctx, req)
+		if err != nil {
+			log.Warnf("error when retrieving forwardingpipeline config: %v", err)
+			continue
+		}
+
+		config := fwdResp.GetConfig()
+		if config == nil {
+			// pipeline doesn't have a config yet
+			log.Warnf("No forwardingpipeline config yet: %v", err)
+			continue
+		} else {
+			break
+		}
+	}
+	defer conn.Close()
+	if count == maxRetries {
+		return "", fmt.Errorf("Failed to wait for infrap4d")
+	}
+	return "", nil
+}
+
 func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
 	if !InitAccApfMacs {
 		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
@@ -913,6 +967,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			return nil, fmt.Errorf("error from  SetupAccApfs %v", err)
 		} else {
 			log.Info("setup ACC APFs")
+		}
+		// Wait for the infrap4d connection to come up
+		if _, err := fxpHandler.waitForInfraP4d(); err != nil {
+			return nil, err
 		}
 
 		// Preconfigure the FXP with point-to-point rules between host VFs
