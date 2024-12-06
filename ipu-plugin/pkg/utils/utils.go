@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -160,4 +161,40 @@ func GetAccApfMacList() ([]string, error) {
 	}
 
 	return strings.Split(strings.TrimSpace(output), "\n"), nil
+}
+
+// VerifiedFilePath validates a file for potential file path traversal attacks.
+// It returns the real filepath after cleaning and evaluiating any symlinks in the path.
+// It returns error if the "fileName" is not within the "allowedDir", point to a non-privileged location or "fileName" points to a file outside of allowed dir.
+func VerifiedFilePath(fileName string, allowedDir string) (string, error) {
+	path := fileName
+	path = filepath.Clean(path)
+	if fileInfo, err := os.Lstat(path); err == nil {
+		realPath, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return "", fmt.Errorf("Unsafe or invalid path specified. %s", err)
+		}
+
+		if fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return "", fmt.Errorf("file %s is a symlink", fileName)
+		}
+		path = realPath
+	}
+
+	inTrustedRoot := func(path string) error {
+		p := path
+		for p != "/" {
+			p = filepath.Dir(p)
+			if p == allowedDir {
+				return nil
+			}
+		}
+		return fmt.Errorf("path: %s is outside of permissible directory: %s", path, allowedDir)
+	}
+
+	err := inTrustedRoot(path)
+	if err != nil {
+		return "", fmt.Errorf("Unsafe or invalid path specified. %s", err.Error())
+	}
+	return path, nil
 }
