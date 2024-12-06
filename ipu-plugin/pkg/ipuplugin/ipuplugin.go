@@ -15,21 +15,24 @@
 package ipuplugin
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
-
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
+	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type server struct {
@@ -75,6 +78,52 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 	}
 }
 
+func waitForInfraP4d() (string, error) {
+	ctx := context.Background()
+	// Wait for 300 x 3 secs total
+	maxRetries := 300
+	retryInterval := 3 * time.Second
+
+	var err error
+	var count int
+	var conn *grpc.ClientConn
+	port := "localhost:9559"
+
+	for count = 0; count < maxRetries; count++ {
+		time.Sleep(retryInterval)
+		conn, err = grpc.Dial(port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		log.Infof("Connecting to server %s retry count:%d", port, count)
+		if err != nil {
+			log.Warnf("Cannot connect to server: %v", err)
+			continue
+		}
+		c := p4_v1.NewP4RuntimeClient(conn)
+		req := &p4_v1.GetForwardingPipelineConfigRequest{
+			DeviceId:     1,
+			ResponseType: p4_v1.GetForwardingPipelineConfigRequest_ResponseType(p4_v1.GetForwardingPipelineConfigRequest_ALL),
+		}
+		fwdResp, err := c.GetForwardingPipelineConfig(ctx, req)
+		if err != nil {
+			log.Warnf("error when retrieving forwardingpipeline config: %v", err)
+			continue
+		}
+
+		config := fwdResp.GetConfig()
+		if config == nil {
+			// pipeline doesn't have a config yet
+			log.Warnf("No forwardingpipeline config yet: %v", err)
+			continue
+		} else {
+			break
+		}
+	}
+	defer conn.Close()
+	if count == maxRetries {
+		return "", fmt.Errorf("Failed to wait for infrap4d")
+	}
+	return "", nil
+}
+
 func (s *server) Run() error {
 	var err error
 	signalChannel := make(chan os.Signal, 2)
@@ -86,9 +135,13 @@ func (s *server) Run() error {
 	}
 
 	if s.mode == types.IpuMode {
+		// Wait for the infrap4d connection to come up
+		if _, err := waitForInfraP4d(); err != nil {
+			return err
+		}
+		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Errorf("error while checking host bridge existance: %v", err)
-			log.Fatalf("error while checking host bridge existance: %v", err)
+			log.Errorf("error while checking host bridge existence: %v", err)
 			return fmt.Errorf("host bridge error")
 		}
 	}
