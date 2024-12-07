@@ -43,6 +43,8 @@ func getInfrapodNamespace() (string, error) {
 	if err != nil {
 		log.Errorf("unable to get Namespace of infrapod: %v", err)
 		return "", fmt.Errorf("unable to get Namespace of infrapod: %v", err)
+	} else {
+		log.Debugf("Namespace of infrapod: %s", ret)
 	}
 	return ret, nil
 }

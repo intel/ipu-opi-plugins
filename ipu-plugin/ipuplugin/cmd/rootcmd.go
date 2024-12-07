@@ -27,7 +27,6 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	ut "github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
-	"github.com/ipdk-io/k8s-infra-offload/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -286,7 +285,7 @@ func logInit(logDir string, logLevel string) error {
 	}
 
 	logFilename := path.Join(logDir, cliName+".log")
-	verifiedFileName, err := utils.VerifiedFilePath(logFilename, logDir)
+	verifiedFileName, err := ut.VerifiedFilePath(logFilename, logDir)
 	if err != nil {
 		return err
 	}
