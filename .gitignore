@@ -3,3 +3,15 @@
 */build/*
 */bin/*
 */.gopath/*
+
+# No vi temp files
+*.swp
+*.swo
+
+# ignore p4.tar.gz
+p4sdk/p4.tar.gz
+
+# cscope files
+cscope*
+
+
