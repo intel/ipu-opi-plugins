@@ -80,8 +80,7 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 
 func waitForInfraP4d() (string, error) {
 	ctx := context.Background()
-	// Wait for 100 x 4 secs total
-	maxRetries := 100
+	maxRetries := 50
 	retryInterval := 4 * time.Second
 
 	var err error
@@ -119,8 +118,8 @@ func waitForInfraP4d() (string, error) {
 	}
 	defer conn.Close()
 	if count == maxRetries {
-		log.Errorf("Failed to wait for infrap4d")
-		return "", fmt.Errorf("Failed to wait for infrap4d")
+		fmt.Fatalf(os.Stderr, "Failed to wait for infrap4d. Exiting\n")
+		os.Exit(1)
 	}
 	return "", nil
 }
@@ -142,7 +141,7 @@ func (s *server) Run() error {
 		}
 		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Errorf("error while checking host bridge existence: %v", err)
+			log.Fatalf("error while checking host bridge existence: %v", err)
 			return fmt.Errorf("host bridge error")
 		}
 	}
