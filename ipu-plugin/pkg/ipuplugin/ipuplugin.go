@@ -118,7 +118,7 @@ func waitForInfraP4d() (string, error) {
 	}
 	defer conn.Close()
 	if count == maxRetries {
-		fmt.Fatalf(os.Stderr, "Failed to wait for infrap4d. Exiting\n")
+		log.Fatalf("Failed to wait for infrap4d. Exiting\n")
 		os.Exit(1)
 	}
 	return "", nil
