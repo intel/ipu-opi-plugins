@@ -762,6 +762,8 @@ fi
 /*
 	IMC reboot needed for following cases:
 
+Note: Changes to load_custom_pkg.sh or post_init_app.sh is managed
+thro ipu-plugin->using genLoadCustomPkgFile and postInitAppScript.
 1. First time provisioning of IPU system(where MAC gets set in node policy)
 2. Upgrade-for any update to P4 package.
 3. Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
@@ -802,7 +804,7 @@ func skipIMCReboot() (bool, string) {
 	p4pkgMatch := false
 	uuidFileExists := false
 	lcpkgFileMatch := false
-	piaFileExists := false
+	piaFileMatch := false
 	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
 
 	if outputStr == "File does not exist" {
@@ -892,19 +894,41 @@ func skipIMCReboot() (bool, string) {
 		return false, "lcpkgFileMatch mismatch"
 	}
 
+	postInitAppFile := postInitAppScript()
+	postInitAppFileHash := md5.Sum([]byte(postInitAppFile))
+	postInitAppFileHashStr := hex.EncodeToString(postInitAppFileHash[:])
+
 	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
-	postInitFile, err := sftpClient.Open(postInitRemoteFilePath)
+	imcPostInitFile, err := sftpClient.Open(postInitRemoteFilePath)
 	if err != nil {
 		log.Errorf("failed to open post_init_app.sh file: %s", err)
 		return false, fmt.Sprintf("failed to open post_init_app.sh file: %s", err)
-	} else {
-		log.Infof("post_init_app.sh file exists")
-		piaFileExists = true
 	}
-	defer postInitFile.Close()
+	log.Infof("post_init_app.sh file exists")
+	defer imcPostInitFile.Close()
 
-	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v, piaFileExists->%v",
-		uuidFileExists, p4pkgMatch, lcpkgFileMatch, piaFileExists)
+	imcPostInitFileBytes, err := io.ReadAll(imcPostInitFile)
+	if err != nil {
+		log.Errorf("failed to read post_init_app.sh: %s", err)
+		return false, fmt.Sprintf("failed to read post_init_app.sh: %s", err)
+	}
+
+	imcPostInitFileHash := md5.Sum(imcPostInitFileBytes)
+	imcPostInitFileHashStr := hex.EncodeToString(imcPostInitFileHash[:])
+
+	if postInitAppFileHashStr != imcPostInitFileHashStr {
+		log.Infof("post_init_app.sh md5 mismatch, generated->%v, on IMC->%v", postInitAppFileHashStr, imcPostInitFileHashStr)
+	} else {
+		log.Infof("post_init_app.sh md5 match, generated->%v, on IMC->%v", postInitAppFileHashStr, imcPostInitFileHashStr)
+		piaFileMatch = true
+	}
+
+	if !piaFileMatch {
+		return false, "piaFileMatch mismatch"
+	}
+
+	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v, piaFileMatch->%v",
+		uuidFileExists, p4pkgMatch, lcpkgFileMatch, piaFileMatch)
 	return true, fmt.Sprintf("checks pass, imc reboot not required")
 
 }
