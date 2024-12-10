@@ -495,6 +495,13 @@ func setBaseMacAddr() (string, error) {
 	return macAddress, nil
 }
 
+/*
+Updates files below on IMC, and does IMC reboot.
+1. Copy P4 package from container to IMC
+2. Update load_custom_pkg.sh
+3. Create post_init_app.sh
+4. Create uuid file.
+*/
 func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
@@ -585,6 +592,38 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to sync load_custom_pkg.sh: %s", err)
 	}
 
+	err = sftpClient.Chmod(loadCustomPkgFilePath, 0755)
+	if err != nil {
+		log.Errorf("failed to chmod load_custom_pkg.sh file: %s", err)
+		return fmt.Errorf("failed to chmod load_custom_pkg.sh file: %s", err)
+	}
+
+	//Create post_init_app.sh
+	postInitAppFileStr := postInitAppScript()
+	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
+	postInitFile, err := sftpClient.Create(postInitRemoteFilePath)
+	if err != nil {
+		log.Errorf("failed to create post_init_app.sh file: %s", err)
+		return fmt.Errorf("failed to create post_init_app.sh file: %s", err)
+	}
+	defer postInitFile.Close()
+
+	_, err = postInitFile.Write([]byte(postInitAppFileStr))
+	if err != nil {
+		return fmt.Errorf("failed to write to post_init_app.sh file: %s", err)
+	}
+
+	err = postInitFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync post_init_app.sh file: %s", err)
+	}
+
+	err = sftpClient.Chmod(postInitRemoteFilePath, 0755)
+	if err != nil {
+		log.Errorf("failed to chmod post_init_app.sh file: %s", err)
+		return fmt.Errorf("failed to chmod post_init_app.sh file: %s", err)
+	}
+
 	uuidFilePath := "/work/uuid"
 	uuidFile, err := sftpClient.Create(uuidFilePath)
 	if err != nil {
@@ -642,6 +681,53 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
+func postInitAppScript() string {
+
+	postInitAppScriptStr := `PORT0_SETUP_SCRIPT=/work/scripts/port0-setup.sh
+PORT0_SETUP_LOG=/work/port0-setup.log
+
+pkill -9 $(basename ${PORT0_SETUP_SCRIPT})
+/bin/rm -f ${PORT0_SETUP_SCRIPT} ${PORT0_SETUP_LOG}
+
+cat<<PORT0_CONFIG_EOF > ${PORT0_SETUP_SCRIPT}
+#!/bin/bash
+IDPF_VPORT_NAME="enp0s1f0d4"
+ACC_VPORT_ID=0x4
+retry=0
+
+while true ; do
+sleep 2
+cli_entry=(\$(cli_client -qc | grep "fn_id: 0x4 .* vport_id \${ACC_VPORT_ID}" | sed 's/: / /g' | sed 's/addr //g'))
+if [ \${#cli_entry[@]} -gt 1 ] ; then
+
+	for (( id=0 ; id<\${#cli_entry[@]} ; id+=2 )) ;  do
+		declare "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+		#echo "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+	done
+
+	if [ X\${is_created} == X"yes" ] && [ X\${is_enabled} == X"yes" ] ; then
+		IDPF_VPORT_VSI_HEX=\${vsi_id}
+		VSI_GROUP_INIT=\$(printf  "0x%x" \$((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+		VSI_GROUP_WRITE=\$(printf "0x%x" \$((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+		echo "#Add to VSI Group 1 :  \${IDPF_VPORT_NAME} [vsi: \${IDPF_VPORT_VSI_HEX}]"
+		devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
+		devmem 0x2029200388 64 0x1
+		devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
+		exit 0
+	fi
+else
+	retry=\$((retry+1))
+	echo "RETRY: \${retry} : #Add to VSI Group 1 :  \${IDPF_VPORT_NAME} .. "
+fi
+done
+PORT0_CONFIG_EOF
+
+/usr/bin/chmod a+x ${PORT0_SETUP_SCRIPT}
+/usr/bin/nohup ${PORT0_SETUP_SCRIPT}  0>&- &> ${PORT0_SETUP_LOG} &`
+
+	return postInitAppScriptStr
+}
+
 func genLoadCustomPkgFile(macAddress string) string {
 
 	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
@@ -679,6 +765,7 @@ fi
 1. First time provisioning of IPU system(where MAC gets set in node policy)
 2. Upgrade-for any update to P4 package.
 3. Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
+4. Check if file-> post_init_app.sh exists.
 Returns-> bool(returns false, if IMC reboot is required), string->for any error or success string.
 */
 func skipIMCReboot() (bool, string) {
@@ -715,7 +802,7 @@ func skipIMCReboot() (bool, string) {
 	p4pkgMatch := false
 	uuidFileExists := false
 	lcpkgFileMatch := false
-
+	piaFileExists := false
 	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
 
 	if outputStr == "File does not exist" {
@@ -805,7 +892,19 @@ func skipIMCReboot() (bool, string) {
 		return false, "lcpkgFileMatch mismatch"
 	}
 
-	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v", uuidFileExists, p4pkgMatch, lcpkgFileMatch)
+	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
+	postInitFile, err := sftpClient.Open(postInitRemoteFilePath)
+	if err != nil {
+		log.Errorf("failed to open post_init_app.sh file: %s", err)
+		return false, fmt.Sprintf("failed to open post_init_app.sh file: %s", err)
+	} else {
+		log.Infof("post_init_app.sh file exists")
+		piaFileExists = true
+	}
+	defer postInitFile.Close()
+
+	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v, piaFileExists->%v",
+		uuidFileExists, p4pkgMatch, lcpkgFileMatch, piaFileExists)
 	return true, fmt.Sprintf("checks pass, imc reboot not required")
 
 }
