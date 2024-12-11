@@ -683,16 +683,20 @@ func countAPFDevices() int {
 
 func postInitAppScript() string {
 
-	postInitAppScriptStr := `PORT0_SETUP_SCRIPT=/work/scripts/port0-setup.sh
-PORT0_SETUP_LOG=/work/port0-setup.log
+	postInitAppScriptStr := `PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
+PORT_SETUP_LOG=/work/port-setup.log
 
-pkill -9 $(basename ${PORT0_SETUP_SCRIPT})
-/bin/rm -f ${PORT0_SETUP_SCRIPT} ${PORT0_SETUP_LOG}
+pkill -9 $(basename ${PORT_SETUP_SCRIPT})
+/bin/rm -f ${PORT_SETUP_SCRIPT} ${PORT_SETUP_LOG}
 
-cat<<PORT0_CONFIG_EOF > ${PORT0_SETUP_SCRIPT}
+#To ensure files get removed.
+sync
+
+cat<<PORT_CONFIG_EOF > ${PORT_SETUP_SCRIPT}
 #!/bin/bash
-IDPF_VPORT_NAME="enp0s1f0d4"
-ACC_VPORT_ID=0x4
+set -x
+IDPF_VPORT_NAME="enp0s1f0d5"
+ACC_VPORT_ID=0x5
 retry=0
 
 while true ; do
@@ -720,10 +724,10 @@ else
 	echo "RETRY: \${retry} : #Add to VSI Group 1 :  \${IDPF_VPORT_NAME} .. "
 fi
 done
-PORT0_CONFIG_EOF
+PORT_CONFIG_EOF
 
-/usr/bin/chmod a+x ${PORT0_SETUP_SCRIPT}
-/usr/bin/nohup ${PORT0_SETUP_SCRIPT}  0>&- &> ${PORT0_SETUP_LOG} &`
+/usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
+/usr/bin/nohup ${PORT_SETUP_SCRIPT}  0>&- &> ${PORT_SETUP_LOG} &`
 
 	return postInitAppScriptStr
 }
