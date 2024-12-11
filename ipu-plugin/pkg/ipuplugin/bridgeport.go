@@ -122,6 +122,8 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 		return s.Ports[in.BridgePort.Name].PbBrPort, nil
 	}
 
+	CheckAndAddPeerToPeerP4Rules(s.p4rtbin)
+
 	err, intfName := allocateAccInterface()
 	if err != nil {
 		return nil, fmt.Errorf("error from allocateAccInterface->%v", err)

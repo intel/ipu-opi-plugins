@@ -70,6 +70,8 @@ var AccApfInfo []AccApfInfoType
 var AccApfsAvailForCNI []string
 
 var InitAccApfMacs = false
+var AccApfMacList []string
+var PeerToPeerP4RulesAdded = false
 
 // Reserved ACC interfaces(using vport_id or last digit of interface name, like 4 represents-> enp0s1f0d4)
 /*const (
@@ -515,6 +517,13 @@ func setBaseMacAddr() (string, error) {
 	return macAddress, nil
 }
 
+/*
+Updates files below on IMC, and does IMC reboot.
+1. Copy P4 package from container to IMC
+2. Update load_custom_pkg.sh
+3. Create post_init_app.sh
+4. Create uuid file.
+*/
 func (s *SSHHandlerImpl) sshFunc() error {
 	config := &ssh.ClientConfig{
 		User: "root",
@@ -605,6 +614,38 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("failed to sync load_custom_pkg.sh: %s", err)
 	}
 
+	err = sftpClient.Chmod(loadCustomPkgFilePath, 0755)
+	if err != nil {
+		log.Errorf("failed to chmod load_custom_pkg.sh file: %s", err)
+		return fmt.Errorf("failed to chmod load_custom_pkg.sh file: %s", err)
+	}
+
+	//Create post_init_app.sh
+	postInitAppFileStr := postInitAppScript()
+	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
+	postInitFile, err := sftpClient.Create(postInitRemoteFilePath)
+	if err != nil {
+		log.Errorf("failed to create post_init_app.sh file: %s", err)
+		return fmt.Errorf("failed to create post_init_app.sh file: %s", err)
+	}
+	defer postInitFile.Close()
+
+	_, err = postInitFile.Write([]byte(postInitAppFileStr))
+	if err != nil {
+		return fmt.Errorf("failed to write to post_init_app.sh file: %s", err)
+	}
+
+	err = postInitFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync post_init_app.sh file: %s", err)
+	}
+
+	err = sftpClient.Chmod(postInitRemoteFilePath, 0755)
+	if err != nil {
+		log.Errorf("failed to chmod post_init_app.sh file: %s", err)
+		return fmt.Errorf("failed to chmod post_init_app.sh file: %s", err)
+	}
+
 	uuidFilePath := "/work/uuid"
 	uuidFile, err := sftpClient.Create(uuidFilePath)
 	if err != nil {
@@ -662,6 +703,57 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
+func postInitAppScript() string {
+
+	postInitAppScriptStr := `PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
+PORT_SETUP_LOG=/work/port-setup.log
+
+pkill -9 $(basename ${PORT_SETUP_SCRIPT})
+/bin/rm -f ${PORT_SETUP_SCRIPT} ${PORT_SETUP_LOG}
+
+#To ensure files get removed.
+sync
+
+cat<<PORT_CONFIG_EOF > ${PORT_SETUP_SCRIPT}
+#!/bin/bash
+set -x
+IDPF_VPORT_NAME="enp0s1f0d5"
+ACC_VPORT_ID=0x5
+retry=0
+
+while true ; do
+sleep 2
+cli_entry=(\$(cli_client -qc | grep "fn_id: 0x4 .* vport_id \${ACC_VPORT_ID}" | sed 's/: / /g' | sed 's/addr //g'))
+if [ \${#cli_entry[@]} -gt 1 ] ; then
+
+	for (( id=0 ; id<\${#cli_entry[@]} ; id+=2 )) ;  do
+		declare "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+		#echo "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+	done
+
+	if [ X\${is_created} == X"yes" ] && [ X\${is_enabled} == X"yes" ] ; then
+		IDPF_VPORT_VSI_HEX=\${vsi_id}
+		VSI_GROUP_INIT=\$(printf  "0x%x" \$((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+		VSI_GROUP_WRITE=\$(printf "0x%x" \$((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+		echo "#Add to VSI Group 1 :  \${IDPF_VPORT_NAME} [vsi: \${IDPF_VPORT_VSI_HEX}]"
+		devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
+		devmem 0x2029200388 64 0x1
+		devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
+		exit 0
+	fi
+else
+	retry=\$((retry+1))
+	echo "RETRY: \${retry} : #Add to VSI Group 1 :  \${IDPF_VPORT_NAME} .. "
+fi
+done
+PORT_CONFIG_EOF
+
+/usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
+/usr/bin/nohup ${PORT_SETUP_SCRIPT}  0>&- &> ${PORT_SETUP_LOG} &`
+
+	return postInitAppScriptStr
+}
+
 func genLoadCustomPkgFile(macAddress string) string {
 
 	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
@@ -696,9 +788,12 @@ fi
 /*
 	IMC reboot needed for following cases:
 
+Note: Changes to load_custom_pkg.sh or post_init_app.sh is managed
+thro ipu-plugin->using genLoadCustomPkgFile and postInitAppScript.
 1. First time provisioning of IPU system(where MAC gets set in node policy)
 2. Upgrade-for any update to P4 package.
 3. Upgrade-for node policy. Other changes in node policy thro load_custom_pkg.sh.
+4. Check if file-> post_init_app.sh exists.
 Returns-> bool(returns false, if IMC reboot is required), string->for any error or success string.
 */
 func skipIMCReboot() (bool, string) {
@@ -735,7 +830,7 @@ func skipIMCReboot() (bool, string) {
 	p4pkgMatch := false
 	uuidFileExists := false
 	lcpkgFileMatch := false
-
+	piaFileMatch := false
 	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
 
 	if outputStr == "File does not exist" {
@@ -825,7 +920,41 @@ func skipIMCReboot() (bool, string) {
 		return false, "lcpkgFileMatch mismatch"
 	}
 
-	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v", uuidFileExists, p4pkgMatch, lcpkgFileMatch)
+	postInitAppFile := postInitAppScript()
+	postInitAppFileHash := md5.Sum([]byte(postInitAppFile))
+	postInitAppFileHashStr := hex.EncodeToString(postInitAppFileHash[:])
+
+	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
+	imcPostInitFile, err := sftpClient.Open(postInitRemoteFilePath)
+	if err != nil {
+		log.Errorf("failed to open post_init_app.sh file: %s", err)
+		return false, fmt.Sprintf("failed to open post_init_app.sh file: %s", err)
+	}
+	log.Infof("post_init_app.sh file exists")
+	defer imcPostInitFile.Close()
+
+	imcPostInitFileBytes, err := io.ReadAll(imcPostInitFile)
+	if err != nil {
+		log.Errorf("failed to read post_init_app.sh: %s", err)
+		return false, fmt.Sprintf("failed to read post_init_app.sh: %s", err)
+	}
+
+	imcPostInitFileHash := md5.Sum(imcPostInitFileBytes)
+	imcPostInitFileHashStr := hex.EncodeToString(imcPostInitFileHash[:])
+
+	if postInitAppFileHashStr != imcPostInitFileHashStr {
+		log.Infof("post_init_app.sh md5 mismatch, generated->%v, on IMC->%v", postInitAppFileHashStr, imcPostInitFileHashStr)
+	} else {
+		log.Infof("post_init_app.sh md5 match, generated->%v, on IMC->%v", postInitAppFileHashStr, imcPostInitFileHashStr)
+		piaFileMatch = true
+	}
+
+	if !piaFileMatch {
+		return false, "piaFileMatch mismatch"
+	}
+
+	log.Infof("uuidFileExists->%v, p4pkgMatch->%v, lcpkgFileMatch->%v, piaFileMatch->%v",
+		uuidFileExists, p4pkgMatch, lcpkgFileMatch, piaFileMatch)
 	return true, fmt.Sprintf("checks pass, imc reboot not required")
 
 }
@@ -836,7 +965,6 @@ func (e *ExecutableHandlerImpl) validate() bool {
 		log.Errorf("Not enough APFs %v, expected->%v", numAPFs, ApfNumber)
 		return false
 	}
-
 	if noReboot, infoStr := skipIMCReboot(); !noReboot {
 		fmt.Printf("IMC reboot required : %v\n", infoStr)
 		return false
@@ -876,14 +1004,28 @@ func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 	return nil
 }
 
+// If ipu-plugin's Init function gets invoked on ACC, prior to getting invoked
+// on x86, then host VFs will not be setup yet. In that case, peer2peer rules
+// will get added in CreateBridgePort or CreateNetworkFunction.
+func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
+	if !PeerToPeerP4RulesAdded {
+		vfMacList, err := utils.GetVfMacList()
+		if err != nil {
+			log.Errorf("CheckAndAddPeerToPeerP4Rules: unable to reach the IMC %v", err)
+			return
+		}
+		//with use of strings.split in utils, we can get list of length 1 with empty string.
+		if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
+			log.Infof("No VFs initialized on the host yet")
+		} else {
+			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
+			p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+			PeerToPeerP4RulesAdded = true
+		}
+	}
+}
+
 func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
-	vfMacList, err := utils.GetVfMacList()
-	if err != nil {
-		return fmt.Errorf("Unable to reach the IMC %v", err)
-	}
-	if len(vfMacList) == 0 {
-		return fmt.Errorf("No NFs initialized on the host")
-	}
 	if !InitAccApfMacs {
 		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
 		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
@@ -895,18 +1037,11 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 		return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[PHY_PORT0_INTF_INDEX].Name)
 	}
 	//Add P4 rules for phy ports
-	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
-	p4rtclient.DeletePhyPortRules(p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
 	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
 	p4rtclient.AddPhyPortRules(p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
 
-	log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
-	p4rtclient.DeletePeerToPeerP4Rules(p4rtbin, vfMacList)
-	log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
-	p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+	CheckAndAddPeerToPeerP4Rules(p4rtbin)
 
-	log.Infof("DeleteLAGP4Rules, path->%s", p4rtbin)
-	p4rtclient.DeleteLAGP4Rules(p4rtbin)
 	log.Infof("AddLAGP4Rules, path->%v", p4rtbin)
 	p4rtclient.AddLAGP4Rules(p4rtbin)
 

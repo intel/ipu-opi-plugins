@@ -15,19 +15,24 @@
 package ipuplugin
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	pb2 "github.com/openshift/dpu-operator/dpu-api/gen"
-
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
+	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type server struct {
@@ -73,6 +78,52 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController, p4rtbin string,
 	}
 }
 
+func waitForInfraP4d() (string, error) {
+	ctx := context.Background()
+	maxRetries := 50
+	retryInterval := 4 * time.Second
+
+	var err error
+	var count int
+	var conn *grpc.ClientConn
+	port := "localhost:9559"
+
+	for count = 0; count < maxRetries; count++ {
+		time.Sleep(retryInterval)
+		conn, err = grpc.Dial(port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		log.Infof("Connecting to server %s retry count:%d", port, count)
+		if err != nil {
+			log.Warnf("Cannot connect to server: %v", err)
+			continue
+		}
+		c := p4_v1.NewP4RuntimeClient(conn)
+		req := &p4_v1.GetForwardingPipelineConfigRequest{
+			DeviceId:     1,
+			ResponseType: p4_v1.GetForwardingPipelineConfigRequest_ResponseType(p4_v1.GetForwardingPipelineConfigRequest_ALL),
+		}
+		fwdResp, err := c.GetForwardingPipelineConfig(ctx, req)
+		if err != nil {
+			log.Warnf("error when retrieving forwardingpipeline config: %v", err)
+			continue
+		}
+
+		config := fwdResp.GetConfig()
+		if config == nil {
+			// pipeline doesn't have a config yet
+			log.Warnf("No forwardingpipeline config yet: %v", err)
+			continue
+		} else {
+			break
+		}
+	}
+	defer conn.Close()
+	if count == maxRetries {
+		log.Fatalf("Failed to wait for infrap4d. Exiting\n")
+		os.Exit(1)
+	}
+	return "", nil
+}
+
 func (s *server) Run() error {
 	var err error
 	signalChannel := make(chan os.Signal, 2)
@@ -84,8 +135,13 @@ func (s *server) Run() error {
 	}
 
 	if s.mode == types.IpuMode {
+		// Wait for the infrap4d connection to come up
+		if _, err := waitForInfraP4d(); err != nil {
+			return err
+		}
+		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Fatalf("error while checking host bridge existance: %v", err)
+			log.Fatalf("error while checking host bridge existence: %v", err)
 			return fmt.Errorf("host bridge error")
 		}
 	}
@@ -117,6 +173,24 @@ func (s *server) Stop() {
 		//Note: Deletes bridge created in EnsureBridgeExists in  Run api.
 		s.bridgeCtlr.DeleteBridges()
 	}
+
+	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.DeletePhyPortRules(s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+
+	vfMacList, err := utils.GetVfMacList()
+	if err != nil {
+		log.Errorf("Unable to reach the IMC %v", err)
+	}
+	if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
+		log.Errorf("No VFs initialized on the host")
+	} else {
+		log.Infof("DeletePeerToPeerP4Rules, path->%s, vfMacList->%v", s.p4rtbin, vfMacList)
+		p4rtclient.DeletePeerToPeerP4Rules(s.p4rtbin, vfMacList)
+	}
+
+	log.Infof("DeleteLAGP4Rules, path->%s", s.p4rtbin)
+	p4rtclient.DeleteLAGP4Rules(s.p4rtbin)
+
 	s.grpcSrvr.GracefulStop()
 	if s.listener != nil {
 		s.listener.Close()
