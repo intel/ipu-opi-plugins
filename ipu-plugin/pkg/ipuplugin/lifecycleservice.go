@@ -57,25 +57,37 @@ const (
 	deviceId            = "0x1452"
 	vendorId            = "0x8086"
 	imcAddress          = "192.168.0.1:22"
-	ApfNumber           = 16
+	ApfNumber           = 48
 	last_byte_mac_range = 239
 )
 
+type AccApfInfoType struct {
+	Mac  string
+	Name string
+}
+
+var AccApfInfo []AccApfInfoType
+var AccApfsAvailForCNI []string
+
 var InitAccApfMacs = false
-var AccApfMacList []string
 var PeerToPeerP4RulesAdded = false
 
-// Reserved ACC interfaces(using vport_id or last digit of interface name, like 4 represents-> enp0s1f0d4)
+// Reserved ACC interfaces(using vport_id or last digit of interface name, for example, index 4 represents-> enp0s1f0d4)
 const (
-	PHY_PORT0_INTF_INDEX = 4
-	PHY_PORT1_INTF_INDEX = 5
-	NF_IN_PR_INTF_INDEX  = 9
-	NF_OUT_PR_INTF_INDEX = 10
+	START_ID             = 0
+	RSVD_INIT_LEN        = 4
+	PHY_PORT0_INTF_INDEX = (START_ID + RSVD_INIT_LEN)
+	PHY_PORT1_INTF_INDEX = (PHY_PORT0_INTF_INDEX + 1)
+	MAX_NF_CNT           = 4
+	NF_PR_START_ID       = (PHY_PORT1_INTF_INDEX + 1)
+	NF_PR_LEN            = (MAX_NF_CNT * 2)
+	NF_PR_END_ID         = (NF_PR_START_ID + NF_PR_LEN - 1)
+	NF_AVAIL_START_ID    = NF_PR_END_ID + 1
+	NF_AVAIL_END_ID      = (NF_AVAIL_START_ID + NF_PR_LEN - 1)
+	HOST_VF_START_ID     = (NF_AVAIL_END_ID + 1)
+	MAX_HOST_VF_CNT      = (16)
+	HOST_VF_END_ID       = (HOST_VF_START_ID + MAX_HOST_VF_CNT - 1)
 )
-
-// TODO: GetFilteredPFs can be used to fill the array.
-var AccIntfNames = [ApfNumber]string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4", "enp0s1f0d5", "enp0s1f0d6",
-	"enp0s1f0d7", "enp0s1f0d8", "enp0s1f0d9", "enp0s1f0d10", "enp0s1f0d11", "enp0s1f0d12", "enp0s1f0d13", "enp0s1f0d14", "enp0s1f0d15"}
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string, brCtlr types.BridgeController) *LifeCycleServiceServer {
 	return &LifeCycleServiceServer{
@@ -943,6 +955,7 @@ func (e *ExecutableHandlerImpl) validate() bool {
 		log.Errorf("Not enough APFs %v, expected->%v", numAPFs, ApfNumber)
 		return false
 	}
+
 	if noReboot, infoStr := skipIMCReboot(); !noReboot {
 		fmt.Printf("IMC reboot required : %v\n", infoStr)
 		return false
@@ -952,26 +965,33 @@ func (e *ExecutableHandlerImpl) validate() bool {
 }
 
 func (e *ExecutableHandlerImpl) SetupAccApfs() error {
-	var err error
-
 	if !InitAccApfMacs {
-		AccApfMacList, err = utils.GetAccApfMacList()
-
-		if err != nil {
-			log.Errorf("unable to reach the IMC %v", err)
-			return fmt.Errorf("unable to reach the IMC %v", err)
+		var pfList []netlink.Link
+		InitHandlers()
+		if err := GetFilteredPFs(&pfList); err != nil {
+			log.Errorf("SetupAccApfs: err->%v from GetFilteredPFs", err)
+			return fmt.Errorf("SetupAccApfs: err->%v from GetFilteredPFs", err)
+		}
+		if len(pfList) != ApfNumber {
+			log.Errorf("not enough APFs initialized on ACC, total APFs->%d, APFs->%v", len(pfList), pfList)
+			return fmt.Errorf("not enough APFs initialized on ACC, total APFs->%d, APFs->%v", len(pfList), pfList)
 		}
 
-		if len(AccApfMacList) != ApfNumber {
-			log.Errorf("not enough APFs initialized on ACC, total APFs->%d, APFs->%v", len(AccApfMacList), AccApfMacList)
-			return fmt.Errorf("not enough APFs initialized on ACC, total APFs->%d", len(AccApfMacList))
+		for i := 0; i < len(pfList); i++ {
+			accApf := AccApfInfoType{
+				Mac:  pfList[i].Attrs().HardwareAddr.String(),
+				Name: pfList[i].Attrs().Name,
+			}
+			AccApfInfo = append(AccApfInfo, accApf)
 		}
-		log.Infof("On ACC, total APFs->%d", len(AccApfMacList))
-		for i := 0; i < len(AccApfMacList); i++ {
-			log.Infof("index->%d, mac->%s", i, AccApfMacList[i])
-		}
-		InitAccApfMacs = true
 	}
+	log.Infof("AccApfInfo->%v", AccApfInfo)
+	for i := NF_AVAIL_START_ID; i <= NF_AVAIL_END_ID; i = i + 1 {
+		AccApfsAvailForCNI = append(AccApfsAvailForCNI, AccApfInfo[i].Name)
+	}
+	log.Infof("AccApfsAvailForCNI->%v", AccApfsAvailForCNI)
+
+	InitAccApfMacs = true
 	return nil
 }
 
@@ -1003,13 +1023,13 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 	}
 	//Add Phy Port0 to ovs bridge
 	//Note: Per current design, Phy Port1 is added to a different bridge(through P4 rules).
-	if err := brCtlr.AddPort(AccIntfNames[PHY_PORT0_INTF_INDEX]); err != nil {
-		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
-		return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
+	if err := brCtlr.AddPort(AccApfInfo[PHY_PORT0_INTF_INDEX].Name); err != nil {
+		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[PHY_PORT0_INTF_INDEX].Name)
+		return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[PHY_PORT0_INTF_INDEX].Name)
 	}
 	//Add P4 rules for phy ports
-	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
-	p4rtclient.AddPhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
+	p4rtclient.AddPhyPortRules(p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
 
 	CheckAndAddPeerToPeerP4Rules(p4rtbin)
 
