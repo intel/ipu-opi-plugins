@@ -21,8 +21,8 @@ import (
 type BridgeType int
 
 type BridgePortInfo struct {
-	PbBrPort      *pb.BridgePort
-	PortInterface string
+	PbBrPort *pb.BridgePort
+	PortId   uint //For example, if ACC interface name is enp0s1f0d4, PortId(vportId) will be 4.
 }
 
 const (
