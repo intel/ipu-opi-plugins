@@ -137,12 +137,11 @@ func AddAccApfsToGroupOne() error {
 	}
 	log.Infof("AddAccApfsToGroupOne, vsiList->%v", vsiList)
 	/*
-		VSI_GROUP_INIT=$(printf  "0x%x" $((0x8000050000000000 + IDPF_VPORT_VSI_HEX))) && \
-		VSI_GROUP_WRITE=$(printf "0x%x" $((0xA000050000000000 + IDPF_VPORT_VSI_HEX))) && \
-		echo "echo \"#Add to VSI Group 1 :  ${IDPF_VPORT_NAME} [vsi: ${IDPF_VPORT_VSI_HEX}]\"" && \
-		echo "devmem 0x20292002a0 64 ${VSI_GROUP_INIT} " && \
-		echo "devmem 0x2029200388 64 0x1" && \
-		echo "devmem 0x20292002a0 64 ${VSI_GROUP_WRITE} " ;  \
+		VSI_GROUP_INIT=$(printf  "0x%x" $((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+		VSI_GROUP_WRITE=$(printf "0x%x" $((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+		devmem 0x20292002a0 64 ${VSI_GROUP_INIT}
+		devmem 0x2029200388 64 0x1
+		devmem 0x20292002a0 64 ${VSI_GROUP_WRITE}
 	*/
 	for i := 0; i < len(vsiList); i++ {
 		log.Infof("Add to VSI Group 1, vsi->%v", vsiList[i])

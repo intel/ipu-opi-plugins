@@ -30,6 +30,8 @@ const (
 	LinuxBridge
 	HostMode = "host"
 	IpuMode  = "ipu"
+	HostVfPr = "HostVfPr" // PR(port representator on ACC) for Host VF
+	NfPr     = "NfPr"     // PR(port representator on ACC) for Network Function
 )
 
 func (b BridgeType) String() string {
