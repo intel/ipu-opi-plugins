@@ -17,7 +17,6 @@ package ipuplugin
 import (
 	"context"
 	"fmt"
-	"math"
 	"net"
 	"os"
 	"os/signal"
@@ -157,8 +156,8 @@ func AddAccApfsToGroupOne() error {
 			return fmt.Errorf("error decoding hex: %v", err)
 		}
 
-		// Check bounds before converting to uint
-		if hexVal < 0 || hexVal > math.MaxInt64 {
+		// Check bounds before converting to uint64
+		if hexVal < 0 {
 			log.Errorf("hex value out of range: %v", hexVal)
 			return fmt.Errorf("hex value out of range: %v", hexVal)
 		}

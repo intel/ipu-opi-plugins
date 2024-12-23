@@ -32,6 +32,7 @@ import (
 interfaces slice will be populated with PortIds on ACC(port representators->PRs on ACC, for Host VFs),
 for example, if ACC interface name is enp0s1f0d4, PortId(vportId) will be 4.
 Will also include port representators->PRs needed for Network Functions.
+intfMap is a map, that has key:value, between interfaceId and whether it is available(true or false) for use.
 */
 var interfaces []uint
 var intfMap map[uint]bool
@@ -59,7 +60,9 @@ func initMap() error {
 	return nil
 }
 
-// in-order(sorted by interface name->interfaces) allocation, based on available ACC interfaces(for Host VF)
+// in-order(sorted by interface IDs) allocation. Based on available ACC interfaces(for Host VF
+// and NF PRs). Currently there are 2 ranges, first range(sorted) is for available Host-VF interface IDs
+// (HOST_VF_START_ID to HOST_VF_END_ID) and second range(sorted) for NF PRs(NF_PR_START_ID to NF_PR_END_ID)
 func AllocateAccInterface(allocPr string) (uint, error) {
 	var intfId uint = 0
 	start, end := 0, 0

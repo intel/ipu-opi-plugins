@@ -140,6 +140,7 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 }
 
 // skips ACC interfaces D0 to D3, which are used internally. So, not available for other usages.
+// $2 == 4 is to get ACC entries, and $10 check is to make sure, we skip rows that has vportIDs from D0 to D3.
 func GetAvailableAccVsiList() ([]string, error) {
 	// reach out to the IMC
 	vsiList, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
