@@ -17,6 +17,7 @@ package ipuplugin
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"os/signal"
@@ -156,8 +157,16 @@ func AddAccApfsToGroupOne() error {
 			return fmt.Errorf("error decoding hex: %v", err)
 		}
 
-		vsiGroupInit := 0x8000050000000000 + uint(hexVal)
-		vsiGroupWrite := 0xA000050000000000 + uint(hexVal)
+		// Check bounds before converting to uint
+		if hexVal < 0 || hexVal > math.MaxInt64 {
+			log.Errorf("hex value out of range: %v", hexVal)
+			return fmt.Errorf("hex value out of range: %v", hexVal)
+		}
+
+		var vsiGroupInit, vsiGroupWrite uint64
+
+		vsiGroupInit = 0x8000050000000000 + uint64(hexVal)
+		vsiGroupWrite = 0xA000050000000000 + uint64(hexVal)
 
 		vsiGroupInitString := fmt.Sprintf("0x%X", vsiGroupInit)
 		vsiGroupWriteString := fmt.Sprintf("0x%X", vsiGroupWrite)
