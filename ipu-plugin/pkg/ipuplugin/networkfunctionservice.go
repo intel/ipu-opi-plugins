@@ -161,6 +161,8 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	}
 	log.Infof("deleted interfaces:inPR->%s, outPR->%s", AccApfInfo[NF_IN_PR].Name, AccApfInfo[NF_OUT_PR].Name)
 
+	FreeAccInterfaceForNF(intfIds)
+
 	log.Infof("DeleteNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
 		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR].Mac, AccApfInfo[NF_OUT_PR].Mac)
 	p4rtclient.DeleteNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR].Mac, AccApfInfo[NF_OUT_PR].Mac)
