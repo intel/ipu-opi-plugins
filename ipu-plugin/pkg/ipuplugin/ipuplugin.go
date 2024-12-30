@@ -201,11 +201,6 @@ func (s *server) Run() error {
 		if _, err := waitForInfraP4d(); err != nil {
 			return err
 		}
-		if err := AddAccApfsToGroupOne(); err != nil {
-			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
-			return fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
-		}
-
 		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
 			log.Fatalf("error while checking host bridge existence: %v", err)

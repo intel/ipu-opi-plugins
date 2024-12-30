@@ -949,10 +949,99 @@ func skipIMCReboot() (bool, string) {
 
 }
 
+// this api queries the param->acc_apf in /etc/dpcp/cp_init.cfg.
+// The param(acc_apf) appears in 3 lines in that file, and we run
+// the command to fetch the value in the second line.
+func queryNumAccApfsInIMCConfig() (int, error) {
+	config := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			ssh.Password(""),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// Connect to the remote server.
+	client, err := ssh.Dial("tcp", imcAddress, config)
+	if err != nil {
+		return 0, fmt.Errorf("failed to dial remote server: %s", err)
+	}
+	defer client.Close()
+
+	// Start a session.
+	session, err := client.NewSession()
+	if err != nil {
+		return 0, fmt.Errorf("failed to create session: %s", err)
+	}
+	defer session.Close()
+
+	commands := `grep "acc_apf = "  /etc/dpcp/cp_init.cfg | sed -n 2p | awk '/acc_apf = / {print $3}'`
+
+	// Run a command on the remote server and capture the output.
+	outputBytes, err := session.CombinedOutput(commands)
+	if err != nil {
+		log.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
+		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
+	}
+
+	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
+	//to skip the semicolon, for example, if output is-> 48;
+	outputStr = outputStr[:len(outputStr)-1]
+
+	numAccApfs, err := strconv.Atoi(outputStr)
+
+	if err != nil {
+		log.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
+		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
+	}
+	log.Infof("queryNumAccApfsInIMCConfig ->%v", numAccApfs)
+
+	return numAccApfs, nil
+
+}
+
+// wait for the expected number of ACC APFs to get initialized.
+// Per testing, after kernel boots, it takes around 40 secs for 48 APFs
+// to get initialized. This api waits for 1 sec per APF.
+func waitForAccApfsInit() error {
+	maxRetries := ApfNumber
+	retryInterval := time.Second
+
+	var count int
+	for count = 0; count < maxRetries; count++ {
+		time.Sleep(retryInterval)
+		log.Infof("waitForAccApfsInit: retry count:%d", count)
+		numApfs := countAPFDevices()
+		if numApfs < ApfNumber {
+			log.Warnf("numApfs->%v, less than expected-> %v", numApfs, ApfNumber)
+			continue
+		} else if numApfs == ApfNumber {
+			log.Infof("expected numApfs->%v initialized", numApfs)
+			break
+		}
+	}
+	if count == maxRetries {
+		log.Fatalf("Failed to wait for ACC APFs to get initialized. Exiting\n")
+		os.Exit(1)
+	}
+	return nil
+}
+
 func (e *ExecutableHandlerImpl) validate() bool {
 
-	if numAPFs := countAPFDevices(); numAPFs < ApfNumber {
-		log.Errorf("Not enough APFs %v, expected->%v", numAPFs, ApfNumber)
+	numAccApfs, err := queryNumAccApfsInIMCConfig()
+
+	if err != nil {
+		log.Errorf("Error->%v, from queryNumAccApfsInIMCConfig", err)
+		return false
+	}
+
+	if numAccApfs != ApfNumber {
+		log.Errorf("Not enough APFs %v, expected->%v", numAccApfs, ApfNumber)
+		return false
+	}
+
+	if err := waitForAccApfsInit(); err != nil {
 		return false
 	}
 
@@ -1054,6 +1143,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			}
 		} else {
 			log.Info("not forcing state")
+		}
+		if err := AddAccApfsToGroupOne(); err != nil {
+			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
+			return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
 		}
 		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
 			log.Errorf("error from  SetupAccApfs %v", err)
