@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -123,67 +122,6 @@ func waitForInfraP4d() (string, error) {
 		os.Exit(1)
 	}
 	return "", nil
-}
-
-func AddAccApfsToGroupOne() error {
-	vsiList, err := utils.GetAvailableAccVsiList()
-	if err != nil {
-		log.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
-		return fmt.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
-	}
-	if len(vsiList) == 0 {
-		log.Errorf("no APFs initialized on ACC")
-		return fmt.Errorf("no APFs initialized on ACC")
-	}
-	log.Infof("AddAccApfsToGroupOne, vsiList->%v", vsiList)
-	/*  Steps from script(for reference)
-	VSI_GROUP_INIT=$(printf  "0x%x" $((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
-	VSI_GROUP_WRITE=$(printf "0x%x" $((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
-	devmem 0x20292002a0 64 ${VSI_GROUP_INIT}
-	devmem 0x2029200388 64 0x1
-	devmem 0x20292002a0 64 ${VSI_GROUP_WRITE}
-	*/
-	for i := 0; i < len(vsiList); i++ {
-		log.Infof("Add to VSI Group 1, vsi->%v", vsiList[i])
-		hexStr := vsiList[i]
-		// skip "0x" prefix
-		hexStr = hexStr[2:]
-
-		// Convert to hex value
-		hexVal, err := strconv.ParseInt(hexStr, 16, 64)
-		if err != nil {
-			log.Errorf("error decoding hex: %v", err)
-			return fmt.Errorf("error decoding hex: %v", err)
-		}
-
-		// Check bounds before converting to uint64
-		if hexVal < 0 {
-			log.Errorf("hex value out of range: %v", hexVal)
-			return fmt.Errorf("hex value out of range: %v", hexVal)
-		}
-
-		var vsiGroupInit, vsiGroupWrite uint64
-
-		vsiGroupInit = 0x8000050000000000 + uint64(hexVal)
-		vsiGroupWrite = 0xA000050000000000 + uint64(hexVal)
-
-		vsiGroupInitString := fmt.Sprintf("0x%X", vsiGroupInit)
-		vsiGroupWriteString := fmt.Sprintf("0x%X", vsiGroupWrite)
-
-		devMemCmd1 := "devmem 0x20292002a0 64 " + vsiGroupInitString
-		devMemCmd2 := "devmem 0x2029200388 64 0x1"
-		devMemCmd3 := "devmem 0x20292002a0 64 " + vsiGroupWriteString
-
-		devMemCmd := devMemCmd1 + "; " + devMemCmd2 + "; " + devMemCmd3 + "; "
-		log.Infof("devMemCmd->%v", devMemCmd)
-
-		_, err = utils.ExecuteScript(fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "%s"`, devMemCmd))
-		if err != nil {
-			log.Errorf("err exec devMemCmd->%v", err)
-			return fmt.Errorf("err exec devMemCmd->%v", err)
-		}
-	}
-	return nil
 }
 
 func (s *server) Run() error {
