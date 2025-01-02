@@ -3,6 +3,8 @@ package ipuplugin
 import (
 	"fmt"
 	"strings"
+	"os"
+	"path/filepath"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -31,15 +33,53 @@ func createDbParam(ovsDbPath string) string {
 	return "--db=unix:" + ovsDbPath
 }
 
-func getInfrapodNamespace() (string, error) {
+func isNumeric(s string) bool {
+    var n int
+    _, err := fmt.Sscanf(s, "%d", &n)
+    return err == nil
+}
 
-	nsCmdParams := []string{"ps", "-a",
-		"|", "grep", "entrypoint.sh",
-		"|", "head", "-n", "1",
-		"|", "awk", "'{print $1;}'",
-		"|", "xargs", "ip", "netns", "identify",
-		"|", "tr", "-d", "'\n'"}
-	ret, err := utils.ExecuteScript(strings.Join(nsCmdParams, " "))
+func getPIDsWithComm(target string) ([]string, error) {
+    files, err := os.ReadDir("/proc")
+    if err != nil {
+        return nil, fmt.Errorf("error reading /proc: %v", err)
+    }
+
+    var pids []string
+    for _, file := range files {
+        if file.IsDir() && isNumeric(file.Name()) {
+            cmdPath := filepath.Join("/proc", file.Name(), "cmdline")
+            data, err := os.ReadFile(cmdPath)
+            if err != nil {
+                continue
+            }
+            if strings.Contains(strings.TrimSpace(string(data)), target) {
+                pids = append(pids, file.Name())
+            }
+        }
+    }
+
+    return pids, nil
+}
+
+func getInfrapodNamespace() (string, error) {
+	pids, err := getPIDsWithComm("entrypoint.sh")
+	if err != nil {
+		return "", fmt.Errorf("error retrieving PIDs: %v", err)
+	}
+
+	if len(pids) == 0 {
+		return "", fmt.Errorf("could not find any PID with comm containing 'entrypoint.sh'")
+	}
+
+	if len(pids) > 1 {
+		// TODO: A better way is needed to identify the container
+		return "", fmt.Errorf("%v PIDs found for 'entrypoint.sh': %v", len(pids), pids)
+	}
+
+	targetPID := pids[0]
+	cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
+	ret, err := utils.ExecuteScript(cmd)
 	if err != nil {
 		log.Errorf("unable to get Namespace of infrapod: %v", err)
 		return "", fmt.Errorf("unable to get Namespace of infrapod: %v", err)
