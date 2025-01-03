@@ -139,6 +139,20 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 	return output, nil
 }
 
+// skips ACC interfaces D0 to D3, which are used internally. So, not available for other usages.
+// $2 == 4 is to get ACC entries, and $10 check is to make sure, we skip rows that has vportIDs from D0 to D3.
+func GetAvailableAccVsiList() ([]string, error) {
+	// reach out to the IMC
+	vsiList, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
+		| awk '{if(($2 == "0x4") && ($10 != "0x0") && ($10 != "0x1") && ($10 != "0x2") && ($10 != "0x3")) {print $8}}'`)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	return strings.Split(strings.TrimSpace(vsiList), "\n"), nil
+}
+
 func GetVfMacList() ([]string, error) {
 	// reach out to the IMC to get the mac addresses of the VFs
 	output, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
