@@ -107,7 +107,7 @@ var _ = Describe("bridgeport", Serial, func() {
 					},
 				}
 				fakePortBridgeInfo := &types.BridgePortInfo{
-					fakePort, 10,
+					fakePort, "fakePort1",
 				}
 
 				fakeReq := &pb.CreateBridgePortRequest{BridgePort: fakePort}
@@ -131,7 +131,7 @@ var _ = Describe("bridgeport", Serial, func() {
 					},
 				}
 				fakePortBridgeInfo := &types.BridgePortInfo{
-					fakePort, 10,
+					fakePort, "fakePort1",
 				}
 				ipuServer.Ports["fakePort"] = fakePortBridgeInfo // fakePort already exists in internal Map
 
