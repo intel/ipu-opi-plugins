@@ -174,8 +174,8 @@ func (s *server) Stop() {
 		s.bridgeCtlr.DeleteBridges()
 	}
 
-	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", s.p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
-	p4rtclient.DeletePhyPortRules(s.p4rtbin, AccApfInfo[PHY_PORT0_INTF_INDEX].Mac, AccApfInfo[PHY_PORT1_INTF_INDEX].Mac)
+	log.Infof("DeletePhyPortRules, path->%s, 1->%v, 2->%v", s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.DeletePhyPortRules(s.p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 
 	vfMacList, err := utils.GetVfMacList()
 	if err != nil {
