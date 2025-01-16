@@ -683,15 +683,19 @@ func countAPFDevices() int {
 
 func postInitAppScript() string {
 
-	postInitAppScriptStr := `PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
+	postInitAppScriptStr := `#!/bin/bash
+set -x
+
+trap 'echo "Line $LINENO: $BASH_COMMAND"' DEBUG
+PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
 PORT_SETUP_LOG=/work/port-setup.log
+POST_INIT_LOG=/work/post-init.log
+
+exec 2>&1 1>${POST_INIT_LOG}
 
 pkill -9 $(basename ${PORT_SETUP_SCRIPT})
-/bin/rm -f ${PORT_SETUP_SCRIPT} ${PORT_SETUP_LOG}
 
-#To ensure files get removed.
-sync
-
+if [ ! -f ${PORT_SETUP_SCRIPT} ]; then
 cat<<PORT_CONFIG_EOF > ${PORT_SETUP_SCRIPT}
 #!/bin/bash
 set -x
@@ -704,30 +708,33 @@ sleep 2
 cli_entry=(\$(cli_client -qc | grep "fn_id: 0x4 .* vport_id \${ACC_VPORT_ID}" | sed 's/: / /g' | sed 's/addr //g'))
 if [ \${#cli_entry[@]} -gt 1 ] ; then
 
-	for (( id=0 ; id<\${#cli_entry[@]} ; id+=2 )) ;  do
-		declare "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
-		#echo "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
-	done
+        for (( id=0 ; id<\${#cli_entry[@]} ; id+=2 )) ;  do
+                declare "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+                #echo "\${cli_entry[id]}"="\${cli_entry[\$((id+1))]}"
+        done
 
-	if [ X\${is_created} == X"yes" ] && [ X\${is_enabled} == X"yes" ] ; then
-		IDPF_VPORT_VSI_HEX=\${vsi_id}
-		VSI_GROUP_INIT=\$(printf  "0x%x" \$((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
-		VSI_GROUP_WRITE=\$(printf "0x%x" \$((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
-		echo "#Add to VSI Group 1 :  \${IDPF_VPORT_NAME} [vsi: \${IDPF_VPORT_VSI_HEX}]"
-		devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
-		devmem 0x2029200388 64 0x1
-		devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
-		exit 0
-	fi
+        if [ X\${is_created} == X"yes" ] && [ X\${is_enabled} == X"yes" ] ; then
+                IDPF_VPORT_VSI_HEX=\${vsi_id}
+                VSI_GROUP_INIT=\$(printf  "0x%x" \$((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+                VSI_GROUP_WRITE=\$(printf "0x%x" \$((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+                echo "#Add to VSI Group 1 :  \${IDPF_VPORT_NAME} [vsi: \${IDPF_VPORT_VSI_HEX}]"
+                devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
+                devmem 0x2029200388 64 0x1
+                devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
+                exit 0
+        fi
 else
-	retry=\$((retry+1))
-	echo "RETRY: \${retry} : #Add to VSI Group 1 :  \${IDPF_VPORT_NAME} .. "
+        retry=\$((retry+1))
+        echo "RETRY: \${retry} : #Add to VSI Group 1 :  \${IDPF_VPORT_NAME} .. "
 fi
 done
 PORT_CONFIG_EOF
+else
+  echo "File exists"
+fi
 
 /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
-/usr/bin/nohup ${PORT_SETUP_SCRIPT}  0>&- &> ${PORT_SETUP_LOG} &`
+/usr/bin/nohup ${PORT_SETUP_SCRIPT}  0<&- &> ${PORT_SETUP_LOG} &`
 
 	return postInitAppScriptStr
 }
