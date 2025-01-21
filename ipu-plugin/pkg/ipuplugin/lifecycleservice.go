@@ -687,21 +687,36 @@ func postInitAppScript() string {
 set -x
 
 trap 'echo "Line $LINENO: $BASH_COMMAND"' DEBUG
+
 PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
 PORT_SETUP_LOG=/work/port-setup.log
 POST_INIT_LOG=/work/post-init.log
+PORT_SETUP_LOG2=/work/port-setup2.log
+
+/usr/bin/rm -f ${PORT_SETUP_SCRIPT} ${POST_INIT_LOG}
 
 exec 2>&1 1>${POST_INIT_LOG}
 
 pkill -9 $(basename ${PORT_SETUP_SCRIPT})
 
-if [ ! -f ${PORT_SETUP_SCRIPT} ]; then
 cat<<PORT_CONFIG_EOF > ${PORT_SETUP_SCRIPT}
 #!/bin/bash
 set -x
 IDPF_VPORT_NAME="enp0s1f0d5"
 ACC_VPORT_ID=0x5
 retry=0
+
+echo "random_num(for unique port-setup.log):"$(od -An -N8 -i /dev/urandom)
+
+LOCKFILE=/tmp/mylockfile
+
+# Function to release the lock
+release_lock() {
+  rm -f \${LOCKFILE}
+}
+
+# Set up the trap to release the lock on exit
+trap release_lock EXIT
 
 while true ; do
 sleep 2
@@ -718,10 +733,24 @@ if [ \${#cli_entry[@]} -gt 1 ] ; then
                 VSI_GROUP_INIT=\$(printf  "0x%x" \$((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
                 VSI_GROUP_WRITE=\$(printf "0x%x" \$((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
                 echo "#Add to VSI Group 1 :  \${IDPF_VPORT_NAME} [vsi: \${IDPF_VPORT_VSI_HEX}]"
-                devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
-                devmem 0x2029200388 64 0x1
-                devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
-                exit 0
+                # Try to acquire the lock
+                while true ; do
+                if ( set -o noclobber; echo $$ > \${LOCKFILE} ) 2>/dev/null; then
+                  echo "RunDevMemCmds_Start: LogFile->"
+                  # Critical section - only one script can be here at a time
+                  devmem 0x20292002a0 64 \${VSI_GROUP_INIT}
+                  devmem 0x2029200388 64 0x1
+                  devmem 0x20292002a0 64 \${VSI_GROUP_WRITE}
+                  sync
+                  echo "RunDevMemCmds_End: LogFile->"
+                  # Release the lock
+                  rm \${LOCKFILE}
+                  exit 0
+                else
+                  echo "RunDevMemCmds: Needs to wait,sleep"
+                  sleep 1
+                fi
+                done
         fi
 else
         retry=\$((retry+1))
@@ -729,12 +758,37 @@ else
 fi
 done
 PORT_CONFIG_EOF
-else
-  echo "File exists"
-fi
 
 /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
-/usr/bin/nohup ${PORT_SETUP_SCRIPT}  0<&- &> ${PORT_SETUP_LOG} &`
+/usr/bin/nohup bash -c ''"${PORT_SETUP_SCRIPT}"'' 0<&- &> ${PORT_SETUP_LOG} &
+
+log_retry=0
+while true ; do
+   sync
+if [[ $log_retry -gt 10 ]]; then
+   echo "waited for log more than 10 secs, 2nd attempt for port_setup.sh below"
+   /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
+   /usr/bin/nohup bash -c ''"${PORT_SETUP_SCRIPT}"'' 0<&- &> ${PORT_SETUP_LOG2} &
+   echo "2nd attempt for port_setup.sh done"
+   sleep 1
+   sync
+   break
+fi
+if [[ -s ${PORT_SETUP_LOG}  ]]; then
+   log_retry=$((log_retry+1))
+   echo "log file empty. sleep and check"
+   sleep 1
+elif [ ! -f ${PORT_SETUP_LOG} ]; then
+   log_retry=$((log_retry+1))
+   echo "log file doesnt exist. sleep and check"
+   sleep 1
+else
+   if [ -f ${PORT_SETUP_LOG} ]; then
+      echo "log file exists. break"
+      break
+   fi
+fi
+done`
 
 	return postInitAppScriptStr
 }
