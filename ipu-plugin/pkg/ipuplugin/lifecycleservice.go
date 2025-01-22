@@ -681,6 +681,23 @@ func countAPFDevices() int {
 	return len(pfList)
 }
 
+/*
+Updates post_init_app.sh script, which installs
+port-setup.sh script. port-setup.sh script,
+will run devmem command for D5 interface, as soon as
+D5 comes up on ACC, to enable connectivity. 
+There is an intermittent race condition, when port-setup.log file, is
+accessed(for file removal or any other case) by post_init_app.sh,
+then later when nohup tries to stdout to that log file(port-setup.log),
+there are file sync issues, either log file is not updated or not present.
+In order to circumvent this, just allowing nohup to over-write port-setup.log.
+Also, to make this more robust, added polling in post-init-app.sh, to check for
+log(and if not present within 10 secs), we start second instance of port-setup.sh.
+So, at the most, we would run port-setup.sh twice.
+Running devmem commands thro locking mechanism, so the devmem commands are 
+run in critical section, so that devmem commands are run sequentially,
+when port-setup.sh gets run concurrently.
+*/
 func postInitAppScript() string {
 
 	postInitAppScriptStr := `#!/bin/bash
