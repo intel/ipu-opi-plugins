@@ -83,7 +83,7 @@ var p4rtCtlCommand = exec.Command
 func RunP4rtCtlCommand(p4RtBin string, params ...string) error {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := p4rtCtlCommand(p4RtBin, params...)
+	cmd := p4rtCtlCommand(p4RtBin, append([]string{"-g 10.42.0.2:9559 "}, params...)...)
 
 	// Set required env var for python implemented protobuf
 	cmd.Env = os.Environ()
