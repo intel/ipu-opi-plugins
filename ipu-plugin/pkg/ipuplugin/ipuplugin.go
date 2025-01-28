@@ -86,7 +86,7 @@ func waitForInfraP4d() (string, error) {
 	var err error
 	var count int
 	var conn *grpc.ClientConn
-	port := "localhost:9559"
+	port := "10.42.0.2:9559"
 
 	for count = 0; count < maxRetries; count++ {
 		time.Sleep(retryInterval)
