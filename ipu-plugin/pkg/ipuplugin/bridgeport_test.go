@@ -36,7 +36,7 @@ var _ = Describe("bridgeport", Serial, func() {
 			ExecutableHandlerGlobal.SetupAccApfs()
 			ipuServer = &server{
 				bridgeCtlr: fakeBrCtlr,
-				p4RtClient: fakeP4rtClient,
+				p4rtClient: fakeP4rtClient,
 				log:        log.WithField("pkg", "bridgeport_test.go"),
 			}
 		})
