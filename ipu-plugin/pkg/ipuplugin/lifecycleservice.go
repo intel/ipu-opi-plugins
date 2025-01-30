@@ -47,7 +47,7 @@ type LifeCycleServiceServer struct {
 	daemonIpuIp  string
 	daemonPort   int
 	mode         string
-	p4rtbin      string
+	p4rtClient   types.P4RTClient
 	bridgeCtlr   types.BridgeController
 }
 
@@ -83,7 +83,6 @@ func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode 
 		daemonIpuIp:  daemonIpuIp,
 		daemonPort:   daemonPort,
 		mode:         mode,
-		p4rtbin:      p4rtbin,
 		bridgeCtlr:   brCtlr,
 	}
 }
@@ -134,7 +133,7 @@ type SSHHandler interface {
 type SSHHandlerImpl struct{}
 
 type FXPHandler interface {
-	configureFXP(p4rtbin string, brCtlr types.BridgeController) error
+	configureFXP(p4rtClient types.P4RTClient, brCtlr types.BridgeController) error
 }
 
 type FXPHandlerImpl struct{}
@@ -851,7 +850,7 @@ func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 // If ipu-plugin's Init function gets invoked on ACC, prior to getting invoked
 // on x86, then host VFs will not be setup yet. In that case, peer2peer rules
 // will get added in CreateBridgePort or CreateNetworkFunction.
-func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
+func CheckAndAddPeerToPeerP4Rules(p types.P4RTClient) {
 	if !PeerToPeerP4RulesAdded {
 		vfMacList, err := utils.GetVfMacList()
 		if err != nil {
@@ -862,14 +861,14 @@ func CheckAndAddPeerToPeerP4Rules(p4rtbin string) {
 		if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
 			log.Infof("No VFs initialized on the host yet")
 		} else {
-			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p4rtbin, vfMacList)
-			p4rtclient.AddPeerToPeerP4Rules(p4rtbin, vfMacList)
+			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p.GetBin(), vfMacList)
+			p4rtclient.AddPeerToPeerP4Rules(p, vfMacList)
 			PeerToPeerP4RulesAdded = true
 		}
 	}
 }
 
-func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
+func (s *FXPHandlerImpl) configureFXP(p types.P4RTClient, brCtlr types.BridgeController) error {
 	if !InitAccApfMacs {
 		log.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
 		return fmt.Errorf("configureFXP: AccApfs info not set, thro-> SetupAccApfs")
@@ -881,13 +880,13 @@ func (s *FXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeControl
 		return fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[PHY_PORT0_INTF_INDEX])
 	}
 	//Add P4 rules for phy ports
-	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
-	p4rtclient.AddPhyPortRules(p4rtbin, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	log.Infof("AddPhyPortRules, path->%s, 1->%v, 2->%v", p.GetBin(), AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.AddPhyPortRules(p, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
 
-	CheckAndAddPeerToPeerP4Rules(p4rtbin)
+	CheckAndAddPeerToPeerP4Rules(p)
 
-	log.Infof("AddLAGP4Rules, path->%v", p4rtbin)
-	p4rtclient.AddLAGP4Rules(p4rtbin)
+	log.Infof("AddLAGP4Rules, path->%v", p.GetBin())
+	p4rtclient.AddLAGP4Rules(p)
 
 	return nil
 }
@@ -916,7 +915,7 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		}
 
 		// Preconfigure the FXP with point-to-point rules between host VFs
-		if err := fxpHandler.configureFXP(s.p4rtbin, s.bridgeCtlr); err != nil {
+		if err := fxpHandler.configureFXP(s.p4rtClient, s.bridgeCtlr); err != nil {
 			return nil, status.Errorf(codes.Internal, "Error when preconfiguring the FXP: %v", err)
 		}
 	}
