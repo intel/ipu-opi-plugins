@@ -269,6 +269,6 @@ func (e *MockExecutableHandlerImpl) nmcliSetupIpAddress(link netlink.Link, ipStr
 
 type MockFXPHandlerImpl struct{}
 
-func (m *MockFXPHandlerImpl) configureFXP(p4rtbin string, brCtlr types.BridgeController) error {
+func (m *MockFXPHandlerImpl) configureFXP(p4rtClient types.P4RTClient, brCtlr types.BridgeController) error {
 	return nil
 }

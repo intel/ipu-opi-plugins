@@ -47,6 +47,7 @@ const (
 	defaultBridgeIntf   = "enp0s1f0d6"
 	defaulP4Pkg         = "linux"
 	defaultP4rtBin      = "/opt/p4/p4-cp-nws/bin/p4rt-ctl"
+	defaultP4rtIpPort   = "localhost:9559"
 	defaultOvsCliDir    = "/usr/bin"
 	defaultOvsDbPath    = "/opt/p4/p4-cp-nws/var/run/openvswitch/db.sock"
 	defaultPortMuxVsi   = 0x0a //this is just a place-holder, since VSI can change.
@@ -70,6 +71,7 @@ var (
 		bridgeType    string
 		p4pkg         string
 		p4rtbin       string
+		p4rtIpPort    string
 		portMuxVsi    int
 		verbosity     string
 		mode          string
@@ -100,6 +102,7 @@ var (
 			bridgeType := viper.GetString("bridgeType")
 			p4pkg := viper.GetString("p4pkg")
 			p4rtbin := viper.GetString("p4rtbin")
+			p4rtIpPort := viper.GetString("p4rtIpPort")
 			portMuxVsi := viper.GetInt("portMuxVsi")
 			mode := config.mode
 			daemonHostIp := viper.GetString("daemonHostIp")
@@ -134,6 +137,7 @@ var (
 				"bridgeType":   bridgeType,
 				"p4pkg":        p4pkg,
 				"p4rtbin":      p4rtbin,
+				"p4rtIpPort":   p4rtIpPort,
 				"portMuxVsi":   portMuxVsi,
 				"mode":         mode,
 				"daemonHostIp": daemonHostIp,
@@ -142,9 +146,9 @@ var (
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir, ovsDbPath)
-			p4Client := getP4Client(p4pkg, p4rtbin, portMuxVsi, defaultP4BridgeName, brType)
+			p4Client := getP4Client(p4pkg, p4rtbin, p4rtIpPort, portMuxVsi, defaultP4BridgeName, brType)
 
-			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4rtbin, p4Client, servingAddr, servingProto, bridgeName, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
+			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, servingAddr, servingProto, bridgeName, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
 			if err := mgr.Run(); err != nil {
 				exitWithError(err, 4)
 			}
@@ -211,6 +215,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&config.bridgeType, "bridgeType", defaultBridge, "The bridge type that IPU plugin will manage")
 	rootCmd.PersistentFlags().StringVar(&config.p4pkg, "p4pkg", defaulP4Pkg, "The P4 package plugin is running with")
 	rootCmd.PersistentFlags().StringVar(&config.p4rtbin, "p4rtbin", defaultP4rtBin, "The directory where the p4rt-ctl binary is located")
+	rootCmd.PersistentFlags().StringVar(&config.p4rtIpPort, "p4rtIpPort", defaultP4rtIpPort, "The IP and port of the p4rt gRPC server")
 	rootCmd.PersistentFlags().IntVar(&config.portMuxVsi, "portMuxVsi", defaultPortMuxVsi,
 		"The port mux VSI number. This must be for the same interface from --interface flags")
 	//Default Log level value is the warn level
@@ -236,6 +241,7 @@ func init() {
 		"bridgeType",
 		"p4pkg",
 		"p4rtbin",
+		"p4rtIpPort",
 		"portMuxVsi",
 		"verbosity",
 		"daemonHostIp",
@@ -251,8 +257,8 @@ func init() {
 	}
 	fmt.Printf("Default Config, configFile=%s, bridgeName=%s bridgeType=%s daemonPort=%v daemonHostIp=%v daemonIpuIp=%v\n",
 		viper.ConfigFileUsed(), viper.GetString("bridgeName"), viper.GetString("bridgeType"), viper.GetString("daemonPort"), viper.GetString("daemonHostIp"), viper.GetString("daemonIpuIp"))
-	fmt.Printf("Default Config, interface=%s mode=%v ovsCliDir=%v ovsDbPath=%v p4pkg=%v p4rtbin=%v servingPort=%v portMuxVsi=%d\n",
-		viper.GetString("interface"), config.mode, viper.GetString("ovsCliDir"), viper.GetString("OvsDbPath"), viper.GetString("p4pkg"), viper.GetString("p4rtbin"), viper.GetString("port"), viper.GetInt("portMuxVsi"))
+	fmt.Printf("Default Config, interface=%s mode=%v ovsCliDir=%v ovsDbPath=%v p4pkg=%v p4rtbin=%v p4rtIpPort=%v servingPort=%v portMuxVsi=%d\n",
+		viper.GetString("interface"), config.mode, viper.GetString("ovsCliDir"), viper.GetString("OvsDbPath"), viper.GetString("p4pkg"), viper.GetString("p4rtbin"), viper.GetString("p4rtIpPort"), viper.GetString("port"), viper.GetInt("portMuxVsi"))
 	fmt.Printf("Default Config, servingAddr=%v servingProto=%v \n",
 		viper.GetString("servingAddr"), viper.GetString("servingProto"))
 }
@@ -353,12 +359,12 @@ func getPluginMode() string {
 	}
 }
 
-func getP4Client(p4pkg string, p4rtbin string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
+func getP4Client(p4pkg string, p4rtbin string, p4rtIpPort string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
 	switch p4pkg {
 	case "linux":
-		return p4rtclient.NewP4RtClient(p4rtbin, portMuxVsi, p4BridgeName, brType)
+		return p4rtclient.NewP4RtClient(p4rtbin, p4rtIpPort, portMuxVsi, p4BridgeName, brType)
 	case "redhat":
-		return p4rtclient.NewRHP4Client(p4rtbin, portMuxVsi, p4BridgeName, brType)
+		return p4rtclient.NewRHP4Client(p4rtbin, p4rtIpPort, portMuxVsi, p4BridgeName, brType)
 	default:
 		return nil
 	}

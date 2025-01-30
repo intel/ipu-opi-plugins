@@ -16,6 +16,8 @@ package ipuplugin
 
 import (
 	"fmt"
+
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 )
 
 // nolint
@@ -28,6 +30,21 @@ func (p *mockP4rtClient) AddRules(macAddr []byte, vlan int) {
 
 // nolint
 func (p *mockP4rtClient) DeleteRules(macAddr []byte, vlan int) {
+}
+
+// nolint
+func (p *mockP4rtClient) ProgramFXPP4Rules(ruleSets []types.FxpRuleBuilder) error {
+	return nil
+}
+
+// nolint
+func (p *mockP4rtClient) GetBin() string {
+	return "p4rt-ctl"
+}
+
+// nolint
+func (p *mockP4rtClient) GetIpPort() string {
+	return "0.0.0.0:9559"
 }
 
 type mockBrCtlr struct {
