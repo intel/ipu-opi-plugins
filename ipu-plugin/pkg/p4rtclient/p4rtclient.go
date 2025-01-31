@@ -907,7 +907,7 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 }
 
 
-func AddRHPrimarySecondaryVportP4Rules(p4RtBin string, prMac string) error {
+func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
         vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
         if err != nil {
                 log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
@@ -983,7 +983,7 @@ func AddRHPrimarySecondaryVportP4Rules(p4RtBin string, prMac string) error {
         return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
 }
 
-func DeleteRHPrimarySecondaryVportP4Rules(p4RtBin string, prMac string) error {
+func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
         vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
         if err != nil {
                 log.Info("deleteRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
