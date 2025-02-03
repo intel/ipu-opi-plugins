@@ -48,7 +48,7 @@ const (
 	defaultBridgeIntf   = "enp0s1f0d6"
 	defaulP4Pkg         = "linux"
 	defaultP4rtBin      = "/opt/p4/p4-cp-nws/bin/p4rt-ctl"
-	defaultP4rtIpPort   = "p4rtservice.openshift-dpu-operator.svc.cluster.local"
+	defaultP4rtIpPort   = "vsp-p4-service.default.svc.cluster.local"
 	defaultOvsCliDir    = "/usr/bin"
 	defaultOvsDbPath    = "/opt/p4/p4-cp-nws/var/run/openvswitch/db.sock"
 	defaultPortMuxVsi   = 0x0a //this is just a place-holder, since VSI can change.
