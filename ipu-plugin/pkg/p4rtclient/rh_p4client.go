@@ -54,13 +54,7 @@ func (p *rhP4Client) GetIpPort() string {
 	return p.p4rtIpPort
 }
 func (p *rhP4Client) ProgramFXPP4Rules(ruleSets []types.FxpRuleBuilder) error {
-	for _, r := range ruleSets {
-		p4rule := []string{r.Action, r.P4br, r.Control, r.Metadata}
-		err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, p4rule...)
-		if err != nil {
-			log.Info("WARNING: Failed to program p4rule: ", p4rule)
-		}
-	}
+	// Dummy func for interface
 	return nil
 }
 
