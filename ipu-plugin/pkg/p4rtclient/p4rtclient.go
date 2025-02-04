@@ -933,24 +933,6 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 
 
 func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, d4Mac string, d5Mac string) error {
-/*      d4vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, d4Mac)
-        if err != nil {
-                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
-                return err
-        }
-        //skip 0x in front of vsi
-        d4vsi = d4vsi[2:]
-
-	d4vsiInt64, err := strconv.ParseInt(d4vsi, 16, 32)
-        if err != nil {
-                log.Info("error from ParseInt ", err)
-                return err
-        }
-	//prVsi is new d4Vsi
-        d4Vsi := int(d4vsiInt64)
-
-	macAddr := strings.ReplaceAll(d4Mac, ":", "")
-*/
         d4Vsi, _, err := getStrippedMacAndVsi(d4Mac)
         if err != nil {
                 log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
@@ -1025,25 +1007,6 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, d4Mac string, d5Mac string)
 }
 
 func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, d5Mac string) error {
-/*      vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
-        if err != nil {
-                log.Info("deleteRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
-                return err
-        }
-        //skip 0x in front of vsi
-        vsi = vsi[2:]
-        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
-        if err != nil {
-                log.Info("error from ParseInt ", err)
-                return err
-        }
-        prVsi := int(vsiInt64)
-
-	macAddr, err := net.ParseMAC(prMac)
-        if err != nil {
-               return errors.New("Invalid Mac Address format")
-	macAddr := utils.GetMacIntValueFromBytes([]byte(prMac))
-*/
         d5Vsi, d5MacAddr, err := getStrippedMacAndVsi(d5Mac)
         if err != nil {
                 log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d5Mac)
