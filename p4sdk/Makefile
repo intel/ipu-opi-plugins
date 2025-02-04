@@ -40,6 +40,8 @@ PLATFORMS ?= linux/arm64,linux/amd64
 # 	docker buildx create --use --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt env.no_proxy=$(NO_PROXY)
 imagex: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	mkdir -p $(CURDIR)/p4
+	cp -r ../e2e/artefacts/$(P4_DIR)/* $(CURDIR)/p4
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{TARGETPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{TARGETPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
 	- $(IMGTOOL) buildx create --name image-builder-p4  --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
 	$(IMGTOOL) buildx use image-builder-p4

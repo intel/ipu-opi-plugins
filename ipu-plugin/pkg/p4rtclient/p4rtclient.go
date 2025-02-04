@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"strconv"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -88,6 +89,26 @@ func getVsiVportInfo(macAddr string) (int, int) {
 	return vfVsi, vfVport
 }
 
+func getStrippedMacAndVsi(macAddr string)  (int, string, error) {
+        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, macAddr)
+        if err != nil {
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", macAddr)
+                return 0, "", err
+        }
+        //skip 0x in front of vsi
+        vsi = vsi[2:]
+
+        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        if err != nil {
+                log.Info("error from ParseInt ", err)
+                return 0, "", err
+        }
+        //prVsi is new d4Vsi
+        Vsi := int(vsiInt64)
+        macAddrStrip := strings.ReplaceAll(macAddr, ":", "")
+	return Vsi, macAddrStrip, nil
+}
+
 func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 	vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
 	if err != nil {
@@ -115,6 +136,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 				phyPort, phyPort,
 			),
 		},
+/* rx_phy_port_to_pr_map rule is commented here as it gets handled at the mirror_profile. keeping the below rule for reference only.
 		{
 			Action:  "add-entry",
 			P4br:    "br0",
@@ -124,6 +146,7 @@ func programPhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 				phyPort, prVport,
 			),
 		},
+*/
 		{
 			Action:  "add-entry",
 			P4br:    "br0",
@@ -171,6 +194,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 				phyPort,
 			),
 		},
+/* rx_phy_port_to_pr_map rule is commented here as it gets handled at the mirror_profile. keeping the below rule for reference only.
 		{
 			Action:  "del-entry",
 			P4br:    "br0",
@@ -180,6 +204,7 @@ func deletePhyVportP4Rules(p4RtBin string, phyPort int, prMac string) error {
 				phyPort,
 			),
 		},
+*/
 		{
 			Action:  "del-entry",
 			P4br:    "br0",
@@ -525,9 +550,9 @@ func AddPhyPortRules(p4RtBin string, prP0mac string, prP1mac string) error {
 	//Add Port 0 P4 rules
 	programPhyVportP4Rules(p4RtBin, 0, prP0mac)
 	//Add Port 1 P4 rules
-	programPhyVportP4Rules(p4RtBin, 1, prP1mac)
+//	programPhyVportP4Rules(p4RtBin, 1, prP1mac)
 	//Add bridge id for non P4 OVS bridge ports
-	programPhyVportBridgeId(p4RtBin, 1, 77)
+//	programPhyVportBridgeId(p4RtBin, 1, 77)
 
 	return nil
 }
@@ -542,9 +567,9 @@ func DeletePhyPortRules(p4RtBin string, prP0mac string, prP1mac string) error {
 	//Add Port 0 P4 rules
 	deletePhyVportP4Rules(p4RtBin, 0, prP0mac)
 	//Add Port 1 P4 rules
-	deletePhyVportP4Rules(p4RtBin, 1, prP1mac)
+//	deletePhyVportP4Rules(p4RtBin, 1, prP1mac)
 	//Add bridge id for non P4 OVS bridge ports
-	deletePhyVportBridgeId(p4RtBin, 1, 77)
+//	deletePhyVportBridgeId(p4RtBin, 1, 77)
 
 	return nil
 
@@ -907,26 +932,35 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 }
 
 
-func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
-        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, d4Mac string, d5Mac string) error {
+/*      d4vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, d4Mac)
         if err != nil {
-                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
                 return err
         }
         //skip 0x in front of vsi
-        vsi = vsi[2:]
-        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        d4vsi = d4vsi[2:]
+
+	d4vsiInt64, err := strconv.ParseInt(d4vsi, 16, 32)
         if err != nil {
                 log.Info("error from ParseInt ", err)
                 return err
         }
-        prVsi := int(vsiInt64)
+	//prVsi is new d4Vsi
+        d4Vsi := int(d4vsiInt64)
 
-        prVport := utils.GetVportForVsi(prVsi)
-
-	macAddr, err := net.ParseMAC(prMac)
+	macAddr := strings.ReplaceAll(d4Mac, ":", "")
+*/
+        d4Vsi, _, err := getStrippedMacAndVsi(d4Mac)
         if err != nil {
-               return errors.New("Invalid Mac Address format")
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
+                return err
+        }
+
+        d5Vsi, d5MacAddr, err := getStrippedMacAndVsi(d5Mac)
+        if err != nil {
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d5Mac)
+                return err
         }
 
         phyVportP4ruleSets := []fxpRuleBuilder{
@@ -936,7 +970,7 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         Control: "linux_networking_control.mir_prof",
                         Metadata: fmt.Sprintf(
                                 "mirror_prof_key=%d,action=linux_networking_control.mir_prof_action(vport_id=%d,mode=0,port_dest_type=0,dest_id=%d,func_valid=1,store_vsi=1)",
-                                mirror_profile_id, prVport, prVport,
+                                mirror_profile_id, d5Vsi, d5Vsi,
                         ),
                 },
                 {
@@ -944,8 +978,8 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         P4br:    "br0",
                         Control: "linux_networking_control.rx_phy_port_to_pr_map",
                         Metadata: fmt.Sprintf(
-                                "vmeta.common.port_id=0x00,zero_padding=0x0000,action=linux_networking_control.mirror_and_send(0x%d,%d)",
-                                prVport, mirror_profile_id,
+                                "vmeta.common.port_id=0x00,zero_padding=0x0000,action=linux_networking_control.mirror_and_send(%d,%d)",
+                                d4Vsi+16, mirror_profile_id,
                         ),
                 },
                 {
@@ -954,9 +988,10 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
-                                prVsi, bridgeId,
+                                d5Vsi, phyPort,
                         ),
                 },
+/* rx_source_port rule is commented here as it gets handled at the PhyVportP4Rules. keeping the below rule for reference only.
                 {
                         Action:  "add-entry",
                         P4br:    "br0",
@@ -966,6 +1001,7 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                                 phyPort,
                         ),
                 },
+*/
                 {
                         Action:  "add-entry",
                         P4br:    "br0",
@@ -981,15 +1017,15 @@ func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         Control: "linux_networking_control.l2_fwd_rx_table",
                         Metadata: fmt.Sprintf(
                                 "user_meta.pmeta.bridge_id=%d,dst_mac=0x%s,action=linux_networking_control.l2_fwd(%d)",
-                                bridgeId, macAddr, prVsi+16,
+                                bridgeId, d5MacAddr, d5Vsi+16,
                         ),
                 },
         }
         return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
 }
 
-func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
-        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, d5Mac string) error {
+/*      vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
         if err != nil {
                 log.Info("deleteRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
                 return err
@@ -1006,6 +1042,12 @@ func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
 	macAddr, err := net.ParseMAC(prMac)
         if err != nil {
                return errors.New("Invalid Mac Address format")
+	macAddr := utils.GetMacIntValueFromBytes([]byte(prMac))
+*/
+        d5Vsi, d5MacAddr, err := getStrippedMacAndVsi(d5Mac)
+        if err != nil {
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d5Mac)
+                return err
         }
 
         phyVportP4ruleSets := []fxpRuleBuilder{
@@ -1032,9 +1074,10 @@ func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         Control: "linux_networking_control.tx_acc_vsi",
                         Metadata: fmt.Sprintf(
                                 "vmeta.common.vsi=%d,zero_padding=0",
-                                prVsi,
+                                d5Vsi,
                         ),
                 },
+/* rx_source_port rule is commented here as it gets handled at the PhyVportP4Rules. keeping the below rule for reference only.
                 {
                         Action:  "del-entry",
                         P4br:    "br0",
@@ -1043,6 +1086,7 @@ func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                                 "vmeta.common.port_id=0,zero_padding=0",
                         ),
                 },
+*/
                 {
                         Action:  "del-entry",
                         P4br:    "br0",
@@ -1058,7 +1102,7 @@ func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
                         Control: "linux_networking_control.l2_fwd_rx_table",
                         Metadata: fmt.Sprintf(
                                 "user_meta.pmeta.bridge_id=%d,dst_mac=0x%s",
-                                bridgeId, macAddr,
+                                bridgeId, d5MacAddr,
                         ),
                 },
         }

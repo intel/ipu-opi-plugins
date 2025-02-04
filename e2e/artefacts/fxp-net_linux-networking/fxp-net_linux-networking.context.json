@@ -1,10 +1,10 @@
 {
     "program_name": "fxp-net_linux-networking",
-    "build_date": "Mon Nov  4 22:13:20 2024",
-    "compile_command": "/opt/p4-tools/p4c/bin/p4c-pna-xxp -I /opt/p4-tools/p4c/share/p4c/p4c_src/../idpf-lib --Wdisable --no-pedantic --top4 LiveVariableAnalysis --context fxp-net_linux-networking.context.json --tdi fxp-net_linux-networking.tdi.json -I /opt/p4-tools/p4c/share/p4c/p4include -I /opt/p4-tools/p4c/bin/../lib -I /opt/p4-tools/p4c/bin/../share/p4c/p4include -I /opt/p4-tools/p4c/bin/../share/p4c/idpf-lib --p4v=16 --p4runtime-files fxp-net_linux-networking.p4info.txt --pkg-name linux_networking --pkg-version 1.0.73.29 -v -o ./fxp-net_linux-networking_da46405215bc427e884de0ff497c6e7b.s fxp-net_linux-networking.p4",
+    "build_date": "Wed Feb 12 05:25:56 2025",
+    "compile_command": "/opt/p4-tools/p4c/bin/p4c-pna-xxp -I /opt/p4-tools/p4c/share/p4c/p4c_src/../idpf-lib --Wdisable --no-pedantic --context ./artifacts/fxp-net_linux-networking/context.json --tdi ./artifacts/fxp-net_linux-networking/tdi.json --p4runtime-entries-files ./artifacts/fxp-net_linux-networking/entries.json -I /opt/p4-tools/p4c/share/p4c/p4include -I /../lib -I /../share/p4c/p4include/idpf -I /../share/p4c/p4include -I /../share/p4c/idpf-lib --p4v=16 --p4runtime-files ./artifacts/fxp-net_linux-networking/p4Info.txt --pkg-name Sample P4 Program pkg --pkg-version 1.0.73.35 -o artifacts/fxp-net_linux-networking/fxp-net_linux-networking_d76ef119e999408db1ba2c20916f3d2b.s /artifacts/fxp-net-scenarios/fxp-net_linux-networking/fxp-net_linux-networking.p4",
     "compiler_version": "3.0.70.124",
     "schema_version": "1.0.0",
-    "run_id": "124114221011",
+    "run_id": "12521252226",
     "target": "MEV",
     "global_configs": {
         "hardware_blocks": [
@@ -69,7 +69,8 @@
                 ]
             }
         ],
-        "count_mode": 60
+        "count_mode": 60,
+        "mirror_mode": 0
     },
     "tables": [
         {
@@ -5573,7 +5574,7 @@
                     "bit_width": 32
                 }
             ],
-            "default_action_handle": 21790705,
+            "default_action_handle": 21257015,
             "max_default_actions": 2,
             "actions": [
                 {
@@ -5635,6 +5636,15 @@
                 {
                     "name": "linux_networking_control.trap_enable",
                     "handle": 21790705,
+                    "constant_default_action": false,
+                    "is_compiler_added_action": false,
+                    "allowed_as_hit_action": true,
+                    "allowed_as_default_action": false,
+                    "p4_parameters": []
+                },
+                {
+                    "name": "NoAction",
+                    "handle": 21257015,
                     "constant_default_action": true,
                     "is_compiler_added_action": false,
                     "allowed_as_hit_action": false,
@@ -5834,31 +5844,12 @@
                                         "offset": 0
                                     }
                                 ]
-                            }
-                        ],
-                        "default_action_format": [
+                            },
                             {
-                                "action_name": "linux_networking_control.trap_enable",
-                                "action_handle": 21790705,
-                                "hw_actions_list": [
-                                    {
-                                        "prec": 7,
-                                        "action_code": "SET10_1b",
-                                        "index": 0,
-                                        "value": 64,
-                                        "mask": 112
-                                    },
-                                    {
-                                        "prec": 7,
-                                        "action_code": "SET1B_24b",
-                                        "index": 0,
-                                        "setmd_action_code": "SET_8b",
-                                        "value": 1,
-                                        "mask": 1,
-                                        "type_id": 4,
-                                        "offset": 0
-                                    }
-                                ]
+                                "action_name": "NoAction",
+                                "action_handle": 21257015,
+                                "immediate_fields": [],
+                                "hw_actions_list": []
                             }
                         ]
                     }
@@ -6422,7 +6413,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -6454,7 +6445,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -7482,7 +7473,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -7525,7 +7516,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -8758,7 +8749,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 1,
+                                        "index": 0,
                                         "setmd_action_code": "SET_16b",
                                         "parameters": [
                                             {
@@ -8776,7 +8767,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 2,
+                                        "index": 1,
                                         "setmd_action_code": "SET_8b",
                                         "value": 32,
                                         "mask": 32,
@@ -8801,7 +8792,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 1,
+                                        "index": 0,
                                         "setmd_action_code": "SET_16b",
                                         "parameters": [
                                             {
@@ -8819,7 +8810,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 2,
+                                        "index": 1,
                                         "setmd_action_code": "SET_8b",
                                         "value": 8,
                                         "mask": 8,
@@ -9096,7 +9087,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 1,
+                                        "index": 0,
                                         "setmd_action_code": "SET_16b",
                                         "parameters": [
                                             {
@@ -9114,7 +9105,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 2,
+                                        "index": 1,
                                         "setmd_action_code": "SET_8b",
                                         "value": 32,
                                         "mask": 32,
@@ -9139,7 +9130,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 1,
+                                        "index": 0,
                                         "setmd_action_code": "SET_16b",
                                         "parameters": [
                                             {
@@ -9157,7 +9148,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 2,
+                                        "index": 1,
                                         "setmd_action_code": "SET_8b",
                                         "value": 8,
                                         "mask": 8,
@@ -9319,7 +9310,7 @@
                                         "action_code": "SET1B_24b",
                                         "index": 1,
                                         "setmd_action_code": "SET_16b",
-                                        "value": 1,
+                                        "value": 0,
                                         "type_id": 4,
                                         "offset": 4
                                     }
@@ -9374,7 +9365,7 @@
                     "bit_width": 32
                 }
             ],
-            "default_action_handle": 29238102,
+            "default_action_handle": 32890467,
             "max_default_actions": 2,
             "actions": [
                 {
@@ -9382,8 +9373,8 @@
                     "handle": 32890467,
                     "constant_default_action": false,
                     "is_compiler_added_action": false,
-                    "allowed_as_hit_action": true,
-                    "allowed_as_default_action": false,
+                    "allowed_as_hit_action": false,
+                    "allowed_as_default_action": true,
                     "p4_parameters": [
                         {
                             "name": "source_port",
@@ -9394,10 +9385,10 @@
                 {
                     "name": "linux_networking_control.drop",
                     "handle": 29238102,
-                    "constant_default_action": true,
+                    "constant_default_action": false,
                     "is_compiler_added_action": false,
-                    "allowed_as_hit_action": false,
-                    "allowed_as_default_action": true,
+                    "allowed_as_hit_action": true,
+                    "allowed_as_default_action": false,
                     "p4_parameters": []
                 }
             ],
@@ -9464,15 +9455,17 @@
                         ],
                         "default_action_format": [
                             {
-                                "action_name": "linux_networking_control.drop",
-                                "action_handle": 29238102,
+                                "action_name": "linux_networking_control.set_source_port",
+                                "action_handle": 32890467,
                                 "hw_actions_list": [
                                     {
                                         "prec": 7,
-                                        "action_code": "SET10_1b",
-                                        "index": 0,
-                                        "value": 1,
-                                        "mask": 1
+                                        "action_code": "SET1B_24b",
+                                        "index": 1,
+                                        "setmd_action_code": "SET_16b",
+                                        "value": 0,
+                                        "type_id": 4,
+                                        "offset": 4
                                     }
                                 ]
                             }
@@ -9796,7 +9789,7 @@
         },
         {
             "table_type": "match",
-            "direction": "BIDIRECTIONAL",
+            "direction": "TX",
             "handle": 46342225,
             "name": "linux_networking_control.l2_fwd_smac_table",
             "size": 1024,
@@ -9898,7 +9891,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -9930,7 +9923,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "value": 1,
                                         "mask": 1,
@@ -10092,7 +10085,7 @@
                                         "prec": 7,
                                         "action_code": "SET1_16b",
                                         "index": 2,
-                                        "value": 1,
+                                        "value": 0,
                                         "type": "SINGLETON_PORT"
                                     },
                                     {
@@ -10787,6 +10780,24 @@
             "max_default_actions": 2,
             "actions": [
                 {
+                    "name": "linux_networking_control.mirror_and_send",
+                    "handle": 20004960,
+                    "constant_default_action": false,
+                    "is_compiler_added_action": false,
+                    "allowed_as_hit_action": true,
+                    "allowed_as_default_action": false,
+                    "p4_parameters": [
+                        {
+                            "name": "port",
+                            "bit_width": 32
+                        },
+                        {
+                            "name": "mirror_session_id",
+                            "bit_width": 16
+                        }
+                    ]
+                },
+                {
                     "name": "linux_networking_control.fwd_to_vsi",
                     "handle": 26092385,
                     "constant_default_action": true,
@@ -10824,6 +10835,66 @@
                         "hash_size": 325632,
                         "action_format": [
                             {
+                                "action_name": "linux_networking_control.mirror_and_send",
+                                "action_handle": 20004960,
+                                "immediate_fields": [
+                                    {
+                                        "param_name": "port",
+                                        "param_handle": 0,
+                                        "dest_start": 0,
+                                        "start_bit_offset": 0,
+                                        "dest_width": 32
+                                    },
+                                    {
+                                        "param_name": "mirror_session_id",
+                                        "param_handle": 1,
+                                        "dest_start": 4,
+                                        "start_bit_offset": 0,
+                                        "dest_width": 16
+                                    }
+                                ],
+                                "hw_actions_list": [
+                                    {
+                                        "action_code": "SET2_8b",
+                                        "index": 12,
+                                        "prec": 1,
+                                        "post_mod_msk": 1
+                                    },
+                                    {
+                                        "prec": 7,
+                                        "action_code": "SET2_8b",
+                                        "index": 3,
+                                        "parameters": [
+                                            {
+                                                "param_name": "mirror_session_id",
+                                                "param_handle": 1,
+                                                "param_start_bit": 0,
+                                                "param_value_length": 16,
+                                                "value_start_bit": 0,
+                                                "byte_order": "HOST"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "prec": 7,
+                                        "action_code": "SET1_16b",
+                                        "encoding_grp": 13,
+                                        "encoding_port": "VSI",
+                                        "index": 2,
+                                        "parameters": [
+                                            {
+                                                "param_name": "port",
+                                                "param_handle": 0,
+                                                "param_start_bit": 0,
+                                                "param_value_length": 32,
+                                                "value_start_bit": 0,
+                                                "byte_order": "HOST"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
                                 "action_name": "linux_networking_control.fwd_to_vsi",
                                 "action_handle": 26092385,
                                 "immediate_fields": [
@@ -10839,7 +10910,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1_16b",
-                                        "encoding_grp": 13,
+                                        "encoding_grp": 14,
                                         "encoding_port": "VSI",
                                         "index": 2,
                                         "parameters": [
@@ -10878,7 +10949,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1_16b",
-                                        "encoding_grp": 16,
+                                        "encoding_grp": 17,
                                         "encoding_port": "VSI",
                                         "index": 2,
                                         "value": 28,
@@ -10991,7 +11062,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1_16b",
-                                        "encoding_grp": 14,
+                                        "encoding_grp": 15,
                                         "encoding_port": "VSI",
                                         "index": 2,
                                         "parameters": [
@@ -11030,7 +11101,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1_16b",
-                                        "encoding_grp": 17,
+                                        "encoding_grp": 18,
                                         "encoding_port": "VSI",
                                         "index": 2,
                                         "value": 28,
@@ -11143,7 +11214,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1_16b",
-                                        "encoding_grp": 15,
+                                        "encoding_grp": 16,
                                         "encoding_port": "VSI",
                                         "index": 2,
                                         "parameters": [
@@ -12083,7 +12154,7 @@
                                     {
                                         "prec": 7,
                                         "action_code": "SET1B_24b",
-                                        "index": 0,
+                                        "index": 2,
                                         "setmd_action_code": "SET_8b",
                                         "parameters": [
                                             {
@@ -13843,6 +13914,314 @@
                         "p4_ref_table_handles": [
                             46496254
                         ]
+                    }
+                ]
+            }
+        },
+        {
+            "table_type": "match_value_lookup_table",
+            "handle": 40941464,
+            "name": "linux_networking_control.mir_prof",
+            "size": 256,
+            "p4_hidden": false,
+            "match_key_fields": [
+                {
+                    "name": "mirror_prof_key",
+                    "instance_name": "meta",
+                    "field_name": "key",
+                    "match_type": "exact",
+                    "bit_width": 8,
+                    "index": 0,
+                    "position": 0
+                }
+            ],
+            "match_attributes": {
+                "hardware_blocks": [
+                    {
+                        "name": "MOD",
+                        "id": 7,
+                        "hw_interface": "CP_CHANNEL",
+                        "hw_resource": "mirror_profile",
+                        "hw_resource_id": 0,
+                        "immediate_fields": [
+                            {
+                                "param_name": "hash_val",
+                                "param_handle": 0,
+                                "dest_start": 0,
+                                "dest_width": 64
+                            },
+                            {
+                                "param_name": "hash_mask",
+                                "param_handle": 1,
+                                "dest_start": 8,
+                                "dest_width": 64
+                            },
+                            {
+                                "param_name": "port_dest_type",
+                                "param_handle": 2,
+                                "dest_start": 16,
+                                "dest_width": 32
+                            },
+                            {
+                                "param_name": "vport_id",
+                                "param_handle": 3,
+                                "dest_start": 20,
+                                "dest_width": 32
+                            },
+                            {
+                                "param_name": "mode",
+                                "param_handle": 4,
+                                "dest_start": 24,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "op",
+                                "param_handle": 5,
+                                "dest_start": 24,
+                                "dest_width": 32
+                            },
+                            {
+                                "param_name": "exp",
+                                "param_handle": 6,
+                                "dest_start": 28,
+                                "dest_width": 32
+                            },
+                            {
+                                "param_name": "mod_addr",
+                                "param_handle": 7,
+                                "dest_start": 32,
+                                "dest_width": 32
+                            },
+                            {
+                                "param_name": "mod_profile",
+                                "param_handle": 8,
+                                "dest_start": 36,
+                                "dest_width": 24
+                            },
+                            {
+                                "param_name": "dest_id",
+                                "param_handle": 9,
+                                "dest_start": 39,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "trunc_size",
+                                "param_handle": 10,
+                                "dest_start": 41,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "mod_content_size",
+                                "param_handle": 11,
+                                "dest_start": 43,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "dst_q",
+                                "param_handle": 12,
+                                "dest_start": 45,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "defer_drop_en",
+                                "param_handle": 13,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "trunc_mode_en",
+                                "param_handle": 14,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "recirculate",
+                                "param_handle": 15,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "store_port",
+                                "param_handle": 16,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "func_valid",
+                                "param_handle": 17,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "store_vsi",
+                                "param_handle": 18,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "drop_en",
+                                "param_handle": 19,
+                                "dest_start": 47,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "trunc",
+                                "param_handle": 20,
+                                "dest_start": 48,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "mod_profile_valid",
+                                "param_handle": 21,
+                                "dest_start": 48,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "mod_content_size_en",
+                                "param_handle": 22,
+                                "dest_start": 48,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "mod_ptype_tras_index",
+                                "param_handle": 23,
+                                "dest_start": 48,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "mod_common_en",
+                                "param_handle": 24,
+                                "dest_start": 49,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "mod_append_action_bus_en",
+                                "param_handle": 25,
+                                "dest_start": 49,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "is_md_gen0",
+                                "param_handle": 26,
+                                "dest_start": 49,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "is_md_gen1",
+                                "param_handle": 27,
+                                "dest_start": 49,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "is_md_local",
+                                "param_handle": 28,
+                                "dest_start": 49,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "is_md_remote",
+                                "param_handle": 29,
+                                "dest_start": 50,
+                                "dest_width": 1
+                            },
+                            {
+                                "param_name": "md_gen0_type",
+                                "param_handle": 30,
+                                "dest_start": 50,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_gen0_off",
+                                "param_handle": 31,
+                                "dest_start": 51,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_gen0_val",
+                                "param_handle": 32,
+                                "dest_start": 52,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "md_gen0_mask",
+                                "param_handle": 33,
+                                "dest_start": 54,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "md_gen1_type",
+                                "param_handle": 34,
+                                "dest_start": 56,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_gen1_off",
+                                "param_handle": 35,
+                                "dest_start": 57,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_gen1_val",
+                                "param_handle": 36,
+                                "dest_start": 58,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "md_gen1_mask",
+                                "param_handle": 37,
+                                "dest_start": 60,
+                                "dest_width": 16
+                            },
+                            {
+                                "param_name": "md_local_type",
+                                "param_handle": 38,
+                                "dest_start": 62,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_local_off",
+                                "param_handle": 39,
+                                "dest_start": 63,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_local_val",
+                                "param_handle": 40,
+                                "dest_start": 64,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_local_mask",
+                                "param_handle": 41,
+                                "dest_start": 65,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_remote_type",
+                                "param_handle": 42,
+                                "dest_start": 66,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_remote_off",
+                                "param_handle": 43,
+                                "dest_start": 67,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_remote_val",
+                                "param_handle": 44,
+                                "dest_start": 68,
+                                "dest_width": 8
+                            },
+                            {
+                                "param_name": "md_remote_mask",
+                                "param_handle": 45,
+                                "dest_start": 69,
+                                "dest_width": 8
+                            }
+                        ],
+                        "p4_ref_table_handles": []
                     }
                 ]
             }
