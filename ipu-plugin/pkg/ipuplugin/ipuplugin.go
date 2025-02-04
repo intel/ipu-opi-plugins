@@ -191,6 +191,9 @@ func (s *server) Stop() {
 	log.Infof("DeleteLAGP4Rules, path->%s", s.p4rtbin)
 	p4rtclient.DeleteLAGP4Rules(s.p4rtbin)
 
+	log.Infof("DeleteRHPrimaryNetworkVportP4Rules, path->%s, 1->%v", s.p4rtbin, AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.DeleteRHPrimaryNetworkVportP4Rules(s.p4rtbin, AccApfMacList[PHY_PORT1_INTF_INDEX])
+
 	s.grpcSrvr.GracefulStop()
 	if s.listener != nil {
 		s.listener.Close()

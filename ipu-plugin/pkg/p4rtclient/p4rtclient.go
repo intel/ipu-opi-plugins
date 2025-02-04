@@ -25,6 +25,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+        mirror_profile_id = 3
+        bridgeId = 0
+        phyPort = 0
+)
+
 type p4rtclient struct {
 	p4RtBin    string
 	portMuxVsi int
@@ -898,4 +904,163 @@ func DeleteLAGP4Rules(p4RtBin string) error {
 		log.Info("DeleteLAGP4Rules FXP P4 rules were delete successfully")
 	}
 	return nil
+}
+
+
+func AddRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
+        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+        if err != nil {
+                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
+                return err
+        }
+        //skip 0x in front of vsi
+        vsi = vsi[2:]
+        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        if err != nil {
+                log.Info("error from ParseInt ", err)
+                return err
+        }
+        prVsi := int(vsiInt64)
+
+        prVport := utils.GetVportForVsi(prVsi)
+
+	macAddr, err := net.ParseMAC(prMac)
+        if err != nil {
+               return errors.New("Invalid Mac Address format")
+        }
+
+        phyVportP4ruleSets := []fxpRuleBuilder{
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.mir_prof",
+                        Metadata: fmt.Sprintf(
+                                "mirror_prof_key=%d,action=linux_networking_control.mir_prof_action(vport_id=%d,mode=0,port_dest_type=0,dest_id=%d,func_valid=1,store_vsi=1)",
+                                mirror_profile_id, prVport, prVport,
+                        ),
+                },
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.rx_phy_port_to_pr_map",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.port_id=0x00,zero_padding=0x0000,action=linux_networking_control.mirror_and_send(0x%d,%d)",
+                                prVport, mirror_profile_id,
+                        ),
+                },
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.tx_acc_vsi",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.vsi=%d,zero_padding=0,action=linux_networking_control.l2_fwd_and_bypass_bridge(%d)",
+                                prVsi, bridgeId,
+                        ),
+                },
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.rx_source_port",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.port_id=0,zero_padding=0,action=linux_networking_control.set_source_port(%d)",
+                                phyPort,
+                        ),
+                },
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.source_port_to_bridge_map",
+                        Metadata: fmt.Sprintf(
+                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=%d/0xfff,priority=1,action=linux_networking_control.set_bridge_id(bridge_id=%d)",
+                                phyPort, phyPort, bridgeId,
+                        ),
+                },
+                {
+                        Action:  "add-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.l2_fwd_rx_table",
+                        Metadata: fmt.Sprintf(
+                                "user_meta.pmeta.bridge_id=%d,dst_mac=0x%s,action=linux_networking_control.l2_fwd(%d)",
+                                bridgeId, macAddr, prVsi+16,
+                        ),
+                },
+        }
+        return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
+}
+
+func DeleteRHPrimaryNetworkVportP4Rules(p4RtBin string, prMac string) error {
+        vsi, err := utils.ImcQueryfindVsiGivenMacAddr(types.IpuMode, prMac)
+        if err != nil {
+                log.Info("deleteRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", prMac)
+                return err
+        }
+        //skip 0x in front of vsi
+        vsi = vsi[2:]
+        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+        if err != nil {
+                log.Info("error from ParseInt ", err)
+                return err
+        }
+        prVsi := int(vsiInt64)
+
+	macAddr, err := net.ParseMAC(prMac)
+        if err != nil {
+               return errors.New("Invalid Mac Address format")
+        }
+
+        phyVportP4ruleSets := []fxpRuleBuilder{
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.mir_prof",
+                        Metadata: fmt.Sprintf(
+                                "mirror_prof_key=%d",
+                                mirror_profile_id,
+                        ),
+                },
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.rx_phy_port_to_pr_map",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.port_id=0x00,zero_padding=0x0000",
+                        ),
+                },
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.tx_acc_vsi",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.vsi=%d,zero_padding=0",
+                                prVsi,
+                        ),
+                },
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.rx_source_port",
+                        Metadata: fmt.Sprintf(
+                                "vmeta.common.port_id=0,zero_padding=0",
+                        ),
+                },
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.source_port_to_bridge_map",
+                        Metadata: fmt.Sprintf(
+                                "user_meta.cmeta.source_port=%d/0xffff,hdrs.vlan_ext[vmeta.common.depth].hdr.vid=%d/0xfff,priority=1",
+                                phyPort, phyPort,
+                        ),
+                },
+                {
+                        Action:  "del-entry",
+                        P4br:    "br0",
+                        Control: "linux_networking_control.l2_fwd_rx_table",
+                        Metadata: fmt.Sprintf(
+                                "user_meta.pmeta.bridge_id=%d,dst_mac=0x%s",
+                                bridgeId, macAddr,
+                        ),
+                },
+        }
+        return programFXPP4Rules(p4RtBin, phyVportP4ruleSets)
 }
