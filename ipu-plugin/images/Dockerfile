@@ -21,6 +21,7 @@ RUN mkdir -p /opt/p4/p4-cp-nws/bin/p4
 COPY bin/p4rt-ctl /opt/p4/p4-cp-nws/bin/
 #TODO: Update to newer p4runtime, for latest release.
 COPY bin/p4runtime-2023.11.0/p4 /opt/p4/p4-cp-nws/bin/p4
+COPY bin/p4runtime-2023.11.0/copy_p4rt_python_deps.sh /opt/p4/p4-cp-nws/bin/p4
 
 WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
@@ -28,7 +29,6 @@ ENV PYTHONUNBUFFERED=1
 #Install deps for p4runtime(previously deps got installed per p4runtime wheel package's->p4runtime-2023.11.0.dist-info/METADATA)
 RUN apk add -U --no-cache python3'>='3.8  py3-pip'=='23.3.1-r0 \
     py3-grpcio'=='1.59.3-r0 \
-    py3-protobuf'=='4.24.4-r0 \
     py3-netaddr'=='0.9.0-r0
 
 #Install deps for p4runtime(previously deps got installed per p4runtime wheel package's->p4runtime-2023.11.0.dist-info/METADATA)
@@ -36,10 +36,7 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages -v "protobuf==
 
 #Note: Redhat's build system does not allow p4runtime wheel package. Manually installing python protobuf
 #files(for p4runtime) under pip's installation path.
-RUN output=`pip show pip | grep Location` && \
-    pkg_install_path=$(echo "$output" | awk '{print $2}') && \
-    echo "$pkg_install_path" && \
-    cp -R /opt/p4/p4-cp-nws/bin/p4 $pkg_install_path
+RUN chmod a+x /opt/p4/p4-cp-nws/bin/p4/copy_p4rt_python_deps.sh && /opt/p4/p4-cp-nws/bin/p4/copy_p4rt_python_deps.sh
 
 RUN rm -rf /var/cache/apk/*
 RUN apk add --update --no-cache openssh networkmanager-cli openvswitch iproute2
