@@ -1,6 +1,7 @@
 module github.com/intel/ipu-opi-plugins/ipu-plugin
 
 go 1.22.4
+toolchain go1.23.6
 
 require (
 	github.com/onsi/ginkgo/v2 v2.20.2
@@ -15,8 +16,8 @@ require (
 	github.com/vishvananda/netlink v1.3.0
 	golang.org/x/crypto v0.32.0
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
-	k8s.io/kubelet v0.31.1
+	google.golang.org/protobuf v1.35.1
+	k8s.io/kubelet v0.32.1
 )
 
 require (
@@ -49,7 +50,7 @@ require (
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.26.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240826202546-f6391c0de4c7 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
