@@ -148,6 +148,9 @@ var (
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir, ovsDbPath)
+			// In case of failure, revert to using localhost:9559 which works for P4 in container
+			// but not for P4 in pod. In case of P4 in pod in failure case, we will error out in the
+			// waitForInfraP4d()
 			p4rtIpPort, err := convertNameToIpAndPort(p4rtName)
 			if err != nil {
 				log.Warnf("Error %v while converting %s to IP. Using %s instead", err, p4rtName, p4rtIpPort)
