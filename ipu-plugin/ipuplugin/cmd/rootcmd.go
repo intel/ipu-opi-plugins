@@ -148,7 +148,10 @@ var (
 			}).Info("Configurations")
 
 			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir, ovsDbPath)
-			p4rtIpPort := convertNameToIpAndPort(p4rtName)
+			p4rtIpPort, err := convertNameToIpAndPort(p4rtName)
+			if err != nil {
+				log.Warnf("Error %v while converting %s to IP. Using %s instead", err, p4rtName, p4rtIpPort)
+			}
 
 			p4Client := getP4Client(p4pkg, p4rtbin, p4rtIpPort, portMuxVsi, defaultP4BridgeName, brType)
 
@@ -363,7 +366,7 @@ func getPluginMode() string {
 	}
 }
 
-func convertNameToIpAndPort(p4rtName string) string {
+func convertNameToIpAndPort(p4rtName string) (string, error) {
 
 	p4rtIp := "localhost"
 	ip, err := net.LookupIP(p4rtName)
@@ -374,7 +377,7 @@ func convertNameToIpAndPort(p4rtName string) string {
 	}
 
 	log.Infof("Setting p4runtime Ip to %s", p4rtIp)
-	return p4rtIp + ":" + p4rtPort
+	return p4rtIp + ":" + p4rtPort, err
 }
 
 func getP4Client(p4pkg string, p4rtbin string, p4rtIpPort string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {

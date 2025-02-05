@@ -78,12 +78,13 @@ const (
 var AccIntfNames = [ApfNumber]string{"enp0s1f0", "enp0s1f0d1", "enp0s1f0d2", "enp0s1f0d3", "enp0s1f0d4", "enp0s1f0d5", "enp0s1f0d6",
 	"enp0s1f0d7", "enp0s1f0d8", "enp0s1f0d9", "enp0s1f0d10", "enp0s1f0d11", "enp0s1f0d12", "enp0s1f0d13", "enp0s1f0d14", "enp0s1f0d15"}
 
-func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtbin string, brCtlr types.BridgeController) *LifeCycleServiceServer {
+func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtClient types.P4RTClient, brCtlr types.BridgeController) *LifeCycleServiceServer {
 	return &LifeCycleServiceServer{
 		daemonHostIp: daemonHostIp,
 		daemonIpuIp:  daemonIpuIp,
 		daemonPort:   daemonPort,
 		mode:         mode,
+		p4rtClient:   p4rtClient,
 		bridgeCtlr:   brCtlr,
 		initialized:  false,
 	}
@@ -686,7 +687,7 @@ func countAPFDevices() int {
 Updates post_init_app.sh script, which installs
 port-setup.sh script. port-setup.sh script,
 will run devmem command for D5 interface, as soon as
-D5 comes up on ACC, to enable connectivity. 
+D5 comes up on ACC, to enable connectivity.
 There is an intermittent race condition, when port-setup.log file, is
 accessed(for file removal or any other case) by post_init_app.sh,
 then later when nohup tries to stdout to that log file(port-setup.log),
@@ -695,14 +696,15 @@ In order to circumvent this, just allowing nohup to over-write port-setup.log.
 Also, to make this more robust, added polling in post-init-app.sh, to check for
 log(and if not present within 10 secs), we start second instance of port-setup.sh.
 So, at the most, we would run port-setup.sh twice.
-Running devmem commands thro locking mechanism, so the devmem commands are 
+Running devmem commands thro locking mechanism, so the devmem commands are
 run in critical section, so that devmem commands are run sequentially,
 when port-setup.sh gets run concurrently.
 Note: In order to handle RHEL ISO install use-case, where ACC reboots(post install),
 independant of IMC, port-setup script will be running
 as daemon, so anytime ACC goes down(it will get detected), so that devmem commands
 will get re-run, when ACC comes up. Based on design, atleast 1 or utmost 2 instances
-of port-setup can be running as daemon. */
+of port-setup can be running as daemon.
+*/
 func postInitAppScript() string {
 
 	postInitAppScriptStr := `#!/bin/bash
