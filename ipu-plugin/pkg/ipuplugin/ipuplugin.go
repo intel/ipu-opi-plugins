@@ -78,8 +78,8 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController,
 
 func waitForInfraP4d(p4rtClient types.P4RTClient) (string, error) {
 	ctx := context.Background()
-	maxRetries := 50
-	retryInterval := 4 * time.Second
+	maxRetries := 20
+	retryInterval := 3 * time.Second
 
 	var err error
 	var count int
