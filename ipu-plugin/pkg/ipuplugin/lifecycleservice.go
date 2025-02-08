@@ -1130,8 +1130,7 @@ func CheckAndAddPeerToPeerP4Rules(p types.P4RTClient) {
 			log.Errorf("CheckAndAddPeerToPeerP4Rules: unable to reach the IMC %v", err)
 			return
 		}
-		//with use of strings.split in utils, we can get list of length 1 with empty string.
-		if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
+		if (len(vfMacList) == 0) {
 			log.Infof("No VFs initialized on the host yet")
 		} else {
 			log.Infof("AddPeerToPeerP4Rules, path->%s, vfMacList->%v", p.GetBin(), vfMacList)
