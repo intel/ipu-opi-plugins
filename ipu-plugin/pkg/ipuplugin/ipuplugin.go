@@ -176,7 +176,7 @@ func (s *server) Stop() {
 
 	vfMacList, err := utils.GetVfMacList()
 	if err != nil {
-		log.Errorf("Unable to reach the IMC %v", err)
+		log.Errorf("Stop: Error->%v", err)
 	}
 	if len(vfMacList) == 0 || (len(vfMacList) == 1 && vfMacList[0] == "") {
 		log.Errorf("No VFs initialized on the host")
