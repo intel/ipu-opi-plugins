@@ -31,30 +31,25 @@ type NetworkFunctionServiceServer struct {
 	pb.UnimplementedNetworkFunctionServiceServer
 	Ports      map[string]*types.BridgePortInfo
 	bridgeCtlr types.BridgeController
-	p4RtClient types.P4RTClient
-	p4rtbin    string
+	p4rtClient types.P4RTClient
 }
 
-func NewNetworkFunctionService(ports map[string]*types.BridgePortInfo, brCtlr types.BridgeController, p4Client types.P4RTClient, p4rtbin string) *NetworkFunctionServiceServer {
+func NewNetworkFunctionService(ports map[string]*types.BridgePortInfo, brCtlr types.BridgeController, p4Client types.P4RTClient) *NetworkFunctionServiceServer {
 	return &NetworkFunctionServiceServer{
 		Ports:      ports,
 		bridgeCtlr: brCtlr,
-		p4RtClient: p4Client,
-		p4rtbin:    p4rtbin,
+		p4rtClient: p4Client,
 	}
 }
 
 func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context, in *pb.NFRequest) (*pb.Empty, error) {
 	vfMacList, err := utils.GetVfMacList()
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
+		log.Errorf("CreateNetworkFunction: Error-> %v", err)
+		return nil, status.Errorf(codes.Internal, "Error-> %v", err)
 	}
 
-	if len(vfMacList) == 0 {
-		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
-	}
-
-	CheckAndAddPeerToPeerP4Rules(s.p4rtbin)
+	CheckAndAddPeerToPeerP4Rules(s.p4rtClient)
 
 	if err := s.bridgeCtlr.AddPort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
@@ -69,8 +64,8 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 	As a work-around, we take full vfMacList, and write P4 rules, to connect all host VFs to NF.	*/
 	// Generate the P4 rules and program the FXP with NF comms
 	log.Infof("AddNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
-		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
-	p4rtclient.AddNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+		s.p4rtClient.GetBin(), vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+	p4rtclient.AddNFP4Rules(s.p4rtClient, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
 
 	return &pb.Empty{}, nil
 }
@@ -80,12 +75,10 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	vfMacList, err := utils.GetVfMacList()
 
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to reach the IMC %v", err)
+		log.Errorf("DeleteNetworkFunction: Error-> %v", err)
+		return nil, status.Errorf(codes.Internal, "Error-> %v", err)
 	}
 
-	if len(vfMacList) == 0 {
-		return nil, status.Error(codes.Internal, "No NFs initialized on the host")
-	}
 	if err := s.bridgeCtlr.DeletePort(AccIntfNames[NF_IN_PR_INTF_INDEX]); err != nil {
 		log.Errorf("failed to delete port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
 		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccIntfNames[NF_IN_PR_INTF_INDEX])
@@ -97,8 +90,8 @@ func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context
 	log.Infof("deleted interfaces:inPR->%s, outPR->%s", AccIntfNames[NF_IN_PR_INTF_INDEX], AccIntfNames[NF_OUT_PR_INTF_INDEX])
 
 	log.Infof("DeleteNFP4Rules, path->%s, 1-%v, 2-%v, 3-%v, 4-%v, 5-%v",
-		s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
-	p4rtclient.DeleteNFP4Rules(s.p4rtbin, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+		s.p4rtClient.GetBin(), vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
+	p4rtclient.DeleteNFP4Rules(s.p4rtClient, vfMacList, in.Input, in.Output, AccApfMacList[NF_IN_PR_INTF_INDEX], AccApfMacList[NF_OUT_PR_INTF_INDEX])
 
 	return &pb.Empty{}, nil
 }
