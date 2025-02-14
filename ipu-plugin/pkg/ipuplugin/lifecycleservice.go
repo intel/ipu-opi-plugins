@@ -1160,6 +1160,10 @@ func (s *FXPHandlerImpl) configureFXP(p types.P4RTClient, brCtlr types.BridgeCon
 	log.Infof("AddLAGP4Rules, path->%v", p.GetBin())
 	p4rtclient.AddLAGP4Rules(p)
 
+	//Add P4 rules to handle Primary network traffic via phy port0
+	log.Infof("AddRHPrimaryNetworkVportP4Rules,  path->%s, 1->%v, 2->%v", p.GetBin(), AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+	p4rtclient.AddRHPrimaryNetworkVportP4Rules(p, AccApfMacList[PHY_PORT0_INTF_INDEX], AccApfMacList[PHY_PORT1_INTF_INDEX])
+
 	return nil
 }
 

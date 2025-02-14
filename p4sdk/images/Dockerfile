@@ -26,7 +26,6 @@ RUN dnf -y install   kmod-28-10.el9 \
       libedit-3.1-38.20210216cvs.el9 \
       net-tools-2.0-0.64.20160912git.el9 \
       libatomic-11.5.0-2.el9 \
-      iputils-20210202-9.el9 \
       && dnf clean all
 
 RUN if [ "$TARGETARCH" = "amd64" ]; then export ARCHSUFFIX="x86_64"; \
