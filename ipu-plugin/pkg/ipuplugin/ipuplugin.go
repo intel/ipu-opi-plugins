@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/infrapod"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -132,6 +133,10 @@ func (s *server) Run() error {
 	}
 
 	if s.mode == types.IpuMode {
+		log.Info("Starting infrapod")
+		if err := infrapod.CreateInfrapod(); err != nil {
+			return err
+		}
 		// Wait for the infrap4d connection to come up
 		if _, err := waitForInfraP4d(s.p4rtClient); err != nil {
 			return err
