@@ -713,11 +713,14 @@ set -x
 trap 'echo "Line $LINENO: $BASH_COMMAND"' DEBUG
 
 PORT_SETUP_SCRIPT=/work/scripts/port-setup.sh
-PORT_SETUP_LOG=/work/port-setup.log
-POST_INIT_LOG=/work/post-init.log
-PORT_SETUP_LOG2=/work/port-setup2.log
+POST_INIT_LOG=/work/scripts/post-init.log
+PORT_SETUP_LOG=/work/scripts/port-setup.log
+PORT_SETUP_LOG2=/work/scripts/port-setup2.log
 
 /usr/bin/rm -f ${PORT_SETUP_SCRIPT} ${POST_INIT_LOG}
+/usr/bin/rm -f ${PORT_SETUP_LOG} ${POST_SETUP_LOG2}
+sleep 1
+sync
 
 exec 2>&1 1>${POST_INIT_LOG}
 
@@ -755,7 +758,8 @@ trap release_lock EXIT
 run_devmem_cmds() {
 retry=0
 while [[ \${ran_cmds} -eq 0 ]] ; do
-sleep 2
+sync
+sleep 4
 cli_entry=(\$(cli_client -qc | grep "fn_id: 0x4 .* vport_id \${ACC_VPORT_ID}" | sed 's/: / /g' | sed 's/addr //g'))
 if [ \${#cli_entry[@]} -gt 1 ] ; then
 
@@ -833,7 +837,7 @@ while [[ \${ran_cmds} -eq 0 ]]; do
    d5_interface_up
    if [[ \$? -eq 1 ]]; then
       #echo "D5 interface up, sleep"
-      sleep 5
+      sleep 7
    else
       echo "D5 not found. ACC may have gone down, retry."
       ran_cmds=0
@@ -846,10 +850,18 @@ PORT_CONFIG_EOF
 /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
 /usr/bin/nohup bash -c ''"${PORT_SETUP_SCRIPT}"' '"${PORT_SETUP_LOG}"'' 0>&- &> ${PORT_SETUP_LOG} &
 
+PS_SCRIPT_NAME=$(basename ${PORT_SETUP_SCRIPT})
+
 log_retry=0
 while true ; do
    sync
 if [[ $log_retry -gt 10 ]]; then
+   echo "waited for log more than 10 secs, log not detected"
+   if pgrep -x "${PS_SCRIPT_NAME}" > /dev/null 2>&1; then
+      echo "Process '${PS_SCRIPT_NAME}' is running."
+   else
+      echo "Process '${PS_SCRIPT_NAME}' is not running."
+   fi
    echo "waited for log more than 10 secs, 2nd attempt for port_setup.sh below"
    /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
    /usr/bin/nohup bash -c ''"${PORT_SETUP_SCRIPT}"' '"${PORT_SETUP_LOG2}"'' 0>&- &> ${PORT_SETUP_LOG2} &
@@ -859,18 +871,17 @@ if [[ $log_retry -gt 10 ]]; then
    break
 fi
 if [[ -s ${PORT_SETUP_LOG}  ]]; then
-   log_retry=$((log_retry+1))
-   echo "log file empty. sleep and check"
+   echo "non-empty log file exists"
    sleep 1
-elif [ ! -f ${PORT_SETUP_LOG} ]; then
-   log_retry=$((log_retry+1))
-   echo "log file doesnt exist. sleep and check"
-   sleep 1
+   break
 else
+   log_retry=$((log_retry+1))
    if [ -f ${PORT_SETUP_LOG} ]; then
-      echo "log file exists. break"
-      break
+      echo "log file exists. but empty"
+   else
+      echo "log file doesnt exist"
    fi
+   sleep 1
 fi
 done`
 
