@@ -23,6 +23,9 @@ COPY bin/p4rt-ctl /opt/p4/p4-cp-nws/bin/
 COPY bin/p4runtime-2023.11.0/p4 /opt/p4/p4-cp-nws/bin/p4
 COPY bin/p4runtime-2023.11.0/copy_p4rt_python_deps.sh /opt/p4/p4-cp-nws/bin/p4
 
+RUN mkdir -p /ipu-mgmtd
+COPY ipu-mgmtd /ipu-mgmtd
+
 WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"
 ENV PYTHONUNBUFFERED=1
