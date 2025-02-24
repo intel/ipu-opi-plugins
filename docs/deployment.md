@@ -701,46 +701,6 @@ After a while all Calico components should be up and running and `kubectl get no
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml
 ```
-### Install modified SR-IOV CNI plugin
-We will need to build patched SR-IOV CNI from source. This will require that you have Golang installed on the host to be able to build it.
-
-```bash
-cd $ROOT_DIR/sriov_cni
-make clean
-make deps-update
-make
-cp build/sriov /opt/cni/bin/
-```
-**_NOTE_** sriov_cni is a dir inside the joint repository
-
-### Install SR-IOV Network Device Plugin
-```bash
-kubectl create -f  $ROOT_DIR/e2e/artefacts/k8s/sriov-dp-configMap.yaml
-
-kubectl create -f https://raw.githubusercontent.com/k8snetworkplumbingwg/sriov-network-device-plugin/master/deployments/sriovdp-daemonset.yaml
-```
-
-Once the SR-IOV device plugin Pod is in **READY** state the we should see that the MEV virtual functions are listed as extended node resource.
-
-```bash
-kubectl get node silpixa00400473 -o json | jq '.status.allocatable'
-
-kubectl get node $NODE -o json | jq '.status.allocatable'
-{
-  "cpu": "72",
-  "ephemeral-storage": "181599731412",
-  "hugepages-1Gi": "0",
-  "hugepages-2Mi": "0",
-  "intel.com/intel_sriov_netdevice": "8",
-  "memory": "196617652Ki",
-  "pods": "110"
-}
-```
-
-Create SR-IOV network attachment definition:
-```bash
-kubectl create -f $ROOT_DIR/e2e/artefacts/k8s/sriov-crd.yaml
-```
 
 ## Start Infrap4d on ACC
 Start Infrap4d on ACC
