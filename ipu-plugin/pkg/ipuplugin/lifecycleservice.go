@@ -539,36 +539,6 @@ func copyBinary(imcPath string, vspPath string, sftpClient *sftp.Client) error {
 	return nil
 }
 
-func copyFile(inputFile string, remoteFilePath string, sftpClient *sftp.Client) error {
-	log.Infof("copyFile: remoteFilePath->%v", remoteFilePath)
-
-	remoteFile, err := sftpClient.Create(remoteFilePath)
-	if err != nil {
-		log.Errorf("failed to create remote file->%v: %v", remoteFilePath, err)
-		return fmt.Errorf("failed to create remote file->%v: %v", remoteFilePath, err)
-	}
-	defer remoteFile.Close()
-
-	_, err = remoteFile.Write([]byte(inputFile))
-	if err != nil {
-		log.Errorf("failed to write %v: %v", remoteFilePath, err)
-		return fmt.Errorf("failed to write %v: %v", remoteFilePath, err)
-	}
-
-	err = remoteFile.Sync()
-	if err != nil {
-		log.Errorf("failed to sync %v: %v", remoteFilePath, err)
-		return fmt.Errorf("failed to sync %v: %v", remoteFilePath, err)
-	}
-
-	err = sftpClient.Chmod(remoteFilePath, 0755)
-	if err != nil {
-		log.Errorf("failed to chmod %v : %v", remoteFilePath, err)
-		return fmt.Errorf("failed to chmod %v : %v", remoteFilePath, err)
-	}
-	return nil
-}
-
 /*
 Updates files below on IMC, and does IMC reboot.
 1. Copy P4 package from container to IMC
@@ -617,10 +587,10 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	inputFile := genLoadCustomPkgFile(macAddress)
 	remoteFilePath := "/work/scripts/load_custom_pkg.sh"
 
-	err = copyFile(inputFile, remoteFilePath, sftpClient)
+	err = utils.CopyFile(inputFile, remoteFilePath, sftpClient)
 
 	if err != nil {
-		return fmt.Errorf("sshFunc:copyFile-error: %v", err)
+		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
 	}
 
 	//copy ipumgmtd-lib file.
@@ -645,29 +615,29 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	inputFile = preInitAppScript()
 	remoteFilePath = "/work/scripts/pre_init_app.sh"
 
-	err = copyFile(inputFile, remoteFilePath, sftpClient)
+	err = utils.CopyFile(inputFile, remoteFilePath, sftpClient)
 
 	if err != nil {
-		return fmt.Errorf("sshFunc:copyFile-error: %v", err)
+		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
 	}
 
 	//post_init_app.sh
 	inputFile = postInitAppScript()
 	remoteFilePath = "/work/scripts/post_init_app.sh"
 
-	err = copyFile(inputFile, remoteFilePath, sftpClient)
+	err = utils.CopyFile(inputFile, remoteFilePath, sftpClient)
 
 	if err != nil {
-		return fmt.Errorf("sshFunc:copyFile-error: %v", err)
+		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
 	}
 
 	inputFile = macAddress + "\n"
 	remoteFilePath = "/work/uuid"
 
-	err = copyFile(inputFile, remoteFilePath, sftpClient)
+	err = utils.CopyFile(inputFile, remoteFilePath, sftpClient)
 
 	if err != nil {
-		return fmt.Errorf("sshFunc:copyFile-error: %v", err)
+		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
 	}
 
 	session, err := client.NewSession()

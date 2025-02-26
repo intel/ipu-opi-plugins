@@ -23,8 +23,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
+	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -126,8 +128,8 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 		return "", fmt.Errorf("ImcQueryfindVsiGivenMacAddr: invalid mode-%v. access from host to IMC, not supported", mode)
 	}
 
-	commands := fmt.Sprintf(`set -o pipefail && cli_client -cq | awk '{if(($17 == "%s")) {print $8}}'`, mac)
-	outputBytes, err := RunCmdOnImc(commands)
+	subCmd := fmt.Sprintf(` | awk '{if(($17 == "%s")) {print $8}}'`, mac)
+	outputBytes, err := RunCliCmdOnImc(subCmd)
 
 	//Handle case where command ran without error, but empty output, due to config issue.
 	if (err != nil) || (len(outputBytes) == 0) {
@@ -141,8 +143,45 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 	return outputStr, err
 }
 
-func RunCmdOnImc(cmd string) ([]byte, error) {
+func CopyFile(inputFile string, remoteFilePath string, sftpClient *sftp.Client) error {
+	log.Infof("copyFile: remoteFilePath->%v", remoteFilePath)
 
+	remoteFile, err := sftpClient.Create(remoteFilePath)
+	if err != nil {
+		log.Errorf("failed to create remote file->%v: %v", remoteFilePath, err)
+		return fmt.Errorf("failed to create remote file->%v: %v", remoteFilePath, err)
+	}
+	defer remoteFile.Close()
+
+	_, err = remoteFile.Write([]byte(inputFile))
+	if err != nil {
+		log.Errorf("failed to write %v: %v", remoteFilePath, err)
+		return fmt.Errorf("failed to write %v: %v", remoteFilePath, err)
+	}
+
+	err = remoteFile.Sync()
+	if err != nil {
+		log.Errorf("failed to sync %v: %v", remoteFilePath, err)
+		return fmt.Errorf("failed to sync %v: %v", remoteFilePath, err)
+	}
+
+	err = sftpClient.Chmod(remoteFilePath, 0755)
+	if err != nil {
+		log.Errorf("failed to chmod %v : %v", remoteFilePath, err)
+		return fmt.Errorf("failed to chmod %v : %v", remoteFilePath, err)
+	}
+	return nil
+}
+
+// Note: Added retry logic, since ipumgmtd is single-threaded, so concurrent usgae,
+// errors out.
+// WARNING: Even if ipumgmtd throws error, cli_client tool still
+// returns success. Also this code(for retry) can break, if error string
+// or error code gets changed.
+func RunCliCmdOnImc(subCmd string) ([]byte, error) {
+
+	retryCnt := 5
+	cmd := `set -o pipefail && cli_client -cq `
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -158,19 +197,61 @@ func RunCmdOnImc(cmd string) ([]byte, error) {
 	}
 	defer client.Close()
 
-	// Start a session.
-	session, err := client.NewSession()
-	if err != nil {
-		log.Errorf("failed to create ssh session: %s", err)
-		return nil, fmt.Errorf("failed to create ssh session: %s", err)
-	}
-	defer session.Close()
+	var outputBytes []byte
+	i := 0
+retry:
+	for i < retryCnt {
+		log.Infof("Loop cnt: %v", i)
+		// Start a session.
+		session, err := client.NewSession()
+		if err != nil {
+			log.Errorf("failed to create ssh session: %s", err)
+			return nil, fmt.Errorf("failed to create ssh session: %s", err)
+		}
+		defer session.Close()
 
-	// Run a command on the remote server and capture the output.
-	outputBytes, err := session.CombinedOutput(cmd)
-	if err != nil {
-		log.Errorf("cmd error: %s", err)
-		return nil, fmt.Errorf("cmd error: %s", err)
+		// Create an SFTP client.
+		sftpClient, err := sftp.NewClient(client)
+		if err != nil {
+			log.Errorf("failed to create SFTP client: %s", err)
+			return nil, fmt.Errorf("failed to create SFTP client: %s", err)
+		}
+		defer sftpClient.Close()
+
+		// Run a command on the remote server and capture the output.
+		outputBytes, err = session.CombinedOutput(cmd)
+		outputStr := string(outputBytes)
+		if err != nil {
+			log.Errorf("cmd error: %s", err)
+			return nil, fmt.Errorf("cmd error: %s", err)
+		}
+		errStr := "Process failure, err: -105"
+		if strings.Contains(outputStr, errStr) {
+			log.Infof("retry: '%s' contains '%s'\n", outputStr, errStr)
+			time.Sleep(500 * time.Millisecond)
+			i++
+			session.Close()
+			goto retry
+		} else {
+			//log.Infof("'%s' does not contain '%s'\n", outputStr, errStr)
+			CopyFile(outputStr, "/work/cli_output", sftpClient)
+			session.Close()
+			// Start a session.
+			session, err := client.NewSession()
+			if err != nil {
+				log.Errorf("failed to create ssh session: %s", err)
+				return nil, fmt.Errorf("failed to create ssh session: %s", err)
+			}
+			defer session.Close()
+			fullCmd := `set -o pipefail && cat /work/cli_output ` + subCmd
+			// Run a command on the remote server and capture the output.
+			outputBytes, err = session.CombinedOutput(fullCmd)
+			if err != nil {
+				log.Errorf("cmd error: %s", err)
+				return nil, fmt.Errorf("cmd error: %s", err)
+			}
+			break
+		}
 	}
 
 	return outputBytes, nil
@@ -178,8 +259,8 @@ func RunCmdOnImc(cmd string) ([]byte, error) {
 }
 
 func GetAccApfMacList() ([]string, error) {
-	commands := `set -o pipefail && cli_client -cq | awk '{if(($2 == "0x4") && ($4 == "0x4")) {print $17}}'`
-	outputBytes, err := RunCmdOnImc(commands)
+	subCmd := ` | awk '{if(($2 == "0x4") && ($4 == "0x4")) {print $17}}'`
+	outputBytes, err := RunCliCmdOnImc(subCmd)
 
 	var outputStr []string
 	//Handle case where command ran without error, but empty output, due to config issue.
@@ -196,8 +277,8 @@ func GetAccApfMacList() ([]string, error) {
 
 func GetVfMacList() ([]string, error) {
 	// reach out to the IMC to get the mac addresses of the VFs
-	commands := `set -o pipefail && cli_client -cq | awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`
-	outputBytes, err := RunCmdOnImc(commands)
+	subCmd := ` | awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`
+	outputBytes, err := RunCliCmdOnImc(subCmd)
 
 	var outputStr []string
 	//Handle case where command ran without error, but empty output, due to config issue.
