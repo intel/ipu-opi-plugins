@@ -16,15 +16,11 @@ package ipuplugin
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
 	math_rand "math/rand"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -497,48 +493,6 @@ func setBaseMacAddr() (string, error) {
 	return macAddress, nil
 }
 
-func copyBinary(imcPath string, vspPath string, sftpClient *sftp.Client) error {
-
-	// Open the source file.
-	srcFile, err := os.Open(vspPath)
-	if err != nil {
-		log.Errorf("failed to open local file-%v: %v", vspPath, err)
-		return fmt.Errorf("failed to open local file-%v: %v", vspPath, err)
-	}
-	defer srcFile.Close()
-
-	dirPath := filepath.Dir(imcPath)
-	// create any missing directories along the path to file in IMC.
-	err = sftpClient.MkdirAll(dirPath)
-	if err != nil {
-		log.Errorf("error-%v from MkdirAll-for dirPath: %v", err, dirPath)
-		return fmt.Errorf("error-%v from MkdirAll-for dirPath: %v", err, dirPath)
-	}
-
-	// Create the destination file on the remote server.
-	dstFile, err := sftpClient.Create(imcPath)
-	if err != nil {
-		log.Errorf("failed to create remote file-%v: %v", imcPath, err)
-		return fmt.Errorf("failed to create remote file-%v: %v", imcPath, err)
-	}
-	defer dstFile.Close()
-
-	// Copy the file contents to the destination file.
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		log.Errorf("failed to copy file, vspPath-%v: %v", vspPath, err)
-		return fmt.Errorf("failed to copy file, vspPath-%v: %v", vspPath, err)
-	}
-
-	// Ensure that the file is written to the remote filesystem.
-	err = dstFile.Sync()
-	if err != nil {
-		log.Errorf("failed to sync file, imcPath-%v: %v", imcPath, err)
-		return fmt.Errorf("failed to sync file, imcPath-%v: %v", imcPath, err)
-	}
-	return nil
-}
-
 /*
 Updates files below on IMC, and does IMC reboot.
 1. Copy P4 package from container to IMC
@@ -573,7 +527,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
 	imcPath := "/work/scripts/" + p4PkgName
 	vspPath := "/" + p4PkgName
-	err = copyBinary(imcPath, vspPath, sftpClient)
+	err = utils.CopyBinary(imcPath, vspPath, sftpClient)
 
 	if err != nil {
 		return fmt.Errorf("sshFunc:copyBinary-error: %v", err)
@@ -596,7 +550,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	//copy ipumgmtd-lib file.
 	imcPath = "/work/cli_fix/libmev_imc_ipumgmtd.so"
 	vspPath = "/ipu-mgmtd/libmev_imc_ipumgmtd.so"
-	err = copyBinary(imcPath, vspPath, sftpClient)
+	err = utils.CopyBinary(imcPath, vspPath, sftpClient)
 
 	if err != nil {
 		return fmt.Errorf("sshFunc:copyBinary-error: %v", err)
@@ -605,7 +559,7 @@ func (s *SSHHandlerImpl) sshFunc() error {
 	//copy ipumgmtd on IMC
 	imcPath = "/work/cli_fix/ipumgmtd"
 	vspPath = "/ipu-mgmtd/ipumgmtd"
-	err = copyBinary(imcPath, vspPath, sftpClient)
+	err = utils.CopyBinary(imcPath, vspPath, sftpClient)
 
 	if err != nil {
 		return fmt.Errorf("sshFunc:copyBinary-error: %v", err)
@@ -932,80 +886,6 @@ cp /work/cli_fix/ipumgmtd /usr/bin`
 
 }
 
-func compareBinary(imcPath string, vspPath string, client *ssh.Client) (bool, string) {
-	session, err := client.NewSession()
-	if err != nil {
-		log.Errorf("failed to create session: %v", err)
-		return false, fmt.Sprintf("failed to create session: %v", err)
-	}
-	defer session.Close()
-
-	//compute md5sum of pkg file on IMC
-	commands := "set -o pipefail && " + "md5sum " + imcPath + " |  awk '{print $1}'"
-	imcOutput, err := session.CombinedOutput(commands)
-	if err != nil {
-		log.Errorf("Error->%v, running command->%s:", err, commands)
-		return false, fmt.Sprintf("Error->%v, running command->%s:", err, commands)
-	}
-
-	//compute md5sum of pkg file in ipu-plugin container
-	commands = "set -o pipefail && " + "md5sum /" + vspPath + " |  awk '{print $1}'"
-	pluginOutput, err := utils.ExecuteScript(commands)
-	if err != nil {
-		log.Errorf("Error->%v, for md5sum command->%v", err, commands)
-		return false, fmt.Sprintf("Error->%v, for md5sum command->%v", err, commands)
-	}
-
-	if pluginOutput == string(imcOutput) {
-		log.Infof("md5sum match, imcPath-%s, in ipu-plugin->%v, on IMC->%v", imcPath, pluginOutput, string(imcOutput))
-	} else {
-		log.Infof("md5sum mismatch, imcPath-%s, in ipu-plugin->%v, on IMC->%v", imcPath, pluginOutput, string(imcOutput))
-		return false, fmt.Sprintf("md5sum mismatch, imcPath-%s, in ipu-plugin->%v, on IMC->%v", imcPath, pluginOutput, string(imcOutput))
-	}
-
-	return true, ""
-}
-
-func compareFile(inputFile string, remoteFilePath string, client *ssh.Client) (bool, string) {
-	log.Infof("inputFile->%v", inputFile)
-	inputFileHash := md5.Sum([]byte(inputFile))
-	inputFileHashStr := hex.EncodeToString(inputFileHash[:])
-
-	// Create an SFTP client.
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		log.Errorf("failed to create SFTP client: %s", err)
-		return false, fmt.Sprintf("failed to create SFTP client: %s", err)
-	}
-	defer sftpClient.Close()
-
-	// destination file on IMC.
-	dstFile, err := sftpClient.Open(remoteFilePath)
-	if err != nil {
-		log.Errorf("failed to create remote file(%s): %s", remoteFilePath, err)
-		return false, fmt.Sprintf("failed to create remote file(%s): %s", remoteFilePath, err)
-	}
-	defer dstFile.Close()
-
-	imcFileBytes, err := io.ReadAll(dstFile)
-	if err != nil {
-		log.Errorf("failed to read %s: %s", remoteFilePath, err)
-		return false, fmt.Sprintf("failed to read %s: %s", remoteFilePath, err)
-	}
-
-	imcFileHash := md5.Sum(imcFileBytes)
-	imcFileHashStr := hex.EncodeToString(imcFileHash[:])
-
-	if inputFileHashStr == imcFileHashStr {
-		log.Infof("File->%s md5 match, generated->%v, on IMC->%v", remoteFilePath, inputFileHashStr, imcFileHashStr)
-	} else {
-		log.Infof("File->%s, md5 mismatch, generated->%v, on IMC->%v", remoteFilePath, inputFileHashStr, imcFileHashStr)
-		return false, fmt.Sprintf("File->%s, md5 mismatch, generated->%v, on IMC->%v", remoteFilePath, inputFileHashStr, imcFileHashStr)
-	}
-
-	return true, ""
-}
-
 /*
 	IMC reboot needed for following cases:
 
@@ -1066,12 +946,10 @@ func skipIMCReboot() (bool, string) {
 		return false, "UUID File does not exist"
 	}
 
-	//compute md5sum of pkg file on IMC
 	p4PkgName := os.Getenv("P4_NAME") + ".pkg"
 	imcPath := "/work/scripts/" + p4PkgName
-	//compute md5sum of pkg file in ipu-plugin container
 	vspPath := "/" + p4PkgName
-	p4pkgMatch, errStr := compareBinary(imcPath, vspPath, client)
+	p4pkgMatch, errStr := utils.CompareBinary(imcPath, vspPath, client)
 
 	if !p4pkgMatch {
 		return false, errStr
@@ -1081,7 +959,7 @@ func skipIMCReboot() (bool, string) {
 	log.Infof("loadCustomPkgFileStr->%v", genLcpkgFileStr)
 	// destination file on IMC.
 	remoteFilePath := "/work/scripts/load_custom_pkg.sh"
-	lcpkgFileMatch, errStr = compareFile(genLcpkgFileStr, remoteFilePath, client)
+	lcpkgFileMatch, errStr = utils.CompareFile(genLcpkgFileStr, remoteFilePath, client)
 
 	if !lcpkgFileMatch {
 		return false, errStr
@@ -1090,7 +968,7 @@ func skipIMCReboot() (bool, string) {
 	//compare ipumgmtd-lib on IMC vs ipu-plugin
 	imcPath = "/work/cli_fix/libmev_imc_ipumgmtd.so"
 	vspPath = "/ipu-mgmtd/libmev_imc_ipumgmtd.so"
-	binMatch, errStr = compareBinary(imcPath, vspPath, client)
+	binMatch, errStr = utils.CompareBinary(imcPath, vspPath, client)
 
 	if !binMatch {
 		return false, errStr
@@ -1099,7 +977,7 @@ func skipIMCReboot() (bool, string) {
 	//compare ipumgmtd on IMC vs ipu-plugin
 	imcPath = "/work/cli_fix/ipumgmtd"
 	vspPath = "/ipu-mgmtd/ipumgmtd"
-	binMatch, errStr = compareBinary(imcPath, vspPath, client)
+	binMatch, errStr = utils.CompareBinary(imcPath, vspPath, client)
 
 	if !binMatch {
 		return false, errStr
@@ -1107,7 +985,7 @@ func skipIMCReboot() (bool, string) {
 
 	preInitAppFile := preInitAppScript()
 	preInitRemoteFilePath := "/work/scripts/pre_init_app.sh"
-	fileMatch, errStr = compareFile(preInitAppFile, preInitRemoteFilePath, client)
+	fileMatch, errStr = utils.CompareFile(preInitAppFile, preInitRemoteFilePath, client)
 
 	if !fileMatch {
 		return false, errStr
@@ -1115,7 +993,7 @@ func skipIMCReboot() (bool, string) {
 
 	postInitAppFile := postInitAppScript()
 	postInitRemoteFilePath := "/work/scripts/post_init_app.sh"
-	piaFileMatch, errStr = compareFile(postInitAppFile, postInitRemoteFilePath, client)
+	piaFileMatch, errStr = utils.CompareFile(postInitAppFile, postInitRemoteFilePath, client)
 
 	if !piaFileMatch {
 		return false, errStr
