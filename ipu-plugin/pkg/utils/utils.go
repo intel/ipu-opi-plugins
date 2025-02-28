@@ -131,8 +131,9 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 		return "", fmt.Errorf("ImcQueryfindVsiGivenMacAddr: invalid mode-%v. access from host to IMC, not supported", mode)
 	}
 
+	cliCmd := `set -o pipefail && cli_client -cq `
 	subCmd := fmt.Sprintf(` | awk '{if(($17 == "%s")) {print $8}}'`, mac)
-	outputBytes, err := RunCliCmdOnImc(subCmd)
+	outputBytes, err := RunCliCmdOnImc(cliCmd, subCmd)
 
 	//Handle case where command ran without error, but empty output, due to config issue.
 	if (err != nil) || (len(outputBytes) == 0) {
@@ -153,10 +154,9 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 // WARNING: Even if ipumgmtd throws error, cli_client tool still
 // returns success. Also this code(for retry) can break, if error string
 // or error code gets changed.
-func RunCliCmdOnImc(subCmd string) ([]byte, error) {
+func RunCliCmdOnImc(cliCmd string, subCmd string) ([]byte, error) {
 
 	maxRetryCnt := 5
-	cmd := `set -o pipefail && cli_client -cq `
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
@@ -194,11 +194,11 @@ retry:
 		defer sftpClient.Close()
 
 		// Run a command on the remote server and capture the output.
-		outputBytes, err = session.CombinedOutput(cmd)
+		outputBytes, err = session.CombinedOutput(cliCmd)
 		outputStr := string(outputBytes)
 		if err != nil {
-			log.Errorf("cmd error: %s", err)
-			return nil, fmt.Errorf("cmd error: %s", err)
+			log.Errorf("cmd->%v error: %v", cliCmd, err)
+			return nil, fmt.Errorf("cmd->%v error: %v", cliCmd, err)
 		}
 		errStr := "Process failure, err: -105"
 		if strings.Contains(outputStr, errStr) {
@@ -221,8 +221,8 @@ retry:
 			// Run a command on the remote server and capture the output.
 			outputBytes, err = session.CombinedOutput(fullCmd)
 			if err != nil {
-				log.Errorf("cmd error: %s", err)
-				return nil, fmt.Errorf("cmd error: %s", err)
+				log.Errorf("cmd->%v error: %v", fullCmd, err)
+				return nil, fmt.Errorf("cmd->%v error: %v", fullCmd, err)
 			}
 			break
 		}
@@ -230,15 +230,16 @@ retry:
 
 	if i == maxRetryCnt {
 		log.Errorf("RunCliCmdOnImc: Max retryCnt->%v reached", maxRetryCnt)
-		return []byte{}, fmt.Errorf("RunCliCmdOnImc: Max retryCnt->%v reached", maxRetryCnt)
+		return nil, fmt.Errorf("RunCliCmdOnImc: Max retryCnt->%v reached", maxRetryCnt)
 	}
+	//success case
 	return outputBytes, nil
-
 }
 
 func GetAccApfMacList() ([]string, error) {
+	cliCmd := `set -o pipefail && cli_client -cq `
 	subCmd := ` | awk '{if(($2 == "0x4") && ($4 == "0x4")) {print $17}}'`
-	outputBytes, err := RunCliCmdOnImc(subCmd)
+	outputBytes, err := RunCliCmdOnImc(cliCmd, subCmd)
 
 	var outputStr []string
 	//Handle case where command ran without error, but empty output, due to config issue.
@@ -255,8 +256,9 @@ func GetAccApfMacList() ([]string, error) {
 
 func GetVfMacList() ([]string, error) {
 	// reach out to the IMC to get the mac addresses of the VFs
+	cliCmd := `set -o pipefail && cli_client -cq `
 	subCmd := ` | awk '{if(($4 == "0x0") && ($6 == "yes")) {print $17}}'`
-	outputBytes, err := RunCliCmdOnImc(subCmd)
+	outputBytes, err := RunCliCmdOnImc(cliCmd, subCmd)
 
 	var outputStr []string
 	//Handle case where command ran without error, but empty output, due to config issue.

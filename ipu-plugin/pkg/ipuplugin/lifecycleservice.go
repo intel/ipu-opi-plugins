@@ -547,34 +547,6 @@ func (s *SSHHandlerImpl) sshFunc() error {
 		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
 	}
 
-	//copy ipumgmtd-lib file.
-	imcPath = "/work/cli_fix/libmev_imc_ipumgmtd.so"
-	vspPath = "/ipu-mgmtd/libmev_imc_ipumgmtd.so"
-	err = utils.CopyBinary(imcPath, vspPath, sftpClient)
-
-	if err != nil {
-		return fmt.Errorf("sshFunc:copyBinary-error: %v", err)
-	}
-
-	//copy ipumgmtd on IMC
-	imcPath = "/work/cli_fix/ipumgmtd"
-	vspPath = "/ipu-mgmtd/ipumgmtd"
-	err = utils.CopyBinary(imcPath, vspPath, sftpClient)
-
-	if err != nil {
-		return fmt.Errorf("sshFunc:copyBinary-error: %v", err)
-	}
-
-	//pre_init_app.sh
-	inputFile = preInitAppScript()
-	remoteFilePath = "/work/scripts/pre_init_app.sh"
-
-	err = utils.CopyFile(inputFile, remoteFilePath, sftpClient)
-
-	if err != nil {
-		return fmt.Errorf("sshFunc:CopyFile-error: %v", err)
-	}
-
 	//post_init_app.sh
 	inputFile = postInitAppScript()
 	remoteFilePath = "/work/scripts/post_init_app.sh"
@@ -862,30 +834,6 @@ fi
 
 }
 
-func preInitAppScript() string {
-
-	shellScript := `#!/bin/sh
-
-CURDIR=$(pwd)
-WORKDIR=$(dirname $(realpath $0))
-
-if [ -d "$WORKDIR" ]; then
-    cd $WORKDIR
-    if [ -e load_custom_pkg.sh ]; then
-        # Fix up the cp_init.cfg file
-        ./load_custom_pkg.sh
-    fi
-fi
-cd $CURDIR
-python /usr/bin/scripts/cfg_acc_apf_x2.py
-
-cp /work/cli_fix/libmev_imc_ipumgmtd.so /usr/lib64
-cp /work/cli_fix/ipumgmtd /usr/bin`
-
-	return shellScript
-
-}
-
 /*
 	IMC reboot needed for following cases:
 
@@ -932,8 +880,6 @@ func skipIMCReboot() (bool, string) {
 	uuidFileExists := false
 	lcpkgFileMatch := false
 	piaFileMatch := false
-	binMatch := false
-	fileMatch := false
 	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
 
 	if outputStr == "File does not exist" {
@@ -962,32 +908,6 @@ func skipIMCReboot() (bool, string) {
 	lcpkgFileMatch, errStr = utils.CompareFile(genLcpkgFileStr, remoteFilePath, client)
 
 	if !lcpkgFileMatch {
-		return false, errStr
-	}
-
-	//compare ipumgmtd-lib on IMC vs ipu-plugin
-	imcPath = "/work/cli_fix/libmev_imc_ipumgmtd.so"
-	vspPath = "/ipu-mgmtd/libmev_imc_ipumgmtd.so"
-	binMatch, errStr = utils.CompareBinary(imcPath, vspPath, client)
-
-	if !binMatch {
-		return false, errStr
-	}
-
-	//compare ipumgmtd on IMC vs ipu-plugin
-	imcPath = "/work/cli_fix/ipumgmtd"
-	vspPath = "/ipu-mgmtd/ipumgmtd"
-	binMatch, errStr = utils.CompareBinary(imcPath, vspPath, client)
-
-	if !binMatch {
-		return false, errStr
-	}
-
-	preInitAppFile := preInitAppScript()
-	preInitRemoteFilePath := "/work/scripts/pre_init_app.sh"
-	fileMatch, errStr = utils.CompareFile(preInitAppFile, preInitRemoteFilePath, client)
-
-	if !fileMatch {
 		return false, errStr
 	}
 
