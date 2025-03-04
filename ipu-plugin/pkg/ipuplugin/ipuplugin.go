@@ -140,9 +140,14 @@ func (s *server) Run() error {
 
 	if s.mode == types.IpuMode {
 		log.Info("Starting infrapod")
-		if err := infrapod.CreateInfrapod(s.p4Image, dpuNamespace); err != nil {
-			log.Error(err, "unable to create Infrapod : %v", err)
-			return err
+		if s.p4Image != "" {
+			log.Infof("Using P4 image as : %s\n", s.p4Image)
+			if err := infrapod.CreateInfrapod(s.p4Image, dpuNamespace); err != nil {
+				log.Error(err, "unable to create Infrapod : %v", err)
+				return err
+			}
+		} else {
+			log.Infof("Waiting for P4 pod to be started manually\n")
 		}
 		// Wait for the infrap4d connection to come up
 		if _, err := waitForInfraP4d(s.p4rtClient); err != nil {

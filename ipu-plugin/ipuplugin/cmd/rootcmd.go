@@ -114,11 +114,6 @@ var (
 			daemonIpuIp := viper.GetString("daemonIpuIp")
 			daemonPort := viper.GetInt("daemonPort")
 
-			if p4Image == "" {
-				p4Image = os.Getenv("P4IMAGE")
-			}
-			log.Infof("Using P4 image as : %s\n", p4Image)
-
 			log.Info("Initializing IPU plugin")
 			if mode == types.IpuMode {
 				vsi, err := findVsiForPfInterface(mode, intf)
