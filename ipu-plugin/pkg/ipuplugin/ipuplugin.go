@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	defaultNamespace = "openshift-dpu-operator"
+	dpuNamespace = "openshift-dpu-operator"
 )
 
 type server struct {
@@ -140,11 +140,13 @@ func (s *server) Run() error {
 
 	if s.mode == types.IpuMode {
 		log.Info("Starting infrapod")
-		if err := infrapod.CreateInfrapod(s.p4Image, defaultNamespace); err != nil {
+		if err := infrapod.CreateInfrapod(s.p4Image, dpuNamespace); err != nil {
+			log.Error(err, "unable to create Infrapod : %v", err)
 			return err
 		}
 		// Wait for the infrap4d connection to come up
 		if _, err := waitForInfraP4d(s.p4rtClient); err != nil {
+			log.Error(err, "unable to connect to infrap4d, %v; Exiting", err)
 			return err
 		}
 		// Create bridge if it doesn't exist

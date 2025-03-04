@@ -9,7 +9,7 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   local:
-    path: /mnt/data
+    path: /opt/p4/
   storageClassName: local-storage
   nodeAffinity:
     required:
@@ -18,4 +18,4 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - 216-acc
+          - {{.HostName}}

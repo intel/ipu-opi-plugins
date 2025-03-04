@@ -3,6 +3,7 @@ package infrapod
 import (
 	"embed"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/bombsimon/logrusr/v4"
@@ -22,25 +23,37 @@ var binData embed.FS
 type VspP4TemplateVars struct {
 	ImageName string
 	Namespace string
+	HostName  string
 }
 
 func (v VspP4TemplateVars) ToMap() map[string]string {
 	return map[string]string{
 		"ImageName": v.ImageName,
 		"Namespace": v.Namespace,
+		"HostName":  v.HostName,
 	}
 }
 
-func NewVspP4TemplateVars(imageName string, namespace string) VspP4TemplateVars {
+func NewVspP4TemplateVars(imageName string, namespace string) (VspP4TemplateVars, error) {
+	hostName, err := os.Hostname()
+	if err != nil {
+		return VspP4TemplateVars{}, fmt.Errorf("Failed to get error hostname: %v", err)
+	}
 	return VspP4TemplateVars{
 		ImageName: imageName,
 		Namespace: namespace,
-	}
+		HostName:  hostName,
+	}, nil
 }
 
 func CreateInfrapod(imageName string, namespace string) error {
+	// TODO: refactor entire logging framework to use a logr
+	// We are using https://github.com/bombsimon/logrusr temporarily
+	// here which is a logr implementation of logrus
 	logrusLog := logrus.New()
 	log := logrusr.New(logrusLog)
+	// The duration below indicates the amount of time the pod
+	// should wait before starting again
 	t := time.Duration(0)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -55,10 +68,14 @@ func CreateInfrapod(imageName string, namespace string) error {
 		GracefulShutdownTimeout: &t,
 	})
 	if err != nil {
-		log.Error(err, "unable to start manager")
+		log.Error(err, "unable to start manager :%v", err)
 		return err
 	}
-	vspP4template := NewVspP4TemplateVars(imageName, namespace)
+	vspP4template, err := NewVspP4TemplateVars(imageName, namespace)
+	if err != nil {
+		log.Error(err, "unable to get hostname : %v", err)
+		return err
+	}
 
 	// Create p4 pod
 	// This will create the ServiceAccount, role, rolebindings, and the service for p4runtime
@@ -66,7 +83,8 @@ func CreateInfrapod(imageName string, namespace string) error {
 		vspP4template.ToMap(), binData, mgr.GetClient(),
 		nil, mgr.GetScheme())
 	if err != nil {
-		return fmt.Errorf("failed to start vendor plugin container (p4Image): %v", err)
+		log.Error(err, "failed to start vendor plugin container")
+		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", imageName, err)
 	}
 	return nil
 }
