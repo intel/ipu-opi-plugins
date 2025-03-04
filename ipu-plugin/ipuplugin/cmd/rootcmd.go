@@ -117,7 +117,7 @@ var (
 			if p4Image == "" {
 				p4Image = os.Getenv("P4IMAGE")
 			}
-			log.Info("Using P4 image as : %s\n", p4Image)
+			log.Infof("Using P4 image as : %s\n", p4Image)
 
 			log.Info("Initializing IPU plugin")
 			if mode == types.IpuMode {
