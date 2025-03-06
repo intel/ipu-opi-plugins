@@ -21,6 +21,8 @@ import (
 	"strings"
 	"strconv"
 
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +32,7 @@ const (
         mirror_profile_id = 3
         bridgeId = 0
         phyPort = 0
+	imcAddress = "192.168.0.1:22"
 )
 
 type fxpRuleParams []string
@@ -935,15 +938,51 @@ func DeleteLAGP4Rules(p4rtClient types.P4RTClient) error {
 func AddRHPrimaryNetworkVportP4Rules(p4rtClient types.P4RTClient, d4Mac string, d5Mac string) error {
         d4Vsi, _, err := getStrippedMacAndVsi(d4Mac)
         if err != nil {
-                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
+                log.Info("AddRHPrimaryNetworkVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d4Mac)
                 return err
         }
 
         d5Vsi, d5MacAddr, err := getStrippedMacAndVsi(d5Mac)
         if err != nil {
-                log.Info("programRHPrimarySecondaryVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d5Mac)
+                log.Info("AddRHPrimaryNetworkVportP4Rules failed. Unable to find Vsi and Vport for PR mac: ", d5Mac)
                 return err
         }
+
+        config := &ssh.ClientConfig{
+                User: "root",
+                Auth: []ssh.AuthMethod{
+                        ssh.Password(""),
+                },
+                HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+        }
+        // Connect to the remote server.
+        client, err := ssh.Dial("tcp", imcAddress, config)
+        if err != nil {
+                log.Errorf("failed to dial remote server(%s): %s", imcAddress, err)
+                return fmt.Errorf("failed to dial remote server(%s): %s", imcAddress, err)
+        }
+        defer client.Close()
+
+        // Create an SFTP client.
+        sftpClient, err := sftp.NewClient(client)
+        if err != nil {
+		log.Info("AddRHPrimaryNetworkVportP4Rules: Warning!. Unable to create sftpClient")
+        }
+        defer sftpClient.Close()
+
+        opcodeStr := "opcode=0x1305 prof_id=0xb cookie=123 key=0x00,0x00,0x00,0x00"
+        remoteFilePath := "/tmp/del_opcode.txt"
+
+        err = utils.CopyFile(opcodeStr, remoteFilePath, sftpClient)
+        if err != nil {
+		log.Info("CopyFile: Warning!. Copy opcode file to IMC failed. Unable to delete default FXP opcode")
+        }
+
+	remoteCliCmd := "set -o pipefail && cli_client -x -f /tmp/del_opcode.txt"
+	_, err = utils.RunCliCmdOnImc(remoteCliCmd, "")
+	if err != nil {
+		log.Info("RunCliCmdOnImc: Warning!. Unable to delete default FXP opcode")
+	}
 
         phyVportP4ruleSets := []types.FxpRuleBuilder{
                 {
