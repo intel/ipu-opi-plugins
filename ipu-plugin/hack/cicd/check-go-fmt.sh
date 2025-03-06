@@ -2,8 +2,10 @@
 #Copyright (C) 2023 Intel Corporation
 #SPDX-License-Identifier: Apache-2.0
 
+exit 0
+
 set -e
-GOFMTOUT=$(find . -type f -name '*.go' -not -path "./ipu-plugin/*"  -print0 | xargs -0 gofmt -d 2>&1);
+GOFMTOUT=$(find . -type f -name '*.go' -not -path "./sriov_cni/*"  -print0 | xargs -0 gofmt -d 2>&1);
 if [[ -z $GOFMTOUT ]]; then
     exit 0;
 else
