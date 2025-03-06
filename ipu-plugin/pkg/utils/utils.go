@@ -208,21 +208,23 @@ retry:
 			session.Close()
 			goto retry
 		} else {
-			CopyFile(outputStr, "/work/cli_output", sftpClient)
-			session.Close()
-			// Start a session.
-			session, err := client.NewSession()
-			if err != nil {
-				log.Errorf("failed to create ssh session: %s", err)
-				return nil, fmt.Errorf("failed to create ssh session: %s", err)
-			}
-			defer session.Close()
-			fullCmd := `set -o pipefail && cat /work/cli_output ` + subCmd
-			// Run a command on the remote server and capture the output.
-			outputBytes, err = session.CombinedOutput(fullCmd)
-			if err != nil {
-				log.Errorf("cmd->%v error: %v", fullCmd, err)
-				return nil, fmt.Errorf("cmd->%v error: %v", fullCmd, err)
+			if subCmd != "" {
+				CopyFile(outputStr, "/work/cli_output", sftpClient)
+				session.Close()
+				// Start a session.
+				session, err := client.NewSession()
+				if err != nil {
+					log.Errorf("failed to create ssh session: %s", err)
+					return nil, fmt.Errorf("failed to create ssh session: %s", err)
+				}
+				defer session.Close()
+				fullCmd := `set -o pipefail && cat /work/cli_output ` + subCmd
+				// Run a command on the remote server and capture the output.
+				outputBytes, err = session.CombinedOutput(fullCmd)
+				if err != nil {
+					log.Errorf("cmd->%v error: %v", fullCmd, err)
+					return nil, fmt.Errorf("cmd->%v error: %v", fullCmd, err)
+				}
 			}
 			break
 		}

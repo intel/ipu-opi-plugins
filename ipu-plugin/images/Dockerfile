@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
-FROM golang:1.22.5-alpine@sha256:0d3653dd6f35159ec6e3d10263a42372f6f194c3dea0b35235d72aabde86486e AS builder
+FROM golang:1.23.6-alpine@sha256:f8113c4b13e2a8b3a168dceaee88ac27743cc84e959f43b9dbd2291e9c3f57a0 AS builder
 RUN apk add --no-cache git
 ARG TARGETOS
 ARG TARGETARCH
@@ -22,9 +22,6 @@ COPY bin/p4rt-ctl /opt/p4/p4-cp-nws/bin/
 #TODO: Update to newer p4runtime, for latest release.
 COPY bin/p4runtime-2023.11.0/p4 /opt/p4/p4-cp-nws/bin/p4
 COPY bin/p4runtime-2023.11.0/copy_p4rt_python_deps.sh /opt/p4/p4-cp-nws/bin/p4
-
-RUN mkdir -p /ipu-mgmtd
-COPY ipu-mgmtd /ipu-mgmtd
 
 WORKDIR /
 LABEL io.k8s.display-name="IPU OPI Plugin"

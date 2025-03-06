@@ -57,7 +57,6 @@ test:
 artefacts:
 	cp -r ../e2e/artefacts/$(P4_DIR) $(CURDIR)
 	mkdir -p $(CURDIR)/bin && cp -r ../e2e/artefacts/bin/* $(CURDIR)/bin/
-	mkdir -p $(CURDIR)/ipu-mgmtd && cp -r ../e2e/artefacts/ipu-mgmtd/* $(CURDIR)/ipu-mgmtd/
 
 image: artefacts
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
