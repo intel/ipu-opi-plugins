@@ -802,6 +802,7 @@ while [[ \${ran_cmds} -eq 0 ]]; do
 done
 PORT_CONFIG_EOF
 
+sync
 /usr/bin/chmod a+x ${PORT_SETUP_SCRIPT}
 /usr/bin/nohup bash -c ''"${PORT_SETUP_SCRIPT}"' '"${PORT_SETUP_LOG}"'' 0>&- &> ${PORT_SETUP_LOG} &
 
