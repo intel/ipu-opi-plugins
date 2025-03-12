@@ -1,6 +1,6 @@
 module github.com/intel/ipu-opi-plugins/ipu-plugin
 
-go 1.23.6
+go 1.23.4
 
 require (
 	github.com/bombsimon/logrusr/v4 v4.1.0
