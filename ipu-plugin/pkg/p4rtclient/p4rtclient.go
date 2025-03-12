@@ -462,9 +462,6 @@ func (p *p4rtclient) GetBin() string {
 func (p *p4rtclient) GetIpPort() string {
 	return p.p4rtIpPort
 }
-func (p *p4rtclient) SetIpPort(p4rtIpPort string) {
-	p.p4rtIpPort = p4rtIpPort
-}
 
 func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
 	// For all rules  in RuleSets call
