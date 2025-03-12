@@ -78,7 +78,7 @@ func CreateInfrapod(imageName string, namespace string) error {
 	}
 
 	// Create p4 pod
-	// This will create the ->
+	// This will first delete and then create ->
 	//// ServiceAccount
 	//// role
 	//// rolebindings
