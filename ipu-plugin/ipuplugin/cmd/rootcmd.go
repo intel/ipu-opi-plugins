@@ -152,10 +152,6 @@ var (
 			brCtlr, brType := getBridgeController(bridgeName, bridgeType, ovsCliDir, ovsDbPath)
 
 			p4Client := getP4Client(p4pkg, p4rtbin, p4rtName, portMuxVsi, defaultP4BridgeName, brType)
-			err := p4Client.ResolveServiceIp()
-			if err != nil {
-				log.Warnf("Error %v while converting %s to IP. Using %s instead", err, p4rtName, p4Client.GetIpPort())
-			}
 
 			mgr := ipuplugin.NewIpuPlugin(port, brCtlr, p4Client, p4Image, servingAddr, servingProto, bridgeName, intf, ovsCliDir, mode, daemonHostIp, daemonIpuIp, daemonPort)
 			if err := mgr.Run(); err != nil {
