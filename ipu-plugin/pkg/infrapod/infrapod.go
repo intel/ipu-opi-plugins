@@ -73,15 +73,22 @@ func CreateInfrapod(imageName string, namespace string) error {
 	}
 	vspP4template, err := NewVspP4TemplateVars(imageName, namespace)
 	if err != nil {
-		log.Error(err, "unable to get hostname : %v", err)
+		log.Error(err, "unable to get template vars : %v", err)
 		return err
 	}
 
 	// Create p4 pod
-	// This will create the ServiceAccount, role, rolebindings, and the service for p4runtime
+	// This will create the ->
+	//// ServiceAccount
+	//// role
+	//// rolebindings
+	//// persistentvolumes
+	//// persistentvolumeclaims
+	//// service for p4runtime
+	//// P4 pod
 	err = render.ApplyAllFromBinData(log, "vsp-p4",
 		vspP4template.ToMap(), binData, mgr.GetClient(),
-		nil, mgr.GetScheme())
+		nil, mgr.GetScheme(), true)
 	if err != nil {
 		log.Error(err, "failed to start vendor plugin container")
 		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", imageName, err)

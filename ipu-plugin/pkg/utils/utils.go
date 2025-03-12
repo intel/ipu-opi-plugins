@@ -43,10 +43,10 @@ const (
 )
 
 const (
-        maxRetryCnt   = 5
-        errStr        = "Process failure, err: -105"
-        outputPath    = "/work/cli_output"
-        retryDelay    = 500 * time.Millisecond
+	maxRetryCnt = 5
+	errStr      = "Process failure, err: -105"
+	outputPath  = "/work/cli_output"
+	retryDelay  = 500 * time.Millisecond
 )
 
 var execCommand = exec.Command
@@ -187,7 +187,7 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 
 	var outputBytes []byte
 
-	for retry := 0;  retry < maxRetryCnt; retry++ {
+	for retry := 0; retry < maxRetryCnt; retry++ {
 		log.Printf("Attempt %d/%d: Executing command", retry+1, maxRetryCnt)
 
 		session, err := client.NewSession()
@@ -217,19 +217,19 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 		}
 
 		if subCmd != "" {
-		     // Execute the sub-command
-		     session, err = client.NewSession()
-		     if err != nil {
-			     return nil, fmt.Errorf("failed to create SSH session: %w", err)
-		     }
-		     defer session.Close() // Ensure closure of session
+			// Execute the sub-command
+			session, err = client.NewSession()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SSH session: %w", err)
+			}
+			defer session.Close() // Ensure closure of session
 
-		     fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
-		     outputBytes, err = session.CombinedOutput(fullCmd)
-		     if err != nil {
-			     return nil, fmt.Errorf("sub-command execution failed: %w", err)
-		     }
-	        }
+			fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
+			outputBytes, err = session.CombinedOutput(fullCmd)
+			if err != nil {
+				return nil, fmt.Errorf("sub-command execution failed: %w", err)
+			}
+		}
 		return outputBytes, nil
 	}
 

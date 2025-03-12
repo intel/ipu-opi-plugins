@@ -58,6 +58,10 @@ func (p *rhP4Client) ProgramFXPP4Rules(ruleSets []types.FxpRuleBuilder) error {
 	return nil
 }
 
+func (p *rhP4Client) ResolveServiceIp() error {
+	return nil
+}
+
 func (p *rhP4Client) AddRules(macAddr []byte, vlan int) {
 	// For all rules  in RuleSets call
 	// P4CP_INSTALL/bin/p4rt-ctl add-entry br0

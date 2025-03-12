@@ -85,7 +85,7 @@ func NewIpuPlugin(port int, brCtlr types.BridgeController,
 
 func waitForInfraP4d(p4rtClient types.P4RTClient) (string, error) {
 	ctx := context.Background()
-	maxRetries := 10
+	maxRetries := 25
 	retryInterval := 2 * time.Second
 
 	var err error
@@ -144,6 +144,13 @@ func (s *server) Run() error {
 			log.Infof("Using P4 image as : %s\n", s.p4Image)
 			if err := infrapod.CreateInfrapod(s.p4Image, dpuNamespace); err != nil {
 				log.Error(err, "unable to create Infrapod : %v", err)
+				return err
+			}
+			// Infrapod was created successfully. Since the service must have been
+			// restarted, the IP would be new. Resolve again and reassign
+			err = s.p4rtClient.ResolveServiceIp()
+			if err != nil {
+				log.Warnf("Error %v while trying to resolve IP after service restart", err)
 				return err
 			}
 		} else {
