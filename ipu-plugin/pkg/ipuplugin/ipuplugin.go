@@ -93,6 +93,13 @@ func waitForInfraP4d(p4rtClient types.P4RTClient) (string, error) {
 	var conn *grpc.ClientConn
 
 	for count = 0; count < maxRetries; count++ {
+		// Infrapod was created successfully. Since the service must have been
+		// restarted, the IP would be new. Resolve again and reassign
+		err = p4rtClient.ResolveServiceIp()
+		if err != nil {
+			log.Warnf("Error %v while trying to resolve IP", err)
+			continue
+		}
 		time.Sleep(retryInterval)
 		conn, err = grpc.Dial(p4rtClient.GetIpPort(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		log.Infof("Connecting to server %s retry count:%d", p4rtClient.GetIpPort(), count)
@@ -144,13 +151,6 @@ func (s *server) Run() error {
 			log.Infof("Using P4 image as : %s\n", s.p4Image)
 			if err := infrapod.CreateInfrapod(s.p4Image, dpuNamespace); err != nil {
 				log.Error(err, "unable to create Infrapod : %v", err)
-				return err
-			}
-			// Infrapod was created successfully. Since the service must have been
-			// restarted, the IP would be new. Resolve again and reassign
-			err = s.p4rtClient.ResolveServiceIp()
-			if err != nil {
-				log.Warnf("Error %v while trying to resolve IP after service restart", err)
 				return err
 			}
 		} else {
