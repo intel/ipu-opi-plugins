@@ -76,12 +76,12 @@ func applyFromBinData(logger logr.Logger, filePath string, data map[string]strin
 		}
 	}
 	if deleteObj == true {
-		logger.Info("Deleting CR", "kind", obj.GetKind(), obj.GetName())
+		logger.Info("Deleting CR : ", obj.GetKind(), obj.GetName())
 		if err := apply.DeleteObject(context.TODO(), client, obj); err != nil {
 			return fmt.Errorf("failed to delete object %v with err: %v", obj, err)
 		}
 	}
-	logger.Info("Preparing CR", "kind", obj.GetKind(), obj.GetName())
+	logger.Info("Creating CR : ", obj.GetKind(), obj.GetName())
 	if err := apply.ApplyObject(context.TODO(), client, obj); err != nil {
 		return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
 	}

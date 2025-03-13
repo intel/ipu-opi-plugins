@@ -78,14 +78,14 @@ func CreateInfrapod(imageName string, namespace string) error {
 	}
 
 	// Create p4 pod
-	// This will create the ->
-	//// ServiceAccount
-	//// role
-	//// rolebindings
-	//// persistentvolumes
-	//// persistentvolumeclaims
-	//// service for p4runtime
-	//// P4 pod
+	// This will first delete and then create ->
+	//  ServiceAccount
+	//  role
+	//  rolebindings
+	//  persistentvolumes
+	//  persistentvolumeclaims
+	//  service for p4runtime
+	//  P4 pod
 	err = render.ApplyAllFromBinData(log, "vsp-p4",
 		vspP4template.ToMap(), binData, mgr.GetClient(),
 		nil, mgr.GetScheme(), true)

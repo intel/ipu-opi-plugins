@@ -48,15 +48,15 @@ type p4rtclient struct {
 
 func NewP4RtClient(p4rtBin string, p4rtServiceName string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
 	log.Debug("Creating Linux P4Client instance")
-	cli := p4rtclient{
+	p4rtClient := p4rtclient{
 		p4rtBin:         p4rtBin,
 		p4rtServiceName: p4rtServiceName,
 		portMuxVsi:      portMuxVsi,
 		p4br:            p4BridgeName,
 		bridgeType:      brType,
 	}
-	cli.ResolveServiceIp()
-	return &cli
+	p4rtClient.ResolveServiceIp()
+	return &p4rtClient
 }
 
 // TODO: Move this under utils pkg
