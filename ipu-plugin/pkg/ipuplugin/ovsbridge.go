@@ -2,9 +2,9 @@ package ipuplugin
 
 import (
 	"fmt"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -34,32 +34,32 @@ func createDbParam(ovsDbPath string) string {
 }
 
 func isNumeric(s string) bool {
-    var n int
-    _, err := fmt.Sscanf(s, "%d", &n)
-    return err == nil
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return err == nil
 }
 
 func getPIDsWithComm(target string) ([]string, error) {
-    files, err := os.ReadDir("/proc")
-    if err != nil {
-        return nil, fmt.Errorf("error reading /proc: %v", err)
-    }
+	files, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil, fmt.Errorf("error reading /proc: %v", err)
+	}
 
-    var pids []string
-    for _, file := range files {
-        if file.IsDir() && isNumeric(file.Name()) {
-            cmdPath := filepath.Join("/proc", file.Name(), "cmdline")
-            data, err := os.ReadFile(cmdPath)
-            if err != nil {
-                continue
-            }
-            if strings.Contains(strings.TrimSpace(string(data)), target) {
-                pids = append(pids, file.Name())
-            }
-        }
-    }
+	var pids []string
+	for _, file := range files {
+		if file.IsDir() && isNumeric(file.Name()) {
+			cmdPath := filepath.Join("/proc", file.Name(), "cmdline")
+			data, err := os.ReadFile(cmdPath)
+			if err != nil {
+				continue
+			}
+			if strings.Contains(strings.TrimSpace(string(data)), target) {
+				pids = append(pids, file.Name())
+			}
+		}
+	}
 
-    return pids, nil
+	return pids, nil
 }
 
 func getInfrapodNamespace() (string, error) {
@@ -80,9 +80,9 @@ func getInfrapodNamespace() (string, error) {
 	targetPID := pids[0]
 	cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
 	ret, err := utils.ExecuteScript(cmd)
-	if err != nil {
-		log.Errorf("unable to get Namespace of infrapod: %v", err)
-		return "", fmt.Errorf("unable to get Namespace of infrapod: %v", err)
+	if err != nil || ret == "" {
+		log.Errorf("unable to get Namespace of infrapod: %v. PID used :%s", err, targetPID)
+		return "", fmt.Errorf("unable to get Namespace of infrapod: %v. PID used :%s", err, targetPID)
 	} else {
 		log.Debugf("Namespace of infrapod: %s", ret)
 	}
