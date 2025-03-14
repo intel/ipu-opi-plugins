@@ -35,6 +35,10 @@ var (
 	maxVfsSupported  = 64
 )
 
+/*
+hostVfDevs uses a map(where key is pci-address(for example-> 0000:cb:00.6))
+accDevs uses a map(where key is ACC netdev interface name(for example-> enp0s1f0d14))
+*/
 var hostVfDevs map[string]*pb.Device
 var accDevs map[string]*pb.Device
 
@@ -268,9 +272,7 @@ func discoverHostDevices(mode string) (map[string]*pb.Device, error) {
 		} else if len(accDevs) > 0 {
 			return accDevs, nil
 		}
-	}
-
-	if mode == types.HostMode {
+	} else { //mode == types.HostMode
 		if hostVfDevs == nil {
 			hostVfDevs = make(map[string]*pb.Device)
 		} else if len(hostVfDevs) > 0 {
