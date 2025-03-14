@@ -73,4 +73,10 @@ type P4RTClient interface {
 	ProgramFXPP4Rules(ruleSets []FxpRuleBuilder) error
 	GetBin() string
 	GetIpPort() string
+	ResolveServiceIp() error
+}
+
+type InfrapodMgr interface {
+	CreateCrs() error
+	DeleteCrs() error
 }

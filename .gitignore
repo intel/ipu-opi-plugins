@@ -14,4 +14,9 @@ p4sdk/p4.tar.gz
 # cscope files
 cscope*
 
+# ignore temp files created during docker build
+ipu-plugin/images/Dockerfile.cross
+ipu-plugin/fxp-net_linux-networking
+p4sdk/images/Dockerfile.cross
+p4sdk/p4
 
