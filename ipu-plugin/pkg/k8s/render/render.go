@@ -56,7 +56,7 @@ func BinDataYamlFiles(dirPath string, binData embed.FS) ([]string, error) {
 	return yamlFileDescriptors, nil
 }
 
-func applyFromBinData(logger logr.Logger, filePath string, data map[string]string, binData embed.FS, client client.Client, cfg *configv1.DpuOperatorConfig, scheme *runtime.Scheme, deleteObj bool) error {
+func operateFromBinData(logger logr.Logger, filePath string, data map[string]string, binData embed.FS, client client.Client, cfg *configv1.DpuOperatorConfig, scheme *runtime.Scheme, isDelete bool) error {
 	file, err := binData.Open(filepath.Join("bindata", filePath))
 	if err != nil {
 		return fmt.Errorf("Failed to read file '%s': %v", filePath, err)
@@ -75,26 +75,30 @@ func applyFromBinData(logger logr.Logger, filePath string, data map[string]strin
 			return err
 		}
 	}
-	if deleteObj == true {
+	if isDelete == true {
 		logger.Info("Deleting CR : ", obj.GetKind(), obj.GetName())
 		if err := apply.DeleteObject(context.TODO(), client, obj); err != nil {
 			return fmt.Errorf("failed to delete object %v with err: %v", obj, err)
 		}
-	}
-	logger.Info("Creating CR : ", obj.GetKind(), obj.GetName())
-	if err := apply.ApplyObject(context.TODO(), client, obj); err != nil {
-		return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
+	} else {
+		logger.Info("Creating CR : ", obj.GetKind(), obj.GetName())
+		if err := apply.ApplyObject(context.TODO(), client, obj); err != nil {
+			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
+		}
 	}
 	return nil
 }
 
-func ApplyAllFromBinData(logger logr.Logger, binDataPath string, data map[string]string, binData embed.FS, client client.Client, cfg *configv1.DpuOperatorConfig, scheme *runtime.Scheme, deleteFirst bool) error {
+// Performs an apply or delete based on isDelete.
+// data : template map
+// binDataPath : path inside ./bindata from cwd
+func OperateAllFromBinData(logger logr.Logger, binDataPath string, data map[string]string, binData embed.FS, client client.Client, cfg *configv1.DpuOperatorConfig, scheme *runtime.Scheme, isDelete bool) error {
 	filePaths, err := BinDataYamlFiles(binDataPath, binData)
 	if err != nil {
 		return err
 	}
 	for _, f := range filePaths {
-		err = applyFromBinData(logger, f, data, binData, client, cfg, scheme, deleteFirst)
+		err = operateFromBinData(logger, f, data, binData, client, cfg, scheme, isDelete)
 		if err != nil {
 			return err
 		}

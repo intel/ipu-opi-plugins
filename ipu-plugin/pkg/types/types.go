@@ -75,3 +75,8 @@ type P4RTClient interface {
 	GetIpPort() string
 	ResolveServiceIp() error
 }
+
+type InfrapodMgr interface {
+	CreateCrs() error
+	DeleteCrs() error
+}
