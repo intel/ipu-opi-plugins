@@ -15,6 +15,8 @@
 package types
 
 import (
+	"time"
+
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
 )
 
@@ -79,4 +81,5 @@ type P4RTClient interface {
 type InfrapodMgr interface {
 	CreateCrs() error
 	DeleteCrs() error
+	WaitForPodReady(timeout time.Duration) error
 }

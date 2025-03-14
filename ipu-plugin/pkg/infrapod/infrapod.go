@@ -1,6 +1,7 @@
 package infrapod
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -11,13 +12,15 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/k8s/render"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
 //go:embed bindata/*
@@ -128,4 +131,29 @@ func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
 		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
 	}
 	return nil
+}
+
+func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) error {
+	/*
+		This waits for P4 pod status to be ready.
+		This is different than the actual p4runtime grpc
+		server and waits for the instance managed by this mgr
+		to come up and not accidentally connect to previous instance
+	*/
+	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
+	pod := &corev1.Pod{}
+	var i = 0
+	return wait.PollImmediate(5, timeout, func() (bool, error) {
+		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, pod)
+		if err != nil {
+			infrapodMgr.log.Error(err, "failed to get infrapod. retry", i)
+			i++
+			return false, client.IgnoreNotFound(err) // Important to ignore NotFound errors during polling.
+		}
+
+		if pod.Status.Phase == corev1.PodRunning {
+			return true, nil
+		}
+		return false, nil
+	})
 }
