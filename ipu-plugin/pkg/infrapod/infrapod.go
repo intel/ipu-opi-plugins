@@ -104,6 +104,7 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	// here which is a logr implementation of logrus
 	logrusLog := logrus.New()
 	log := logrusr.New(logrusLog)
+	ctrl.SetLogger(log)
 	vspP4template, err := NewVspP4TemplateVars(imageName, namespace)
 	if err != nil {
 		log.Error(err, "unable to get template vars : %v", err)

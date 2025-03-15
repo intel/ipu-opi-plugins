@@ -79,6 +79,7 @@ func getInfrapodNamespace() (string, error) {
 
 	targetPID := pids[0]
 	cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
+	log.Infof("Namespace find : PID used :%s Executing command:%s", targetPID, cmd)
 	ret, err := utils.ExecuteScript(cmd)
 	if err != nil || ret == "" {
 		log.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
