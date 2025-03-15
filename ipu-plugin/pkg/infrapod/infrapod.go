@@ -15,7 +15,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,6 +31,11 @@ var binData embed.FS
 var (
 	scheme = runtime.NewScheme()
 )
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme)) // Add apps/v1 scheme
+}
 
 type DaemonSetReconciler struct {
 	client.Client
@@ -46,8 +53,6 @@ func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Reconciling DaemonSet", "name", daemonSet.Name, "namespace", daemonSet.Namespace)
 
-	// Your DaemonSet reconciliation logic here (e.g., check status, update labels, etc.)
-	// Example: check desired vs ready nodes
 	if daemonSet.Status.DesiredNumberScheduled != daemonSet.Status.NumberReady {
 		log.Info("DaemonSet not fully ready", "desired", daemonSet.Status.DesiredNumberScheduled, "ready", daemonSet.Status.NumberReady)
 	}
