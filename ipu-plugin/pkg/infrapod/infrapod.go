@@ -12,7 +12,9 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/k8s/render"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -76,7 +78,7 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 		Scheme: scheme.Scheme,
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultNamespaces = map[string]cache.Config{
-				"dpu-p4-infra": {},
+				vspP4template.Namespace: {},
 			}
 			return cache.New(config, opts)
 		},
@@ -132,8 +134,7 @@ func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
 	}
 	return nil
 }
-
-func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) error {
+func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) error {
 	/*
 		This waits for P4 pod status to be ready.
 		This is different than the actual p4runtime grpc
@@ -145,13 +146,36 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) err
 	var i = 0
 	return wait.PollImmediate(5, timeout, func() (bool, error) {
 		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, pod)
+		if err != nil && errors.IsNotFound(err) {
+			infrapodMgr.log.Info("Pod not found while waiting for delete: ")
+			return true, nil
+		}
+		infrapodMgr.log.Info("Pod still running while waiting for delete. Retry: " + string(i))
+		i++
+		return false, nil
+	})
+}
+
+func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) error {
+	/*
+		This waits for P4 pod status to be ready.
+		This is different than the actual p4runtime grpc
+		server and waits for the instance managed by this mgr
+		to come up and not accidentally connect to previous instance
+	*/
+	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
+	ds := &appsv1.DaemonSet{}
+	var i = 0
+	return wait.PollImmediate(5, timeout, func() (bool, error) {
+		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
 		if err != nil {
-			infrapodMgr.log.Error(err, "failed to get infrapod. retry", i)
+			infrapodMgr.log.Error(err, "failed to get infrapod. retry : "+string(i))
 			i++
 			return false, client.IgnoreNotFound(err) // Important to ignore NotFound errors during polling.
 		}
 
-		if pod.Status.Phase == corev1.PodRunning {
+		if ds.Status.DesiredNumberScheduled == ds.Status.NumberReady && ds.Status.DesiredNumberScheduled == 1 {
+			infrapodMgr.log.Info("Pod is running now")
 			return true, nil
 		}
 		return false, nil
