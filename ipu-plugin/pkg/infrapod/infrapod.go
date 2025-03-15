@@ -13,7 +13,6 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -142,10 +141,10 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) er
 		to come up and not accidentally connect to previous instance
 	*/
 	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
-	pod := &corev1.Pod{}
+	ds := &appsv1.DaemonSet{}
 	var i = 0
 	return wait.PollImmediate(5, timeout, func() (bool, error) {
-		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, pod)
+		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
 		if err != nil && errors.IsNotFound(err) {
 			infrapodMgr.log.Info("Pod not found while waiting for delete: ")
 			return true, nil

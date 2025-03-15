@@ -82,4 +82,5 @@ type InfrapodMgr interface {
 	CreateCrs() error
 	DeleteCrs() error
 	WaitForPodReady(timeout time.Duration) error
+	WaitForPodDelete(timeout time.Duration) error
 }
