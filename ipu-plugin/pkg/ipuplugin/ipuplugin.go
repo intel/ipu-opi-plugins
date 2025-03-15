@@ -193,7 +193,8 @@ func (s *server) Run() error {
 		}
 		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Fatalf("error while checking host bridge existence: %v", err)
+			log.Infof("error while checking host bridge existence: %v", err)
+			//log.Fatalf("error while checking host bridge existence: %v", err)
 			//return fmt.Errorf("host bridge error")
 		}
 	}
@@ -254,14 +255,12 @@ func (s *server) Stop() {
 			log.Error(err, "unable to Delete Crs : %v", err)
 			// Do not return since we continue on error
 		}
-
-		// Stopping the gRPC server for the DPU daemon
-		s.grpcSrvr.GracefulStop()
-		if s.listener != nil {
-			s.listener.Close()
-			_ = s.cleanUp()
-		}
-		// Deleting all
+	}
+	// Stopping the gRPC server for the DPU daemon
+	s.grpcSrvr.GracefulStop()
+	if s.listener != nil {
+		s.listener.Close()
+		_ = s.cleanUp()
 	}
 	s.log.Info("IPU plugin has stopped")
 }
