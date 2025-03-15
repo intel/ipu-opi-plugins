@@ -163,10 +163,11 @@ func (s *server) Run() error {
 				log.Error(err, "unable to Delete Crs : %v", err)
 				return err
 			}
-			if err = s.infrapodMgr.WaitForPodDelete(60 * time.Second); err != nil {
-				log.Error(err, "unable to wait for pod delete : %v", err)
-				return err
-			}
+			/*
+				if err = s.infrapodMgr.WaitForPodDelete(60 * time.Second); err != nil {
+					log.Error(err, "unable to wait for pod delete : %v", err)
+					return err
+				}*/
 			if err = s.infrapodMgr.CreateCrs(); err != nil {
 				log.Error(err, "unable to Create Crs : %v", err)
 				return err
