@@ -43,7 +43,6 @@ type DaemonSetReconciler struct {
 }
 
 func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return ctrl.Result{}, nil
 	log := ctrl.Log.WithName("DaemonSetReconciler").WithValues("daemonset", req.NamespacedName)
 
 	daemonSet := &appsv1.DaemonSet{}
@@ -137,16 +136,20 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 		return nil, err
 	}
 
-	log.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
-		return nil, err
-	}
 	return &InfrapodMgrOcImpl{
 		log:           log,
 		mgr:           mgr,
 		vspP4Template: vspP4template,
 	}, nil
+}
+
+func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
+	infrapodMgr.log.Info("starting manager")
+	if err := infrapodMgr.mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		infrapodMgr.log.Error(err, "problem running manager")
+		return err
+	}
+	return nil
 }
 
 func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
