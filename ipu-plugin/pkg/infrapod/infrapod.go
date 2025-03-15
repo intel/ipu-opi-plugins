@@ -43,6 +43,7 @@ type DaemonSetReconciler struct {
 }
 
 func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 	log := ctrl.Log.WithName("DaemonSetReconciler").WithValues("daemonset", req.NamespacedName)
 
 	daemonSet := &appsv1.DaemonSet{}
