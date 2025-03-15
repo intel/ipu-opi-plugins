@@ -14,18 +14,53 @@ import (
 	logrus "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
 //go:embed bindata/*
 var binData embed.FS
+var (
+	scheme = runtime.NewScheme()
+)
+
+type DaemonSetReconciler struct {
+	client.Client
+	Scheme *runtime.Scheme
+}
+
+func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := ctrl.Log.WithName("DaemonSetReconciler").WithValues("daemonset", req.NamespacedName)
+
+	daemonSet := &appsv1.DaemonSet{}
+	if err := r.Get(ctx, req.NamespacedName, daemonSet); err != nil {
+		log.Error(err, "unable to fetch DaemonSet")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Info("Reconciling DaemonSet", "name", daemonSet.Name, "namespace", daemonSet.Namespace)
+
+	// Your DaemonSet reconciliation logic here (e.g., check status, update labels, etc.)
+	// Example: check desired vs ready nodes
+	if daemonSet.Status.DesiredNumberScheduled != daemonSet.Status.NumberReady {
+		log.Info("DaemonSet not fully ready", "desired", daemonSet.Status.DesiredNumberScheduled, "ready", daemonSet.Status.NumberReady)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *DaemonSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&appsv1.DaemonSet{}).
+		Complete(r)
+}
 
 type InfrapodMgrOcImpl struct {
 	log           logr.Logger
@@ -74,7 +109,7 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	t := time.Duration(0)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme: scheme,
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultNamespaces = map[string]cache.Config{
 				vspP4template.Namespace: {},
@@ -86,6 +121,19 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	})
 	if err != nil {
 		log.Error(err, "unable to start manager :%v", err)
+		return nil, err
+	}
+	if err = (&DaemonSetReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		log.Error(err, "unable to create controller", "controller", "DaemonSet")
+		return nil, err
+	}
+
+	log.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		log.Error(err, "problem running manager")
 		return nil, err
 	}
 	return &InfrapodMgrOcImpl{
