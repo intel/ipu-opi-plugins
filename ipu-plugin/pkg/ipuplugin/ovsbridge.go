@@ -76,18 +76,23 @@ func getInfrapodNamespace() (string, error) {
 		// TODO: A better way is needed to identify the container
 		return "", fmt.Errorf("%v PIDs found for 'entrypoint.sh': %v", len(pids), pids)
 	}
+	return pids[0], nil
+	/*
+	   targetPID := pids[0]
+	   cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
+	   log.Infof("Namespace find : PID used :%s Executing command:%s", targetPID, cmd)
+	   ret, err := utils.ExecuteScript(cmd)
 
-	targetPID := pids[0]
-	cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
-	log.Infof("Namespace find : PID used :%s Executing command:%s", targetPID, cmd)
-	ret, err := utils.ExecuteScript(cmd)
-	if err != nil || ret == "" {
-		log.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
-		return "", fmt.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
-	} else {
-		log.Debugf("Namespace of infrapod: %s", ret)
-	}
-	return ret, nil
+	   	if err != nil || ret == "" {
+	   		log.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
+	   		return "", fmt.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
+	   	} else {
+
+	   		log.Debugf("Namespace of infrapod: %s", ret)
+	   	}
+
+	   return ret, nil
+	*/
 }
 
 func (b *ovsBridge) EnsureBridgeExists() error {
