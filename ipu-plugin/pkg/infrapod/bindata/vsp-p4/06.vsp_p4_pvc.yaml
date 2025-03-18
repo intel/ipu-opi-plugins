@@ -5,7 +5,7 @@ metadata:
   namespace: {{.Namespace}}
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   provisioner: kubernetes.io/no-provisioner
   resources:
     requests:

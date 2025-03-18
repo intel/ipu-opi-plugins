@@ -167,14 +167,15 @@ func (s *server) Run() error {
 					syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 				}
 			}()
-			if err = s.infrapodMgr.DeleteCrs(); err != nil {
-				log.Error(err, "unable to Delete Crs : %v", err)
-				return err
-			}
-			if err = s.infrapodMgr.WaitForPodDelete(60 * time.Second); err != nil {
-				log.Error(err, "unable to wait for pod delete : %v", err)
-				return err
-			}
+			/*
+				if err = s.infrapodMgr.DeleteCrs(); err != nil {
+					log.Error(err, "unable to Delete Crs : %v", err)
+					return err
+				}
+				if err = s.infrapodMgr.WaitForPodDelete(60 * time.Second); err != nil {
+					log.Error(err, "unable to wait for pod delete : %v", err)
+					return err
+				}*/
 			if err = s.infrapodMgr.CreateCrs(); err != nil {
 				log.Error(err, "unable to Create Crs : %v", err)
 				return err
