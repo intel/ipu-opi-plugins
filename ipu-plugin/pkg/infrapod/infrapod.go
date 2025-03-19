@@ -13,11 +13,12 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,20 +44,7 @@ type DaemonSetReconciler struct {
 }
 
 func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := ctrl.Log.WithName("DaemonSetReconciler").WithValues("daemonset", req.NamespacedName)
-
-	daemonSet := &appsv1.DaemonSet{}
-	if err := r.Get(ctx, req.NamespacedName, daemonSet); err != nil {
-		log.Error(err, "unable to fetch DaemonSet")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	log.Info("Reconciling DaemonSet", "name", daemonSet.Name, "namespace", daemonSet.Namespace)
-
-	if daemonSet.Status.DesiredNumberScheduled != daemonSet.Status.NumberReady {
-		log.Info("DaemonSet not fully ready", "desired", daemonSet.Status.DesiredNumberScheduled, "ready", daemonSet.Status.NumberReady)
-	}
-
+	// Needs logic once we need reconcile logic for infrapod bringup
 	return ctrl.Result{}, nil
 }
 
@@ -153,16 +141,53 @@ func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
 	return nil
 }
 
+func (infrapodMgr *InfrapodMgrOcImpl) getPvCrs() (error, bool) {
+	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4-pvc"}
+	pvc := &corev1.PersistentVolumeClaim{}
+	err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, pvc)
+	if err == nil {
+		return nil, true
+	}
+	if err != nil && apierrors.IsNotFound(err) {
+		return nil, false
+	}
+	return err, false
+}
+
+/*
+Create p4 pvc This will create ->
+persistentvolumes
+persistentvolumeclaims
+*/
+func (infrapodMgr *InfrapodMgrOcImpl) CreatePvCrs() error {
+	err, isPresent := infrapodMgr.getPvCrs()
+	if err != nil {
+		infrapodMgr.log.Error(err, "failed to start PV")
+		return fmt.Errorf("failed to get PV due to: %v", err)
+	}
+	if isPresent {
+		infrapodMgr.log.Error(err, "PV already present")
+		return nil
+	}
+	err = render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4-pv",
+		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
+		nil, infrapodMgr.mgr.GetScheme(), false)
+	if err != nil {
+		infrapodMgr.log.Error(err, "failed to start PV")
+		return fmt.Errorf("failed to start PV due to: %v", err)
+	}
+	return nil
+}
+
+/*
+Create p4 pod This will create ->
+ServiceAccount
+role
+rolebindings
+service for p4runtime
+P4 pod
+*/
 func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
-	// Create p4 pod
-	// This will create ->
-	//  ServiceAccount
-	//  role
-	//  rolebindings
-	//  persistentvolumes
-	//  persistentvolumeclaims
-	//  service for p4runtime
-	//  P4 pod
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), false)
@@ -172,16 +197,16 @@ func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
 	}
 	return nil
 }
+
+/*
+Delete p4 pod This will delete ->
+ServiceAccount
+role
+rolebindings
+service for p4runtime
+P4 pod
+*/
 func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
-	// Delete p4 pod
-	// This will delete ->
-	//  ServiceAccount
-	//  role
-	//  rolebindings
-	//  persistentvolumes
-	//  persistentvolumeclaims
-	//  service for p4runtime
-	//  P4 pod
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), true)
@@ -190,51 +215,4 @@ func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
 		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
 	}
 	return nil
-}
-func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) error {
-	/*
-		This waits for P4 pod status to be ready.
-		This is different than the actual p4runtime grpc
-		server and waits for the instance managed by this mgr
-		to come up and not accidentally connect to previous instance
-	*/
-	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
-	ds := &appsv1.DaemonSet{}
-	var i = 0
-	return wait.PollImmediate(5, timeout, func() (bool, error) {
-		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
-		if err != nil && errors.IsNotFound(err) {
-			infrapodMgr.log.Info("Pod not found while waiting for delete: ")
-			return true, nil
-		}
-		infrapodMgr.log.Info("Pod still running while waiting for delete. Retry: " + string(i))
-		i++
-		return false, nil
-	})
-}
-
-func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) error {
-	/*
-		This waits for P4 pod status to be ready.
-		This is different than the actual p4runtime grpc
-		server and waits for the instance managed by this mgr
-		to come up and not accidentally connect to previous instance
-	*/
-	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
-	ds := &appsv1.DaemonSet{}
-	var i = 0
-	return wait.PollImmediate(5, timeout, func() (bool, error) {
-		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
-		if err != nil {
-			infrapodMgr.log.Error(err, "failed to get infrapod. retry : "+string(i))
-			i++
-			return false, client.IgnoreNotFound(err) // Important to ignore NotFound errors during polling.
-		}
-
-		if ds.Status.DesiredNumberScheduled == ds.Status.NumberReady && ds.Status.DesiredNumberScheduled == 1 {
-			infrapodMgr.log.Info("Pod is running now")
-			return true, nil
-		}
-		return false, nil
-	})
 }
