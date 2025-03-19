@@ -169,7 +169,7 @@ func (infrapodMgr *InfrapodMgrOcImpl) CreatePvCrs() error {
 		infrapodMgr.log.Error(err, "PV already present")
 		return nil
 	}
-	err = render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4-pv",
+	err = render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4-pvc",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), false)
 	if err != nil {
