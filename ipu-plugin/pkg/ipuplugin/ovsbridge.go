@@ -62,7 +62,10 @@ func getPIDsWithComm(target string) ([]string, error) {
 	return pids, nil
 }
 
-func getInfrapodNamespace() (string, error) {
+/* This func returns the PID of the infrapod
+* That PID is used instead of networkNamespace
+ */
+func getInfrapodPID() (string, error) {
 	pids, err := getPIDsWithComm("entrypoint.sh")
 	if err != nil {
 		return "", fmt.Errorf("error retrieving PIDs: %v", err)
@@ -77,22 +80,6 @@ func getInfrapodNamespace() (string, error) {
 		return "", fmt.Errorf("%v PIDs found for 'entrypoint.sh': %v", len(pids), pids)
 	}
 	return pids[0], nil
-	/*
-	   targetPID := pids[0]
-	   cmd := fmt.Sprintf("ip netns identify %s | tr -d '\\n'", targetPID)
-	   log.Infof("Namespace find : PID used :%s Executing command:%s", targetPID, cmd)
-	   ret, err := utils.ExecuteScript(cmd)
-
-	   	if err != nil || ret == "" {
-	   		log.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
-	   		return "", fmt.Errorf("unable to get Namespace of infrapod: %v. PID used :%s. Namespace returned:%s", err, targetPID, ret)
-	   	} else {
-
-	   		log.Debugf("Namespace of infrapod: %s", ret)
-	   	}
-
-	   return ret, nil
-	*/
 }
 
 func (b *ovsBridge) EnsureBridgeExists() error {
@@ -101,9 +88,9 @@ func (b *ovsBridge) EnsureBridgeExists() error {
 	if err := utils.ExecOsCommand(b.ovsCliDir+"/ovs-vsctl", createBrParams...); err != nil {
 		return fmt.Errorf("error creating ovs bridge %s with ovs-vsctl command %s", b.bridgeName, err.Error())
 	}
-	netNs, err := getInfrapodNamespace()
+	netNs, err := getInfrapodPID()
 	if err != nil {
-		log.Errorf("EnsureBridgeExists: error->%v from getInfrapodNamespace", err)
+		log.Errorf("EnsureBridgeExists: error->%v from getInfrapodPID", err)
 		return err
 	}
 	// Flush any existing IP addresses from the bridge interface from any previous runs
@@ -137,9 +124,9 @@ func (b *ovsBridge) DeleteBridges() error {
 }
 
 func (b *ovsBridge) AddPort(portName string) error {
-	netNs, err := getInfrapodNamespace()
+	netNs, err := getInfrapodPID()
 	if err != nil {
-		log.Errorf("AddPort: error->%v from getInfrapodNamespace", err)
+		log.Errorf("AddPort: error->%v from getInfrapodPID", err)
 		return err
 	}
 	// Move interface to the infrapod namespace
@@ -164,9 +151,9 @@ func (b *ovsBridge) AddPort(portName string) error {
 }
 
 func (b *ovsBridge) DeletePort(portName string) error {
-	netNs, err := getInfrapodNamespace()
+	netNs, err := getInfrapodPID()
 	if err != nil {
-		log.Errorf("DeletePort: error->%v from getInfrapodNamespace", err)
+		log.Errorf("DeletePort: error->%v from getInfrapodPID", err)
 		return err
 	}
 	// Move interface out of the infrapod namespace

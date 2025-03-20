@@ -132,6 +132,10 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	}, nil
 }
 
+/* Starts the controller manager in a different goroutine
+* It blocks on the start. We register all DaemonSets and the
+* Reconcile func would be called for any changes to events
+ */
 func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
 	infrapodMgr.log.Info("starting manager")
 	if err := infrapodMgr.mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -141,6 +145,10 @@ func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
 	return nil
 }
 
+/*
+* Get PV and PVC. It returns false if it is not present and true if it does
+* It doesn't return error if it is a NotFound error
+ */
 func (infrapodMgr *InfrapodMgrOcImpl) getPvCrs() (error, bool) {
 	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4-pvc"}
 	pvc := &corev1.PersistentVolumeClaim{}

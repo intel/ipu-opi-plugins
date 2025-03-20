@@ -190,8 +190,8 @@ func (s *server) Run() error {
 		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
 			log.Infof("error while checking host bridge existence: %v", err)
-			//log.Fatalf("error while checking host bridge existence: %v", err)
-			//return fmt.Errorf("host bridge error")
+			log.Fatalf("error while checking host bridge existence: %v", err)
+			return fmt.Errorf("host bridge error")
 		}
 	}
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtClient, s.bridgeCtlr))
