@@ -73,21 +73,21 @@ func ExecOsCommand(cmdBin string, params ...string) error {
 }
 
 func GetVsiVportInfo(macAddr string) (int, int, error) {
-        vsi, err := ImcQueryfindVsiGivenMacAddr(types.IpuMode, macAddr)
-        if err != nil {
-                log.Info("GetVsiVportInfo failed. Unable to find Vsi and Vport for mac: ", macAddr)
-                return 0, 0, err
-        }
-        //skip 0x in front of vsi
-        vsi = vsi[2:]
-        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
-        if err != nil {
-                log.Info("error from ParseInt ", err)
-                return 0, 0, err
-        }
-        vfVsi := int(vsiInt64)
-        vfVport := GetVportForVsi(vfVsi)
-        return vfVsi, vfVport, nil
+	vsi, err := ImcQueryfindVsiGivenMacAddr(types.IpuMode, macAddr)
+	if err != nil {
+		log.Info("GetVsiVportInfo failed. Unable to find Vsi and Vport for mac: ", macAddr)
+		return 0, 0, err
+	}
+	//skip 0x in front of vsi
+	vsi = vsi[2:]
+	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+	if err != nil {
+		log.Info("error from ParseInt ", err)
+		return 0, 0, err
+	}
+	vfVsi := int(vsiInt64)
+	vfVport := GetVportForVsi(vfVsi)
+	return vfVsi, vfVport, nil
 }
 
 func GetVportForVsi(vsi int) int {

@@ -70,7 +70,7 @@ func (p *rhP4Client) AddRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("adding FXP rules")
 
 	for _, r := range ruleSets {
-		_, err:= utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
+		_, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
 		if err != nil {
 			log.WithField("error", err).Errorf("error executing add rule command")
 		}
@@ -86,7 +86,7 @@ func (p *rhP4Client) DeleteRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("deleting FXP rules")
 
 	for _, r := range ruleSets {
-		 _, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
+		_, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
 		if err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		}

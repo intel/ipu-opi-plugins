@@ -1,6 +1,6 @@
 # Copyright (c) 2023 Intel Corporation
 
-.PHONY: all fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
+.PHONY: all check-fmt fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
 APP_NAME = ipuplugin
 P4_NAME  ?= fxp-net_linux-networking
 P4_DIR   ?= fxp-net_linux-networking
@@ -25,11 +25,13 @@ ifdef HTTPS_PROXY
 endif
 DOCKERARGS += --build-arg P4_NAME=$(P4_NAME)
 
-all: lint update-mod build
+all: check-fmt lint update-mod build
 
 fmt:
 	go fmt ./...
 
+check-fmt:
+	./hack/cicd/check-go-fmt.sh
 vet:
 	go vet ./...
 
@@ -55,7 +57,7 @@ artefacts:
 	cp -r ../e2e/artefacts/$(P4_DIR) $(CURDIR)
 	mkdir -p $(CURDIR)/bin && cp -r ../e2e/artefacts/bin/* $(CURDIR)/bin/
 
-image: artefacts
+image: check-fmt artefacts
 	$(IMGTOOL) build -t $(IMAGE_TAG_VERSION) -f $(DOCKERFILE)  $(CURDIR) $(DOCKERARGS) --no-cache
 	$(IMGTOOL) image tag $(IMAGE_TAG_VERSION) $(IMAGE_TAG_LATEST)
 
@@ -63,7 +65,7 @@ PLATFORMS ?= linux/arm64,linux/amd64
 # https://stackoverflow.com/questions/73210141/running-buildkit-using-docker-buildx-behind-a-proxy
 # 	docker buildx create --use --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt env.no_proxy=$(NO_PROXY)
 # buildkit.toml file is a configuration file which allows to set registry configuration
-imagex: artefacts
+imagex: check-fmt artefacts
 	## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
