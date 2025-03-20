@@ -253,6 +253,7 @@ func cleanUpRulesOnExit(p4rtClient types.P4RTClient) error {
 
 func (s *server) Stop() {
 	s.log.Info("Stopping IPU plugin")
+
 	if s.mode == types.IpuMode {
 		//Note: Deletes bridge created in EnsureBridgeExists in  Run api.
 		s.bridgeCtlr.DeleteBridges()
