@@ -90,7 +90,7 @@ func waitForInfraP4d(p4rtClient types.P4RTClient) (string, error) {
 	// Higher retries because ipu-plugin itself starts infrapod
 	// and if it doesn't wait the minimum, then there is a chance that it
 	// will keep restarting and hence restarting infrapod too
-	maxRetries := 30
+	maxRetries := 50
 	retryInterval := 2 * time.Second
 
 	var err error
