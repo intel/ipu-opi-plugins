@@ -6,8 +6,8 @@ require (
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/go-logr/logr v1.4.2
 	github.com/k8snetworkplumbingwg/sriov-network-operator v1.5.0
-	github.com/onsi/ginkgo/v2 v2.22.0
-	github.com/onsi/gomega v1.36.1
+	github.com/onsi/ginkgo/v2 v2.23.2
+	github.com/onsi/gomega v1.36.2
 	github.com/openshift/dpu-operator/api v0.0.0-20250219232844-d9d4ba9f399c
 	github.com/openshift/dpu-operator/dpu-api v0.0.0-20241023094403-a185e0f16e84
 	github.com/opiproject/opi-api v0.0.0-20240808163627-6cd218088dda
@@ -44,7 +44,7 @@ require (
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/pprof v0.0.0-20241029153458-d1b30febd7db // indirect
+	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -83,7 +83,7 @@ require (
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
-	golang.org/x/tools v0.26.0 // indirect
+	golang.org/x/tools v0.30.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240826202546-f6391c0de4c7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240826202546-f6391c0de4c7 // indirect
