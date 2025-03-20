@@ -1,6 +1,6 @@
 # Copyright (c) 2023 Intel Corporation
 
-.PHONY: all fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
+.PHONY: all check-fmt fmt vet build ipuplugin test update-mod ipuplugin-amd64 ipuplugin-arm64
 APP_NAME = ipuplugin
 P4_NAME  ?= fxp-net_linux-networking
 P4_DIR   ?= fxp-net_linux-networking
@@ -25,11 +25,13 @@ ifdef HTTPS_PROXY
 endif
 DOCKERARGS += --build-arg P4_NAME=$(P4_NAME)
 
-all: lint update-mod build
+all: check-fmt lint update-mod build
 
 fmt:
 	go fmt ./...
 
+check-fmt:
+	./hack/cicd/check-go-fmt.sh
 vet:
 	go vet ./...
 
