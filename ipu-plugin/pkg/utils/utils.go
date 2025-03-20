@@ -43,10 +43,10 @@ const (
 )
 
 const (
-        maxRetryCnt   = 5
-        errStr        = "Process failure, err: -105"
-        outputPath    = "/work/cli_output"
-        retryDelay    = 500 * time.Millisecond
+	maxRetryCnt = 5
+	errStr      = "Process failure, err: -105"
+	outputPath  = "/work/cli_output"
+	retryDelay  = 500 * time.Millisecond
 )
 
 var execCommand = exec.Command
@@ -154,6 +154,21 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 	return outputStr, err
 }
 
+// TODO: Use RunCliCmdOnImc in api below.
+// skips ACC interfaces D0 to D3, which are used internally. So, not available for other usages.
+// $2 == 4 is to get ACC entries, and $10 check is to make sure, we skip rows that has vportIDs from D0 to D3.
+func GetAvailableAccVsiList() ([]string, error) {
+	// reach out to the IMC
+	vsiList, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
+		| awk '{if(($2 == "0x4") && ($10 != "0x0") && ($10 != "0x1") && ($10 != "0x2") && ($10 != "0x3")) {print $8}}'`)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to reach the IMC %v", err)
+	}
+
+	return strings.Split(strings.TrimSpace(vsiList), "\n"), nil
+}
+
 // Note: Added retry logic, since ipumgmtd is single-threaded, so concurrent usage,
 // of cli-client errors out.
 // we retry 5 times, with sleep(0.5s) between retries. If it exceeds max
@@ -187,7 +202,7 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 
 	var outputBytes []byte
 
-	for retry := 0;  retry < maxRetryCnt; retry++ {
+	for retry := 0; retry < maxRetryCnt; retry++ {
 		log.Printf("Attempt %d/%d: Executing command", retry+1, maxRetryCnt)
 
 		session, err := client.NewSession()
@@ -217,19 +232,19 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 		}
 
 		if subCmd != "" {
-		     // Execute the sub-command
-		     session, err = client.NewSession()
-		     if err != nil {
-			     return nil, fmt.Errorf("failed to create SSH session: %w", err)
-		     }
-		     defer session.Close() // Ensure closure of session
+			// Execute the sub-command
+			session, err = client.NewSession()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SSH session: %w", err)
+			}
+			defer session.Close() // Ensure closure of session
 
-		     fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
-		     outputBytes, err = session.CombinedOutput(fullCmd)
-		     if err != nil {
-			     return nil, fmt.Errorf("sub-command execution failed: %w", err)
-		     }
-	        }
+			fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
+			outputBytes, err = session.CombinedOutput(fullCmd)
+			if err != nil {
+				return nil, fmt.Errorf("sub-command execution failed: %w", err)
+			}
+		}
 		return outputBytes, nil
 	}
 
