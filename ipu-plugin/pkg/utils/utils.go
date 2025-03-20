@@ -43,10 +43,10 @@ const (
 )
 
 const (
-        maxRetryCnt   = 5
-        errStr        = "Process failure, err: -105"
-        outputPath    = "/work/cli_output"
-        retryDelay    = 500 * time.Millisecond
+	maxRetryCnt = 5
+	errStr      = "Process failure, err: -105"
+	outputPath  = "/work/cli_output"
+	retryDelay  = 500 * time.Millisecond
 )
 
 var execCommand = exec.Command
@@ -73,21 +73,21 @@ func ExecOsCommand(cmdBin string, params ...string) error {
 }
 
 func GetVsiVportInfo(macAddr string) (int, int, error) {
-        vsi, err := ImcQueryfindVsiGivenMacAddr(types.IpuMode, macAddr)
-        if err != nil {
-                log.Info("GetVsiVportInfo failed. Unable to find Vsi and Vport for mac: ", macAddr)
-                return 0, 0, err
-        }
-        //skip 0x in front of vsi
-        vsi = vsi[2:]
-        vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
-        if err != nil {
-                log.Info("error from ParseInt ", err)
-                return 0, 0, err
-        }
-        vfVsi := int(vsiInt64)
-        vfVport := GetVportForVsi(vfVsi)
-        return vfVsi, vfVport, nil
+	vsi, err := ImcQueryfindVsiGivenMacAddr(types.IpuMode, macAddr)
+	if err != nil {
+		log.Info("GetVsiVportInfo failed. Unable to find Vsi and Vport for mac: ", macAddr)
+		return 0, 0, err
+	}
+	//skip 0x in front of vsi
+	vsi = vsi[2:]
+	vsiInt64, err := strconv.ParseInt(vsi, 16, 32)
+	if err != nil {
+		log.Info("error from ParseInt ", err)
+		return 0, 0, err
+	}
+	vfVsi := int(vsiInt64)
+	vfVport := GetVportForVsi(vfVsi)
+	return vfVsi, vfVport, nil
 }
 
 func GetVportForVsi(vsi int) int {
@@ -205,7 +205,7 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 
 	var outputBytes []byte
 
-	for retry := 0;  retry < maxRetryCnt; retry++ {
+	for retry := 0; retry < maxRetryCnt; retry++ {
 		log.Printf("Attempt %d/%d: Executing command", retry+1, maxRetryCnt)
 
 		session, err := client.NewSession()
@@ -235,19 +235,19 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 		}
 
 		if subCmd != "" {
-		     // Execute the sub-command
-		     session, err = client.NewSession()
-		     if err != nil {
-			     return nil, fmt.Errorf("failed to create SSH session: %w", err)
-		     }
-		     defer session.Close() // Ensure closure of session
+			// Execute the sub-command
+			session, err = client.NewSession()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SSH session: %w", err)
+			}
+			defer session.Close() // Ensure closure of session
 
-		     fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
-		     outputBytes, err = session.CombinedOutput(fullCmd)
-		     if err != nil {
-			     return nil, fmt.Errorf("sub-command execution failed: %w", err)
-		     }
-	        }
+			fullCmd := fmt.Sprintf("set -o pipefail && cat /work/cli_output %s", subCmd)
+			outputBytes, err = session.CombinedOutput(fullCmd)
+			if err != nil {
+				return nil, fmt.Errorf("sub-command execution failed: %w", err)
+			}
+		}
 		return outputBytes, nil
 	}
 
