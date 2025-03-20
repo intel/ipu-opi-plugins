@@ -10,7 +10,7 @@ else
 	echo "$GOFMTOUT"
 	echo ""
 	echo "gomft found formatting issues above ^^^ "
-	echo "Please run go fmt ./... to format your go source files."
+	echo "Please run gofmt -w ... to format your go source files."
 	echo ""
 	exit 1;
 fi;
