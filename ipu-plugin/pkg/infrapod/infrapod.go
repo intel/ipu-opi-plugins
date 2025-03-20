@@ -200,8 +200,8 @@ func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), false)
 	if err != nil {
-		infrapodMgr.log.Error(err, "failed to start vendor plugin container")
-		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
+		infrapodMgr.log.Error(err, "failed to start vsp-p4")
+		return fmt.Errorf("failed to start vsp-p4 (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
 	}
 	return nil
 }
@@ -219,8 +219,8 @@ func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), true)
 	if err != nil {
-		infrapodMgr.log.Error(err, "failed to start vendor plugin container")
-		return fmt.Errorf("failed to start vendor plugin container (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
+		infrapodMgr.log.Error(err, "failed to delete vsp-p4")
+		return fmt.Errorf("failed to delete vsp-p4 (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
 	}
 	return nil
 }
