@@ -90,7 +90,7 @@ func waitForInfraP4d(p4rtClient types.P4RTClient) (string, error) {
 	// Higher retries because ipu-plugin itself starts infrapod
 	// and if it doesn't wait the minimum, then there is a chance that it
 	// will keep restarting and hence restarting infrapod too
-	maxRetries := 30
+	maxRetries := 50
 	retryInterval := 2 * time.Second
 
 	var err error
@@ -159,8 +159,20 @@ func (s *server) Run() error {
 				log.Error(err, "unable to create InfrapodMgr : %v", err)
 				return err
 			}
+			go func() {
+				if err = s.infrapodMgr.StartMgr(); err != nil {
+					log.Error(err, "unable to Start mgr : %v", err)
+					time.Sleep(2 * time.Second)
+					// Sending Sigterm to the main thread to start cleanup
+					syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+				}
+			}()
 			if err = s.infrapodMgr.DeleteCrs(); err != nil {
 				log.Error(err, "unable to Delete Crs : %v", err)
+				return err
+			}
+			if err = s.infrapodMgr.CreatePvCrs(); err != nil {
+				log.Error(err, "unable to Create PV Crs : %v", err)
 				return err
 			}
 			if err = s.infrapodMgr.CreateCrs(); err != nil {
@@ -177,8 +189,9 @@ func (s *server) Run() error {
 		}
 		// Create bridge if it doesn't exist
 		if err := s.bridgeCtlr.EnsureBridgeExists(); err != nil {
-			log.Fatalf("error while checking host bridge existence: %v", err)
-			return fmt.Errorf("host bridge error")
+			log.Infof("error while checking host bridge existence: %v", err)
+			//log.Fatalf("error while checking host bridge existence: %v", err)
+			//return fmt.Errorf("host bridge error")
 		}
 	}
 	pb2.RegisterLifeCycleServiceServer(s.grpcSrvr, NewLifeCycleService(s.daemonHostIp, s.daemonIpuIp, s.daemonPort, s.mode, s.p4rtClient, s.bridgeCtlr))
@@ -238,14 +251,12 @@ func (s *server) Stop() {
 			log.Error(err, "unable to Delete Crs : %v", err)
 			// Do not return since we continue on error
 		}
-
-		// Stopping the gRPC server for the DPU daemon
-		s.grpcSrvr.GracefulStop()
-		if s.listener != nil {
-			s.listener.Close()
-			_ = s.cleanUp()
-		}
-		// Deleting all
+	}
+	// Stopping the gRPC server for the DPU daemon
+	s.grpcSrvr.GracefulStop()
+	if s.listener != nil {
+		s.listener.Close()
+		_ = s.cleanUp()
 	}
 	s.log.Info("IPU plugin has stopped")
 }

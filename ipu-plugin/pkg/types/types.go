@@ -77,6 +77,8 @@ type P4RTClient interface {
 }
 
 type InfrapodMgr interface {
+	StartMgr() error
 	CreateCrs() error
+	CreatePvCrs() error
 	DeleteCrs() error
 }

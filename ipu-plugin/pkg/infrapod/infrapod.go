@@ -1,6 +1,7 @@
 package infrapod
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
@@ -11,17 +12,48 @@ import (
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/k8s/render"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
 //go:embed bindata/*
 var binData embed.FS
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme)) // Add apps/v1 scheme
+}
+
+type DaemonSetReconciler struct {
+	client.Client
+	Scheme *runtime.Scheme
+}
+
+func (r *DaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// Needs logic once we need reconcile logic for infrapod bringup
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *DaemonSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&appsv1.DaemonSet{}).
+		Complete(r)
+}
 
 type InfrapodMgrOcImpl struct {
 	log           logr.Logger
@@ -60,6 +92,7 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	// here which is a logr implementation of logrus
 	logrusLog := logrus.New()
 	log := logrusr.New(logrusLog)
+	ctrl.SetLogger(log)
 	vspP4template, err := NewVspP4TemplateVars(imageName, namespace)
 	if err != nil {
 		log.Error(err, "unable to get template vars : %v", err)
@@ -70,10 +103,10 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	t := time.Duration(0)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme: scheme,
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultNamespaces = map[string]cache.Config{
-				"dpu-p4-infra": {},
+				vspP4template.Namespace: {},
 			}
 			return cache.New(config, opts)
 		},
@@ -84,6 +117,14 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 		log.Error(err, "unable to start manager :%v", err)
 		return nil, err
 	}
+	if err = (&DaemonSetReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		log.Error(err, "unable to create controller", "controller", "DaemonSet")
+		return nil, err
+	}
+
 	return &InfrapodMgrOcImpl{
 		log:           log,
 		mgr:           mgr,
@@ -91,16 +132,62 @@ func NewInfrapodMgr(imageName string, namespace string) (types.InfrapodMgr, erro
 	}, nil
 }
 
+func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
+	infrapodMgr.log.Info("starting manager")
+	if err := infrapodMgr.mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		infrapodMgr.log.Error(err, "problem running manager")
+		return err
+	}
+	return nil
+}
+
+func (infrapodMgr *InfrapodMgrOcImpl) getPvCrs() (error, bool) {
+	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4-pvc"}
+	pvc := &corev1.PersistentVolumeClaim{}
+	err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, pvc)
+	if err == nil {
+		return nil, true
+	}
+	if err != nil && apierrors.IsNotFound(err) {
+		return nil, false
+	}
+	return err, false
+}
+
+/*
+Create p4 pvc This will create ->
+persistentvolumes
+persistentvolumeclaims
+*/
+func (infrapodMgr *InfrapodMgrOcImpl) CreatePvCrs() error {
+	err, isPresent := infrapodMgr.getPvCrs()
+	if err != nil {
+		infrapodMgr.log.Error(err, "failed to start PV")
+		return fmt.Errorf("failed to get PV due to: %v", err)
+	}
+	if isPresent {
+		infrapodMgr.log.Error(err, "PV already present")
+		return nil
+	}
+	err = render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4-pvc",
+		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
+		nil, infrapodMgr.mgr.GetScheme(), false)
+	if err != nil {
+		infrapodMgr.log.Error(err, "failed to start PV")
+		return fmt.Errorf("failed to start PV due to: %v", err)
+	}
+	return nil
+}
+
+/*
+Create p4 pod This will create ->
+ServiceAccount
+role
+rolebindings
+service for p4runtime
+P4 pod
+*/
 func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
-	// Create p4 pod
-	// This will create ->
-	//  ServiceAccount
-	//  role
-	//  rolebindings
-	//  persistentvolumes
-	//  persistentvolumeclaims
-	//  service for p4runtime
-	//  P4 pod
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), false)
@@ -110,16 +197,16 @@ func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
 	}
 	return nil
 }
+
+/*
+Delete p4 pod This will delete ->
+ServiceAccount
+role
+rolebindings
+service for p4runtime
+P4 pod
+*/
 func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
-	// Delete p4 pod
-	// This will delete ->
-	//  ServiceAccount
-	//  role
-	//  rolebindings
-	//  persistentvolumes
-	//  persistentvolumeclaims
-	//  service for p4runtime
-	//  P4 pod
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), true)

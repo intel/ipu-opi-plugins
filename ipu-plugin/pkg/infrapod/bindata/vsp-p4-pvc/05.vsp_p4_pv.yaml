@@ -9,7 +9,7 @@ spec:
   capacity:
     storage: 3Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   local:
     path: /opt/p4/
