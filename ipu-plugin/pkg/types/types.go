@@ -15,6 +15,8 @@
 package types
 
 import (
+	"time"
+
 	pb "github.com/opiproject/opi-api/network/evpn-gw/v1alpha1/gen/go"
 )
 
@@ -81,4 +83,6 @@ type InfrapodMgr interface {
 	CreateCrs() error
 	CreatePvCrs() error
 	DeleteCrs() error
+	WaitForPodDelete(timeout time.Duration) error
+	WaitForPodReady(timeout time.Duration) error
 }
