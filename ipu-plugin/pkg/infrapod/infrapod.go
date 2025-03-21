@@ -237,8 +237,9 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) er
 	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
 	ds := &appsv1.DaemonSet{}
 	var i = 0
-	return wait.PollImmediate(5, timeout, func() (bool, error) {
-		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	err := wait.PollImmediate(5, timeout, func() (bool, error) {
+		err := infrapodMgr.mgr.GetClient().Get(ctx, obj, ds)
 		if err != nil && apierrors.IsNotFound(err) {
 			infrapodMgr.log.Info("Pod not found while waiting for delete: ")
 			return true, nil
@@ -247,6 +248,10 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) er
 		i++
 		return false, nil
 	})
+	if err == context.DeadlineExceeded {
+		return fmt.Errorf("timeout waiting for Pod deletion")
+	}
+	return nil
 }
 
 func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) error {
@@ -259,8 +264,9 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) err
 	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
 	ds := &appsv1.DaemonSet{}
 	var i = 0
-	return wait.PollImmediate(5, timeout, func() (bool, error) {
-		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	err := wait.PollImmediate(5, timeout, func() (bool, error) {
+		err := infrapodMgr.mgr.GetClient().Get(ctx, obj, ds)
 		if err != nil {
 			infrapodMgr.log.Error(err, "failed to get infrapod. retry : "+strconv.Itoa(i))
 			i++
@@ -273,4 +279,8 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) err
 		}
 		return false, nil
 	})
+	if err == context.DeadlineExceeded {
+		return fmt.Errorf("timeout waiting for Pod creation")
+	}
+	return err
 }
