@@ -47,6 +47,11 @@ func (p *mockP4rtClient) GetIpPort() string {
 	return "0.0.0.0:9559"
 }
 
+// nolint
+func (p *mockP4rtClient) ResolveServiceIp() error {
+	return nil
+}
+
 type mockBrCtlr struct {
 	fnCalled  string
 	args      []interface{}

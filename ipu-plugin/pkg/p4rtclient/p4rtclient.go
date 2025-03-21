@@ -32,27 +32,32 @@ const (
 	bridgeId          = 0
 	phyPort           = 0
 	imcAddress        = "192.168.0.1:22"
+	defaultP4rtIp     = "127.0.0.1"
+	p4rtPort          = "9559"
 )
 
 type fxpRuleParams []string
 
 type p4rtclient struct {
-	p4rtBin    string
-	p4rtIpPort string
-	portMuxVsi int
-	p4br       string
-	bridgeType types.BridgeType
+	p4rtBin         string
+	p4rtIpPort      string
+	p4rtServiceName string
+	portMuxVsi      int
+	p4br            string
+	bridgeType      types.BridgeType
 }
 
-func NewP4RtClient(p4rtBin string, p4rtIpPort string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
+func NewP4RtClient(p4rtBin string, p4rtServiceName string, portMuxVsi int, p4BridgeName string, brType types.BridgeType) types.P4RTClient {
 	log.Debug("Creating Linux P4Client instance")
-	return &p4rtclient{
-		p4rtBin:    p4rtBin,
-		p4rtIpPort: p4rtIpPort,
-		portMuxVsi: portMuxVsi,
-		p4br:       p4BridgeName,
-		bridgeType: brType,
+	p4rtClient := p4rtclient{
+		p4rtBin:         p4rtBin,
+		p4rtServiceName: p4rtServiceName,
+		portMuxVsi:      portMuxVsi,
+		p4br:            p4BridgeName,
+		bridgeType:      brType,
 	}
+	p4rtClient.ResolveServiceIp()
+	return &p4rtClient
 }
 
 // TODO: Move this under utils pkg
@@ -461,6 +466,23 @@ func deleteVsiToVsiP4Rules(p4rtClient types.P4RTClient, mac1, mac2 string) error
 		},
 	}
 	return p4rtClient.ProgramFXPP4Rules(VsiToVsip4RuleSets)
+}
+
+// In case of failure, revert to using 127.0.0.1:9559 which works for P4 in container
+// but not for P4 in pod. In case of P4 in pod in failure case, we will error out in the
+// waitForInfraP4d()
+func (p *p4rtclient) ResolveServiceIp() error {
+	p4rtIp := defaultP4rtIp
+	ip, err := net.LookupIP(p.p4rtServiceName)
+	if err != nil {
+		log.Errorf("Couldn't resolve Name %s to IP: err->%s", p.p4rtServiceName, err)
+	} else {
+		p4rtIp = ip[0].String()
+	}
+
+	log.Infof("Setting p4runtime Ip to %s", p4rtIp)
+	p.p4rtIpPort = p4rtIp + ":" + p4rtPort
+	return err
 }
 
 func (p *p4rtclient) GetBin() string {
