@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/bombsimon/logrusr/v4"
@@ -242,7 +243,7 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) er
 			infrapodMgr.log.Info("Pod not found while waiting for delete: ")
 			return true, nil
 		}
-		infrapodMgr.log.Info("Pod still running while waiting for delete. Retry: " + string(i))
+		infrapodMgr.log.Info("Pod still running while waiting for delete. Retry: " + strconv.Itoa(i))
 		i++
 		return false, nil
 	})
@@ -261,7 +262,7 @@ func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodReady(timeout time.Duration) err
 	return wait.PollImmediate(5, timeout, func() (bool, error) {
 		err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds)
 		if err != nil {
-			infrapodMgr.log.Error(err, "failed to get infrapod. retry : "+string(i))
+			infrapodMgr.log.Error(err, "failed to get infrapod. retry : "+strconv.Itoa(i))
 			i++
 			return false, client.IgnoreNotFound(err) // Important to ignore NotFound errors during polling.
 		}
