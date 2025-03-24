@@ -26,7 +26,7 @@ func_set_br_pipe(){
     # Wait for 45s
     sleep 45
     # Set the Forwarding pipeline
-    $P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 "/opt/p4/$P4_NAME/$P4_NAME.pb.bin" "/opt/p4/$P4_NAME/$P4_NAME.p4info.txt"
+    $P4CP_INSTALL/bin/p4rt-ctl set-pipe br0 "/opt/$P4_NAME/$P4_NAME.pb.bin" "/opt/$P4_NAME/$P4_NAME.p4info.txt"
 }
 
 func_start_ovs() {
@@ -76,10 +76,10 @@ export ACC_PR_CTRL_MAP
 mkdir -p $CONF_DIR
 envsubst < $CONF_FILE.template > $CONF_DIR/$CONF_FILE
 
-touch "/opt/p4/$P4_NAME/tofino.bin"
+touch "/opt/$P4_NAME/tofino.bin"
 $P4CP_INSTALL/bin/tdi_pipeline_builder \
     --p4c_conf_file=/usr/share/stratum/es2k/es2k_skip_p4.conf \
-    --tdi_pipeline_config_binary_file="/opt/p4/$P4_NAME/$P4_NAME.pb.bin"
+    --tdi_pipeline_config_binary_file="/opt/$P4_NAME/$P4_NAME.pb.bin"
 
 # Set hugepages
 mkdir -p /dev/hugepages

@@ -19,19 +19,19 @@
         "p4_programs": [
         {
             "program-name": "$P4_NAME",
-            "tdi-config": "/opt/p4/$P4_NAME/$P4_NAME.tdi.json",
+            "tdi-config": "/opt/$P4_NAME/$P4_NAME.tdi.json",
             "p4_pipelines": [
             {
                 "p4_pipeline_name": "main",
-                "context": "/opt/p4/$P4_NAME/$P4_NAME.context.json",
-                "config": "/opt/p4/$P4_NAME/tofino.bin",
+                "context": "/opt/$P4_NAME/$P4_NAME.context.json",
+                "config": "/opt/$P4_NAME/tofino.bin",
                 "pipe_scope": [
                     0,
                     1,
                     2,
                     3
                 ],
-                "path": "/opt/p4/$P4_NAME"
+                "path": "/opt/$P4_NAME"
             }
             ]
         }
