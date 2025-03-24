@@ -112,7 +112,7 @@ func GetMacIntValueFromBytes(macAddr []byte) uint64 {
 
 var p4rtCtlCommand = exec.Command
 
-func RunP4rtCtlCommand(p4rtBin string, p4rtIpPort string, params ...string) (string, error) {
+func RunP4rtCtlCommand(p4rtBin string, p4rtIpPort string, params ...string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := p4rtCtlCommand(p4rtBin, append([]string{"-g", p4rtIpPort}, params...)...)
@@ -129,11 +129,11 @@ func RunP4rtCtlCommand(p4rtBin string, p4rtIpPort string, params ...string) (str
 			"stdout": stdout.String(),
 			"stderr": stderr.String(),
 		}).Errorf("error while executing %s", p4rtBin)
-		return stdout.String(), err
+		return stderr.String(), stdout.String(), err
 	}
 
 	log.WithField("params", params).Debugf("successfully executed %s", p4rtBin)
-	return "", nil
+	return "", "", nil
 }
 
 func ExecuteScript(script string) (string, error) {

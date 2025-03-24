@@ -74,7 +74,7 @@ func checkMacAddresses(macAddresses ...string) ([]byte, error) {
 func (p *p4rtclient) ProgramFXPP4Rules(ruleSets []types.FxpRuleBuilder) error {
 	for _, r := range ruleSets {
 		p4rule := []string{r.Action, r.P4br, r.Control, r.Metadata}
-		stdout, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, p4rule...)
+		stderr, stdout, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, p4rule...)
 		if err != nil {
 			if strings.Contains(stdout, "ALREADY_EXISTS") {
 				log.Info("p4rule already exists. Delete and reprogram: ", p4rule)
@@ -86,7 +86,16 @@ func (p *p4rtclient) ProgramFXPP4Rules(ruleSets []types.FxpRuleBuilder) error {
 				time.Sleep(1)
 				// Now program the new rule
 				utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, p4rule...)
+			} else if strings.Contains(stderr, "INVALID_ARGUMENT") {
+				// This is to handle possible race condition during the p4rt-ctl add or a delete command execution failure.
+				log.Info("p4rule add or a delete operation failed. Attempt once again", p4rule)
+				// Sleep for a second and attempt only once to reprogram.
+				time.Sleep(1)
+				utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, p4rule...)
+			}else {
+				log.Info("WARNING!: p4rule add or a delete operation failed for an unhandled error scenario")
 			}
+
 		}
 	}
 	return nil
@@ -500,7 +509,7 @@ func (p *p4rtclient) AddRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("adding FXP rules")
 
 	for _, r := range ruleSets {
-		_, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
+		_, _, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
 		if err != nil {
 			log.WithField("error", err).Errorf("error executing add rule command")
 		}
@@ -516,7 +525,7 @@ func (p *p4rtclient) DeleteRules(macAddr []byte, vlan int) {
 	log.WithField("number of rules", len(ruleSets)).Debug("deleting FXP rules")
 
 	for _, r := range ruleSets {
-		_, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
+		_, _, err := utils.RunP4rtCtlCommand(p.p4rtBin, p.p4rtIpPort, r...)
 		if err != nil {
 			log.WithField("error", err).Errorf("error executing del rule command")
 		}

@@ -31,7 +31,7 @@ fmt:
 	go fmt ./...
 
 check-fmt:
-	./hack/cicd/check-go-fmt.sh
+	../hack/cicd/check-go-fmt.sh
 vet:
 	go vet ./...
 
