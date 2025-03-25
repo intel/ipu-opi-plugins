@@ -48,7 +48,7 @@ func (p *mockP4rtClient) GetIpPort() string {
 }
 
 // nolint
-func (p *mockP4rtClient) ResolveServiceIp() error {
+func (p *mockP4rtClient) ResolveServiceIp(inCluster bool) error {
 	return nil
 }
 
