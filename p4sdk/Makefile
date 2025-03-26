@@ -42,9 +42,20 @@ imagex: ## Build and push docker image for the manager for cross-platform suppor
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	mkdir -p $(CURDIR)/p4
 	cp -r ../e2e/artefacts/$(P4_DIR)/* $(CURDIR)/p4
+	cp -r ../e2e/artefacts/bin/p4runtime-2023.11.0-py3-none-any.whl $(CURDIR)/p4/
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{TARGETPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{TARGETPLATFORM\}/' $(DOCKERFILE) > $(DOCKERFILE).cross
 	- $(IMGTOOL) buildx create --name image-builder-p4  --use --config=buildkit.toml --buildkitd-flags '--allow-insecure-entitlement security.insecure' --driver-opt env.http_proxy=$(HTTP_PROXY) --driver-opt env.https_proxy=$(HTTPS_PROXY) --driver-opt '"env.no_proxy='$(NO_PROXY)'"'
 	$(IMGTOOL) buildx use image-builder-p4
 	- $(IMGTOOL) buildx build --allow security.insecure --push --platform=$(PLATFORMS) --tag ${IMAGE_TAG_VERSION} -f $(DOCKERFILE).cross  $(CURDIR) $(DOCKERARGS)
 	- $(IMGTOOL) buildx rm image-builder-p4
 	rm $(DOCKERFILE).cross
+
+imagex_podman: ## Build and push podman image for the manager for cross-platform support
+	mkdir -p $(CURDIR)/p4
+	cp -r ../e2e/artefacts/$(P4_DIR)/* $(CURDIR)/p4
+	cp -r ../e2e/artefacts/bin/p4runtime-2023.11.0-py3-none-any.whl $(CURDIR)/p4/
+
+	buildah manifest rm $(IMAGE_TAG_VERSION)-manifest || true
+	buildah manifest create $(IMAGE_TAG_VERSION)-manifest
+	buildah build $(DOCKERARGS) --layers --manifest $(IMAGE_TAG_VERSION)-manifest  --platform linux/amd64,linux/arm64 -f $(DOCKERFILE) -t ${IMAGE_TAG_VERSION}
+	buildah manifest push --all $(IMAGE_TAG_VERSION)-manifest docker://$(IMAGE_TAG_VERSION)

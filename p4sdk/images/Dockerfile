@@ -1,4 +1,3 @@
-
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
 
@@ -13,11 +12,6 @@ ENV ARCHSUFFIX="aarch64"
 
 COPY . /src
 WORKDIR /src
-RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ && rm -f p4.tar.gz
-
-COPY p4 /opt/p4/${P4_NAME}
-COPY images/entrypoint.sh /
-COPY images/es2k_skip_p4.conf.template /
 RUN dnf -y install   kmod-28-10.el9 \
       gettext-0.21-8.el9 \
       python3-pip-21.3.1-1.el9 \
@@ -25,8 +19,14 @@ RUN dnf -y install   kmod-28-10.el9 \
       libnl3-3.9.0-1.el9 \
       libedit-3.1-38.20210216cvs.el9 \
       net-tools-2.0-0.64.20160912git.el9 \
-      libatomic-11.5.0-2.el9 \
+      libatomic-0:11.5.0-5.el9_5 \
       && dnf clean all
+
+#RUN mkdir -pv /opt/ && tar -zxvf p4.tar.gz -C /opt/ > /dev/null 2>&1 && rm -f p4.tar.gz
+
+COPY p4 /opt/${P4_NAME}
+COPY images/entrypoint.sh /
+COPY images/es2k_skip_p4.conf.template /
 
 RUN if [ "$TARGETARCH" = "amd64" ]; then export ARCHSUFFIX="x86_64"; \
     else export ARCHSUFFIX="aarch64"; fi; \
@@ -36,7 +36,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then export ARCHSUFFIX="x86_64"; \
 
 RUN python3 -m pip install --no-cache-dir \
     netaddr==1.2.1 \
-    /opt/p4/p4-cp-nws/share/stratum/p4runtime/p4runtime-2024.8.0-py3-none-any.whl
+    /opt/${P4_NAME}/p4runtime-2023.11.0-py3-none-any.whl
 
 WORKDIR /
 
