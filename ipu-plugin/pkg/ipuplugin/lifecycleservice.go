@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	kh "golang.org/x/crypto/ssh/knownhosts"
-
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -985,6 +983,8 @@ func skipIMCReboot() (bool, string) {
 
 }
 
+// Note: To evaluate, if we really need this api, since it
+// can break, if the format of config changes in cp_init.cfg
 // this api queries the param->acc_apf in /etc/dpcp/cp_init.cfg.
 // The param(acc_apf) appears in 3 lines in that file, and we run
 // the command to fetch the value in the second line.
@@ -1061,10 +1061,11 @@ func waitForAccApfsInit() error {
 	retryInterval := time.Second
 
 	var count int
+	var numApfs int
 	for count = 0; count < maxRetries; count++ {
 		time.Sleep(retryInterval)
 		log.Infof("waitForAccApfsInit: retry count:%d", count)
-		numApfs := countAPFDevices()
+		numApfs = countAPFDevices()
 		if numApfs < ApfNumber {
 			log.Warnf("numApfs->%v, less than expected-> %v", numApfs, ApfNumber)
 			continue
@@ -1073,14 +1074,15 @@ func waitForAccApfsInit() error {
 			break
 		}
 	}
-	if count == maxRetries {
-		log.Fatalf("Failed to wait for ACC APFs to get initialized. Exiting\n")
-		os.Exit(1)
+	if numApfs < ApfNumber {
+		log.Errorf("Timed out waiting for ACC APFs to get initialized. numApfs->%v, expected->%v\n", numApfs, ApfNumber)
+		return fmt.Errorf("Timed out waiting for ACC APFs to get initialized. numApfs->%v, expected->%v\n", numApfs, ApfNumber)
 	}
 	return nil
 }
 
 func (e *ExecutableHandlerImpl) validate() bool {
+
 	//TODO: Do we really need queryNumAccApfsInIMCConfig,
 	//instead we could just let waitForAccApfsInit determine it.
 	/*numAccApfs, err := queryNumAccApfsInIMCConfig()
