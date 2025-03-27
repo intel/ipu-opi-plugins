@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	kh "golang.org/x/crypto/ssh/knownhosts"
+
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
