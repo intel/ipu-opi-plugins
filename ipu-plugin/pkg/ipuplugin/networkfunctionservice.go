@@ -84,14 +84,15 @@ func deriveKey(in *pb.NFRequest) string {
 	return nfReqHashStr
 }
 
-func deletePortWrapper(s *NetworkFunctionServiceServer, intfId uint) {
-	if err := s.bridgeCtlr.DeletePort(AccApfInfo[intfId].Name); err != nil {
-		log.Errorf("deletePortWrapper:failed to delete port to bridge: %v, for interface->%v", err, AccApfInfo[intfId].Name)
-		return
-	}
-}
-
 func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context, in *pb.NFRequest) (*pb.Empty, error) {
+
+	mapKey := deriveKey(in)
+	intfIds, ok := s.nfReqMap[mapKey]
+	if ok {
+		log.Errorf("CNF:in->%s, out->%s, key->%v, exists in map", in.Input, in.Output, mapKey)
+		return nil, fmt.Errorf("CNF:in->%s, out->%s, key->%v, exists in map", in.Input, in.Output, mapKey)
+	}
+
 	vfMacList, err := utils.GetVfMacList()
 	if err != nil {
 		log.Errorf("CreateNetworkFunction: Error-> %v", err)
@@ -100,7 +101,7 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 
 	CheckAndAddPeerToPeerP4Rules(s.p4rtClient)
 
-	intfIds, err := AllocateAccInterfaceForNF()
+	intfIds, err = AllocateAccInterfaceForNF()
 	if err != nil {
 		log.Errorf("error from AllocateAccInterfaceForNF: %v, intfIds->%v", err, intfIds)
 		return nil, fmt.Errorf("error from AllocateAccInterfaceForNF: %v, intfIds->%v", err, intfIds)
@@ -116,7 +117,7 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 	}
 	if err := s.bridgeCtlr.AddPort(AccApfInfo[NF_OUT_PR].Name); err != nil {
 		log.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR].Name)
-		deletePortWrapper(s, NF_IN_PR)
+		DeletePortWrapper(s.bridgeCtlr, NF_IN_PR)
 		FreeAccInterfaceForNF(intfIds)
 		return nil, fmt.Errorf("failed to add port to bridge: %v, for interface->%v", err, AccApfInfo[NF_OUT_PR].Name)
 	}
@@ -129,8 +130,8 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 	err = p4rtclient.AddNFP4Rules(s.p4rtClient, vfMacList, in.Input, in.Output, AccApfInfo[NF_IN_PR].Mac, AccApfInfo[NF_OUT_PR].Mac)
 	if err != nil {
 		log.Errorf("err-> %v, from AddNFP4Rules", err)
-		deletePortWrapper(s, NF_IN_PR)
-		deletePortWrapper(s, NF_OUT_PR)
+		DeletePortWrapper(s.bridgeCtlr, NF_IN_PR)
+		DeletePortWrapper(s.bridgeCtlr, NF_OUT_PR)
 		FreeAccInterfaceForNF(intfIds)
 		return nil, fmt.Errorf("err-> %v, from AddNFP4Rules", err)
 	}
@@ -142,18 +143,20 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 
 func (s *NetworkFunctionServiceServer) DeleteNetworkFunction(ctx context.Context, in *pb.NFRequest) (*pb.Empty, error) {
 
-	vfMacList, err := utils.GetVfMacList()
-
-	if err != nil {
-		log.Errorf("DeleteNetworkFunction: Error-> %v", err)
-		return nil, status.Errorf(codes.Internal, "Error-> %v", err)
-	}
 	mapKey := deriveKey(in)
 	intfIds, ok := s.nfReqMap[mapKey]
 	if !ok {
 		log.Errorf("DNF:in->%s, out->%s, key->%v, not found in map", in.Input, in.Output, mapKey)
 		return nil, fmt.Errorf("DNF:in->%s, out->%s, key->%v, not found in map", in.Input, in.Output, mapKey)
 	}
+
+	vfMacList, err := utils.GetVfMacList()
+
+	if err != nil {
+		log.Errorf("DeleteNetworkFunction: Error-> %v", err)
+		return nil, status.Errorf(codes.Internal, "Error-> %v", err)
+	}
+
 	NF_IN_PR := intfIds[0]
 	NF_OUT_PR := intfIds[1]
 	log.Infof("DNF: NF PRs index (IN)->%v, OUT->%v", NF_IN_PR, NF_OUT_PR)

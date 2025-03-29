@@ -17,7 +17,6 @@ package ipuplugin
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -130,12 +129,6 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 	if in.BridgePort.Spec.LogicalBridges == nil || len(in.BridgePort.Spec.LogicalBridges) < 1 {
 		return nil, fmt.Errorf("vlan id is not provided")
 	}
-	vlan := s.getFirstVlanID(in.BridgePort.Spec.LogicalBridges)
-
-	if vlan < 2 || vlan > 4094 {
-		s.log.WithField("vlan", vlan).Debug("invalid vlan")
-		return nil, fmt.Errorf("invalid vlan %d, vlan must be within 2-4094 range", vlan)
-	}
 
 	if vfVsi < 1 {
 		s.log.WithField("vfVsi", vfVsi).Debug("invalid VSI")
@@ -163,7 +156,14 @@ func (s *server) CreateBridgePort(_ context.Context, in *pb.CreateBridgePortRequ
 
 	// Add FXP rules
 	log.Infof("AddHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtClient.GetBin(), in.BridgePort.Spec.MacAddress, AccApfInfo[intfId].Mac)
-	p4rtclient.AddHostVfP4Rules(s.p4rtClient, in.BridgePort.Spec.MacAddress, AccApfInfo[intfId].Mac)
+	err = p4rtclient.AddHostVfP4Rules(s.p4rtClient, in.BridgePort.Spec.MacAddress, AccApfInfo[intfId].Mac)
+
+	if err != nil {
+		log.Errorf("CBP: err-> %v, from AddHostVfP4Rules", err)
+		DeletePortWrapper(s.bridgeCtlr, intfId)
+		FreeAccInterface(intfId)
+		return nil, fmt.Errorf("CBP: err-> %v, from AddHostVfP4Rules", err)
+	}
 
 	resp := proto.Clone(in.BridgePort).(*pb.BridgePort)
 	resp.Status = &pb.BridgePortStatus{OperStatus: pb.BPOperStatus_BP_OPER_STATUS_UP}
@@ -193,6 +193,10 @@ func (s *server) DeleteBridgePort(_ context.Context, in *pb.DeleteBridgePortRequ
 		// in such case avoid delete call loop from CNI Agent which otherwise will repeatedly call DeleteBridgePort as retry
 		return &emptypb.Empty{}, nil
 	}
+
+	FreeAccInterface(brPortInfo.PortId)
+	delete(s.Ports, in.Name)
+
 	portInfo = brPortInfo.PbBrPort
 
 	intfId := brPortInfo.PortId
@@ -202,12 +206,11 @@ func (s *server) DeleteBridgePort(_ context.Context, in *pb.DeleteBridgePortRequ
 		log.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccApfInfo[intfId].Name)
 		return nil, fmt.Errorf("unable to delete port from bridge: %v, for interface->%v", err, AccApfInfo[intfId].Name)
 	}
-	FreeAccInterface(brPortInfo.PortId)
+
 	// Delete FXP rules
 	log.Infof("DeleteHostVfP4Rules, path->%s, 1->%v, 2->%v", s.p4rtClient.GetBin(), portInfo.Spec.MacAddress, AccApfInfo[intfId].Mac)
 	p4rtclient.DeleteHostVfP4Rules(s.p4rtClient, portInfo.Spec.MacAddress, AccApfInfo[intfId].Mac)
 
-	delete(s.Ports, in.Name)
 	return &emptypb.Empty{}, nil
 }
 
@@ -229,11 +232,9 @@ func (s *server) ListBridgePorts(_ context.Context, in *pb.ListBridgePortsReques
 	return &pb.ListBridgePortsResponse{}, nil
 }
 
-func (s *server) getFirstVlanID(bridges []string) int {
-	vlanId, err := strconv.Atoi(bridges[0])
-	if err != nil {
-		s.log.Errorf("unable to parse vlan ID %s. conversion error %s", bridges[0], err)
-		return 0
+func DeletePortWrapper(bridgeCtlr types.BridgeController, intfId uint) {
+	if err := bridgeCtlr.DeletePort(AccApfInfo[intfId].Name); err != nil {
+		log.Errorf("deletePortWrapper:failed to delete port to bridge: %v, for interface->%v", err, AccApfInfo[intfId].Name)
+		return
 	}
-	return vlanId
 }
