@@ -87,7 +87,7 @@ func deriveKey(in *pb.NFRequest) string {
 func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context, in *pb.NFRequest) (*pb.Empty, error) {
 
 	mapKey := deriveKey(in)
-	intfIds, ok := s.nfReqMap[mapKey]
+	_, ok := s.nfReqMap[mapKey]
 	if ok {
 		log.Errorf("CNF:in->%s, out->%s, key->%v, exists in map", in.Input, in.Output, mapKey)
 		return nil, fmt.Errorf("CNF:in->%s, out->%s, key->%v, exists in map", in.Input, in.Output, mapKey)
@@ -101,7 +101,7 @@ func (s *NetworkFunctionServiceServer) CreateNetworkFunction(ctx context.Context
 
 	CheckAndAddPeerToPeerP4Rules(s.p4rtClient)
 
-	intfIds, err = AllocateAccInterfaceForNF()
+	intfIds, err := AllocateAccInterfaceForNF()
 	if err != nil {
 		log.Errorf("error from AllocateAccInterfaceForNF: %v, intfIds->%v", err, intfIds)
 		return nil, fmt.Errorf("error from AllocateAccInterfaceForNF: %v, intfIds->%v", err, intfIds)
