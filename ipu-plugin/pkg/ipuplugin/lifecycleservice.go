@@ -72,17 +72,17 @@ var InitAccApfMacs = false
 var PeerToPeerP4RulesAdded = false
 
 // Reserved ACC interfaces(using vport_id or last digit of interface name, for example, index 4 represents-> enp0s1f0d4)
-/*
-NF_PR_START_ID->6 to NF_PR_END_ID->13
-NF_AVAIL_START_ID->14 to NF_AVAIL_END_ID->21
-HOST_VF_START_ID->22 to HOST_VF_END_ID->37
+/* With 1 NF config
+NF_PR_START_ID->6 to NF_PR_END_ID->7
+NF_AVAIL_START_ID->8 to NF_AVAIL_END_ID->9
+HOST_VF_START_ID->10 to HOST_VF_END_ID->25
 */
 const (
 	START_ID             = 0
 	RSVD_INIT_LEN        = 4
 	PHY_PORT0_INTF_INDEX = (START_ID + RSVD_INIT_LEN)
 	PHY_PORT1_INTF_INDEX = (PHY_PORT0_INTF_INDEX + 1)
-	MAX_NF_CNT           = 4
+	MAX_NF_CNT           = 1
 	NF_PR_START_ID       = (PHY_PORT1_INTF_INDEX + 1)
 	NF_PR_LEN            = (MAX_NF_CNT * 2)
 	NF_PR_END_ID         = (NF_PR_START_ID + NF_PR_LEN - 1)
