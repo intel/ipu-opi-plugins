@@ -180,19 +180,25 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 	return outputStr, err
 }
 
-// TODO: Use RunCliCmdOnImc in api below.
 // skips ACC interfaces D0 to D3, which are used internally. So, not available for other usages.
 // $2 == 4 is to get ACC entries, and $10 check is to make sure, we skip rows that has vportIDs from D0 to D3.
 func GetAvailableAccVsiList() ([]string, error) {
 	// reach out to the IMC
-	vsiList, err := ExecuteScript(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "/usr/bin/cli_client -cq" \
-		| awk '{if(($2 == "0x4") && ($10 != "0x0") && ($10 != "0x1") && ($10 != "0x2") && ($10 != "0x3")) {print $8}}'`)
+	cliCmd := `set -o pipefail && cli_client -cq `
+	subCmd := ` | awk '{if(($2 == "0x4") && ($10 != "0x0") && ($10 != "0x1") && ($10 != "0x2") && ($10 != "0x3")) {print $8}}'`
+	outputBytes, err := RunCliCmdOnImc(cliCmd, subCmd)
 
-	if err != nil {
-		return nil, fmt.Errorf("unable to reach the IMC %v", err)
+	var outputStr []string
+	//Handle case where command ran without error, but empty output, due to config issue.
+	if (err != nil) || (len(outputBytes) == 0) {
+		log.Errorf("GetAvailableAccVsiList: Error %v, from RunCmdOnImc (OR) empty (output)-%v", err, len(outputBytes))
+		return outputStr, fmt.Errorf("GetAvailableAccVsiList: Error %v, from RunCmdOnImc (OR) empty (output)-%v", err, len(outputBytes))
 	}
 
-	return strings.Split(strings.TrimSpace(vsiList), "\n"), nil
+	outputStr = strings.Split(strings.TrimSpace(string(outputBytes)), "\n")
+	log.Infof("GetAvailableAccVsiList: %s, len(output)-%v", outputStr, len(outputStr))
+
+	return outputStr, err
 }
 
 // Note: Added retry logic, since ipumgmtd is single-threaded, so concurrent usage,
@@ -218,13 +224,6 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to connect to %s: %w", imcAddress, err)
 	}
 	defer client.Close()
-
-	// Create SFTP client
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SFTP client: %w", err)
-	}
-	defer sftpClient.Close()
 
 	var outputBytes []byte
 
@@ -252,12 +251,19 @@ func RunCliCmdOnImc(cliCmd, subCmd string) ([]byte, error) {
 			continue
 		}
 
-		// Copy output to file
-		if err := CopyFile(outputStr, "/work/cli_output", sftpClient); err != nil {
-			return nil, fmt.Errorf("failed to copy file: %w", err)
-		}
-
 		if subCmd != "" {
+			// Create SFTP client
+			sftpClient, err := sftp.NewClient(client)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SFTP client: %w", err)
+			}
+			defer sftpClient.Close()
+
+			// Copy output to file
+			if err := CopyFile(outputStr, "/work/cli_output", sftpClient); err != nil {
+				return nil, fmt.Errorf("failed to copy file: %w", err)
+			}
+
 			// Execute the sub-command
 			session, err = client.NewSession()
 			if err != nil {
