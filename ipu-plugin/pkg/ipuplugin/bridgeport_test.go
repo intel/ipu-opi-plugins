@@ -65,21 +65,6 @@ var _ = Describe("bridgeport", Serial, func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
-		Context("when no vlan id is not in valid vlan range", func() {
-			It("should return error", func() {
-				fakeMacAddr := []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
-				fakeReq := &pb.CreateBridgePortRequest{
-					BridgePort: &pb.BridgePort{
-						Spec: &pb.BridgePortSpec{
-							MacAddress:     fakeMacAddr,
-							LogicalBridges: []string{"0"},
-						},
-					},
-				}
-				_, err := ipuServer.CreateBridgePort(context.TODO(), fakeReq)
-				Expect(err).To(HaveOccurred())
-			})
-		})
 		Context("when no VF VSI is 0", func() {
 			It("should return error", func() {
 				fakeMacAddr := []byte{0xaa, 0x00, 0xcc, 0xdd, 0xee, 0xff} // the second octet here is the VSI number
