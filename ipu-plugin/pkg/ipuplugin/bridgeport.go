@@ -17,6 +17,7 @@ package ipuplugin
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
@@ -37,6 +38,11 @@ intfMap is a map, that has key:value, between interfaceId and whether it is avai
 var interfaces []uint
 var intfMap map[uint]bool
 var intfMapInit bool = false
+
+// through bridgeport and network function service APIs(grpc),
+// resource allocation apis can get invoked concurrently.
+// serialize access to resources-> intfMap and interfaces
+var ResourceMutex sync.Mutex
 
 func initMap() error {
 	var index uint
@@ -66,6 +72,9 @@ func initMap() error {
 func AllocateAccInterface(allocPr string) (uint, error) {
 	var intfId uint = 0
 	start, end := 0, 0
+
+	ResourceMutex.Lock()
+	defer ResourceMutex.Unlock()
 
 	found := false
 	log.Debugf("AllocateAccInterface\n")
@@ -99,6 +108,10 @@ func AllocateAccInterface(allocPr string) (uint, error) {
 
 func FreeAccInterface(intfId uint) error {
 	log.Debugf("FreeAccInterface\n")
+
+	ResourceMutex.Lock()
+	defer ResourceMutex.Unlock()
+
 	value, present := intfMap[intfId]
 	if present && value {
 		log.Debugf("Found allocated Intf->%v: \n", intfId)
@@ -232,9 +245,10 @@ func (s *server) ListBridgePorts(_ context.Context, in *pb.ListBridgePortsReques
 	return &pb.ListBridgePortsResponse{}, nil
 }
 
-func DeletePortWrapper(bridgeCtlr types.BridgeController, intfId uint) {
+func DeletePortWrapper(bridgeCtlr types.BridgeController, intfId uint) error {
 	if err := bridgeCtlr.DeletePort(AccApfInfo[intfId].Name); err != nil {
 		log.Errorf("deletePortWrapper:failed to delete port to bridge: %v, for interface->%v", err, AccApfInfo[intfId].Name)
-		return
+		return err
 	}
+	return nil
 }
