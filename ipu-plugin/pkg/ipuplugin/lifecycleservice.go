@@ -676,8 +676,8 @@ pkill -9 $(basename ${PORT_SETUP_SCRIPT})
 
 cat<<PORT_CONFIG_EOF > ${PORT_SETUP_SCRIPT}
 #!/bin/bash
-IDPF_VPORT_NAME="enp0s1f0d5"
-ACC_VPORT_ID=0x5
+IDPF_VPORT_NAME="enp0s1f0d1"
+ACC_VPORT_ID=0x1
 retry=0
 ran_cmds=0
 ran_cmds_cnt=0
@@ -862,9 +862,9 @@ if [ -e %s ]; then
     sed -i 's/pf_mac_address = "00:00:00:00:03:14";/pf_mac_address = "%s";/g' $CP_INIT_CFG
     sed -i 's/acc_apf = 4;/acc_apf = %s;/g' $CP_INIT_CFG
     sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
-    sed -i 's/uplink_vports = .*/uplink_vports = ([4,5,0],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
-    sed -i 's/rep_vports = .*/rep_vports = ([4,5,0]);/g' $CP_INIT_CFG
-    sed -i 's/exception_vports = .*/exception_vports = ([4,5,0]); /g' $CP_INIT_CFG
+    sed -i 's/uplink_vports = .*/uplink_vports = ([4,1,0],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
+    sed -i 's/rep_vports = .*/rep_vports = ([4,1,0]);/g' $CP_INIT_CFG
+    sed -i 's/exception_vports = .*/exception_vports = ([4,1,0]); /g' $CP_INIT_CFG
 else
     echo "No custom package found. Continuing with default package"
 fi
