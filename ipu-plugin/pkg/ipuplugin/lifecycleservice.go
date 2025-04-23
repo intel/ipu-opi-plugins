@@ -863,7 +863,7 @@ if [ -e %s ]; then
     sed -i 's/acc_apf = 4;/acc_apf = %s;/g' $CP_INIT_CFG
     sed -i 's/comm_vports = .*/comm_vports = (([5,0],[4,0]),([0,3],[5,3]),([0,2],[4,3]));/g' $CP_INIT_CFG
     sed -i 's/uplink_vports = .*/uplink_vports = ([4,1,0],[5,1,0],[5,2,1]);/g' $CP_INIT_CFG
-    sed -i 's/rep_vports = .*/rep_vports = ([4,1,0]);/g' $CP_INIT_CFG
+    sed -i 's/rep_vports = .*/rep_vports = ([0,0,0],[0,1,1]);/g' $CP_INIT_CFG
     sed -i 's/exception_vports = .*/exception_vports = ([4,1,0]); /g' $CP_INIT_CFG
 else
     echo "No custom package found. Continuing with default package"
