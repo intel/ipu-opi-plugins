@@ -3,6 +3,8 @@ kind: DaemonSet
 metadata:
   name: vsp-p4
   namespace: {{.Namespace}}
+  finalizers:
+  - waitForP4Deletion
 spec:
   selector:
     matchLabels:
