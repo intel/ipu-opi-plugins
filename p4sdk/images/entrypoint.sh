@@ -21,6 +21,7 @@ export P4CP_INSTALL=/opt/p4/p4-cp-nws
 export DEPEND_INSTALL=$P4CP_INSTALL
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
+#TODO: remove with 2.2 since dir names have been corrected
 func_rename_p4(){
     OLD_P4SDE="/opt/p4/p4-sde"
     OLD_P4CP="/opt/p4/p4-cp"
