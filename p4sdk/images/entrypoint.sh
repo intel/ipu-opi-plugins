@@ -25,20 +25,20 @@ func_rename_p4(){
     OLD_P4SDE="/opt/p4/p4-sde"
     OLD_P4CP="/opt/p4/p4-cp"
     # If /opt/p4 doesn't exist, then mounting wasn't done right
-    if [[ ! -d "/opt/p4" ]]; then
+    if [ ! -d "/opt/p4" ]; then
       echo "/opt/p4 doesn't exist"
       exit 1
     fi
-    if [[ -d "$OLD_P4SDE" ]];then
+    if [ -d "$OLD_P4SDE" ];then
       rm -rf $SDE_INSTALL
       mv $OLD_P4SDE $SDE_INSTALL
     fi
-    if [[ -d "$OLD_P4CP" ]];then
+    if [ -d "$OLD_P4CP" ];then
       rm -rf $P4CP_INSTALL
       mv $OLD_P4CP $P4CP_INSTALL
     fi
     # By here,  SDE_INSTALL and P4CP_INSTALL should exist
-    if [[ ! -d "$SDE_INSTALL" || ! -d "$P4CP_INSTALL" ]];then
+    if [ ! -d "$SDE_INSTALL" ] || [ ! -d "$P4CP_INSTALL" ];then
       echo "P4 SDE doesn't exist. Check if it was untarred"
       exit 1
     fi
