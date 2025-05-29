@@ -21,6 +21,29 @@ export P4CP_INSTALL=/opt/p4/p4-cp-nws
 export DEPEND_INSTALL=$P4CP_INSTALL
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
+func_rename_p4(){
+    OLD_P4SDE="/opt/p4/p4-sde"
+    OLD_P4CP="/opt/p4/p4-cp"
+    # If /opt/p4 doesn't exist, then mounting wasn't done right
+    if [[ ! -d "/opt/p4" ]]; then
+      echo "/opt/p4 doesn't exist"
+      exit 1
+    fi
+    if [[ -d "$OLD_P4SDE" ]];then
+      rm -rf $SDE_INSTALL
+      mv $OLD_P4SDE $SDE_INSTALL
+    fi
+    if [[ -d "$OLD_P4CP" ]];then
+      rm -rf $P4CP_INSTALL
+      mv $OLD_P4CP $P4CP_INSTALL
+    fi
+    # By here,  SDE_INSTALL and P4CP_INSTALL should exist
+    if [[ ! -d "$SDE_INSTALL" || ! -d "$P4CP_INSTALL" ]];then
+      echo "P4 SDE doesn't exist. Check if it was untarred"
+      exit 1
+    fi
+}
+
 # Allow set_br_pipe on a separate process so that we can sleep 30s for infrap4d to come up
 func_set_br_pipe(){
     # Wait for 45s
@@ -42,7 +65,7 @@ func_start_ovs() {
 
 LOGFILE=/var/log/entrypoint.log;
 mkdir -p /var/log
-
+func_rename_p4
 
 CPF_INFO_FILE=cpf_info_file.txt
 CONF_DIR=/usr/share/stratum/es2k

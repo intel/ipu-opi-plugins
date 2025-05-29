@@ -35,8 +35,6 @@ spec:
         volumeMounts:
         - name: lib-modules
           mountPath: /lib/modules/
-        - name: var-run
-          mountPath: /opt/p4/p4-cp-nws/var/run
         - name: sys
           mountPath: /sys
         - name: dev
@@ -50,9 +48,6 @@ spec:
       - name: lib-modules
         hostPath:
           path: /lib/modules/
-      - name: var-run
-        hostPath:
-          path: /opt/p4/p4-cp-nws/var/run
       - name: sys
         hostPath:
           path: /sys
