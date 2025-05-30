@@ -155,7 +155,7 @@ func (infrapodMgr *InfrapodMgrOcImpl) RemoveDsFinalizer() error {
 	if err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds); err != nil {
 		return fmt.Errorf("failed to get DS '%s/%s': %w", infrapodMgr.vspP4Template.Namespace, "vsp-p4", err)
 	}
-	finalizerName := "waitForP4Deletion"
+	finalizerName := "intel.com/waitForP4Deletion"
 	updated := controllerutil.RemoveFinalizer(ds, finalizerName)
 	if updated {
 		if err := infrapodMgr.mgr.GetClient().Update(context.TODO(), ds); err != nil {
