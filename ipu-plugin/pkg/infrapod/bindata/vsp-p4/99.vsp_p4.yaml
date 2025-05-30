@@ -4,7 +4,7 @@ metadata:
   name: vsp-p4
   namespace: {{.Namespace}}
   finalizers:
-  - waitForP4Deletion
+  - intel.com/waitForP4Deletion
 spec:
   selector:
     matchLabels:
