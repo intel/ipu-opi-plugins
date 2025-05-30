@@ -239,10 +239,12 @@ rolebindings
 service for p4runtime
 P4 pod
 */
-func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
+func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs(ignoreFinalizer bool) error {
 	if err := infrapodMgr.RemoveDsFinalizer(); err != nil {
 		infrapodMgr.log.Error(err, "unable to Delete Finalizer from vsp-p4 pod : %v", err)
-		return err
+		if !ignoreFinalizer {
+			return err
+		}
 	}
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),

@@ -83,7 +83,7 @@ type InfrapodMgr interface {
 	RemoveDsFinalizer() error
 	CreateCrs() error
 	CreatePvCrs() error
-	DeleteCrs() error
+	DeleteCrs(ignoreFinalizer bool) error
 	WaitForPodDelete(timeout time.Duration) error
 	WaitForPodReady(timeout time.Duration) error
 }
