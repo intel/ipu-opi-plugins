@@ -169,7 +169,7 @@ func (s *server) Run() error {
 					syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 				}
 			}()
-			if err = s.infrapodMgr.DeleteCrs(); err != nil {
+			if err = s.infrapodMgr.DeleteCrs(true); err != nil {
 				log.Error(err, "unable to Delete Crs : %v", err)
 				return err
 			}
@@ -258,7 +258,7 @@ func (s *server) Stop() {
 		s.bridgeCtlr.DeleteBridges()
 		// Delete P4 rules on exit
 		cleanUpRulesOnExit(s.p4rtClient)
-		if err := s.infrapodMgr.DeleteCrs(); err != nil {
+		if err := s.infrapodMgr.DeleteCrs(false); err != nil {
 			log.Error(err, "unable to Delete Crs : %v", err)
 			// Do not return since we continue on error
 		}
