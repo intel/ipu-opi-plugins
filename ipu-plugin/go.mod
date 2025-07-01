@@ -4,7 +4,7 @@ go 1.23.6
 
 require (
 	github.com/bombsimon/logrusr/v4 v4.1.0
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/k8snetworkplumbingwg/sriov-network-operator v1.5.0
 	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.36.3
