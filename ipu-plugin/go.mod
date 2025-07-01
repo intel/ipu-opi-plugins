@@ -11,7 +11,7 @@ require (
 	github.com/openshift/dpu-operator/api v0.0.0-20250219232844-d9d4ba9f399c
 	github.com/openshift/dpu-operator/dpu-api v0.0.0-20241023094403-a185e0f16e84
 	github.com/opiproject/opi-api v0.0.0-20240808163627-6cd218088dda
-	github.com/p4lang/p4runtime v1.4.1
+	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/pkg/sftp v1.13.8
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
