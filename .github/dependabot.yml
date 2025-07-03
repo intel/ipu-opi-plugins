@@ -4,28 +4,34 @@ updates:
     directory: /
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
 
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
 
   - package-ecosystem: gomod
     directory: /ipu-plugin
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
 
   - package-ecosystem: docker
     directory: /ipu-plugin/images
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
 
   - package-ecosystem: docker
     directory: /p4sdk/images
     schedule:
       interval: daily
+    open-pull-requests-limit: 10
