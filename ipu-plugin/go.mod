@@ -14,7 +14,7 @@ require (
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pkg/sftp v1.13.9
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.39.0
