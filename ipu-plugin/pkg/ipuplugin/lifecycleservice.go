@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	kh "golang.org/x/crypto/ssh/knownhosts"
-
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -78,19 +76,19 @@ NF_AVAIL_START_ID->8 to NF_AVAIL_END_ID->9
 HOST_VF_START_ID->10 to HOST_VF_END_ID->25
 */
 const (
-	PHY_PORT0_PRIMARY_INTF_INDEX   = 1
-	RSVD_INIT_LEN                  = 4
-	PHY_PORT0_SECONDARY_INTF_INDEX = (PHY_PORT0_PRIMARY_INTF_INDEX + RSVD_INIT_LEN)
+	PHY_PORT0_PRIMARY_INTF_INDEX = 1
+	RSVD_INIT_LEN                = 4
+	MAX_NF_CNT                   = 1
 
-	MAX_NF_CNT        = 1
-	NF_PR_START_ID    = (PHY_PORT0_SECONDARY_INTF_INDEX + 1)
-	NF_PR_LEN         = (MAX_NF_CNT * 2)
-	NF_PR_END_ID      = (NF_PR_START_ID + NF_PR_LEN - 1)
-	NF_AVAIL_START_ID = NF_PR_END_ID + 1
-	NF_AVAIL_END_ID   = (NF_AVAIL_START_ID + NF_PR_LEN - 1)
-	HOST_VF_START_ID  = (NF_AVAIL_END_ID + 1)
-	MAX_HOST_VF_CNT   = (16)
-	HOST_VF_END_ID    = (HOST_VF_START_ID + MAX_HOST_VF_CNT - 1)
+	PHY_PORT0_SECONDARY_INTF_INDEX = (PHY_PORT0_PRIMARY_INTF_INDEX + RSVD_INIT_LEN) // 5
+	NF_PR_START_ID                 = (PHY_PORT0_SECONDARY_INTF_INDEX + 1)           // 6
+	NF_PR_LEN                      = (MAX_NF_CNT * 2)                               // 2
+	NF_PR_END_ID                   = (NF_PR_START_ID + NF_PR_LEN - 1)               // 6+2-1 = 7
+	NF_AVAIL_START_ID              = NF_PR_END_ID + 1                               // 8
+	NF_AVAIL_END_ID                = (NF_AVAIL_START_ID + NF_PR_LEN - 1)            // 8+2-1 = 9
+	HOST_VF_START_ID               = (NF_AVAIL_END_ID + 1)                          // 9+1 = 10
+	MAX_HOST_VF_CNT                = (16)
+	HOST_VF_END_ID                 = (HOST_VF_START_ID + MAX_HOST_VF_CNT - 1)
 )
 
 func NewLifeCycleService(daemonHostIp, daemonIpuIp string, daemonPort int, mode string, p4rtClient types.P4RTClient, brCtlr types.BridgeController) *LifeCycleServiceServer {
@@ -988,76 +986,6 @@ func skipIMCReboot() (bool, string) {
 
 }
 
-// Note: To evaluate, if we really need this api, since it
-// can break, if the format of config changes in cp_init.cfg
-// this api queries the param->acc_apf in /etc/dpcp/cp_init.cfg.
-// The param(acc_apf) appears in 3 lines in that file, and we run
-// the command to fetch the value in the second line.
-func queryNumAccApfsInIMCConfig() (int, error) {
-
-	log.Infof("queryNumAccApfsInIMCConfig")
-	//remove duplicate entries, and ensure host-key(ssh-keyscan) is present.
-	sshCmds := "ssh-keygen -R 192.168.0.1; ssh-keyscan 192.168.0.1 >> /root/.ssh/known_hosts"
-
-	_, err := utils.ExecuteScript(sshCmds)
-	if err != nil {
-		log.Errorf("error->%v, for ssh key commands->%v", err, sshCmds)
-		return 0, fmt.Errorf("error->%v, for ssh key commands->%v", err, sshCmds)
-	}
-
-	hostKeyCallback, err := kh.New("/root/.ssh/known_hosts")
-	if err != nil {
-		log.Errorf("error->%v, unable to create hostkeycallback function: ", err)
-		return 0, fmt.Errorf("error->%v, unable to create hostkeycallback function: ", err)
-	}
-
-	config := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
-		},
-		HostKeyCallback: hostKeyCallback,
-	}
-
-	// Connect to the remote server.
-	client, err := ssh.Dial("tcp", imcAddress, config)
-	if err != nil {
-		return 0, fmt.Errorf("failed to dial remote server: %s", err)
-	}
-	defer client.Close()
-
-	// Start a session.
-	session, err := client.NewSession()
-	if err != nil {
-		return 0, fmt.Errorf("failed to create session: %s", err)
-	}
-	defer session.Close()
-
-	commands := `grep "acc_apf = "  /etc/dpcp/cp_init.cfg | sed -n 2p | awk '/acc_apf = / {print $3}'`
-
-	// Run a command on the remote server and capture the output.
-	outputBytes, err := session.CombinedOutput(commands)
-	if err != nil {
-		log.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
-		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
-	}
-
-	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
-	//to skip the semicolon, for example, if output is-> 48;
-	outputStr = outputStr[:len(outputStr)-1]
-
-	numAccApfs, err := strconv.Atoi(outputStr)
-
-	if err != nil {
-		log.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
-		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
-	}
-	log.Infof("queryNumAccApfsInIMCConfig ->%v", numAccApfs)
-
-	return numAccApfs, nil
-
-}
-
 // wait for the expected number of ACC APFs to get initialized.
 // Per testing, after kernel boots, it takes around 40 secs for 48 APFs
 // to get initialized. This api waits for 1 sec per APF.
@@ -1087,20 +1015,6 @@ func waitForAccApfsInit() error {
 }
 
 func (e *ExecutableHandlerImpl) validate() bool {
-
-	//TODO: Do we really need queryNumAccApfsInIMCConfig,
-	//instead we could just let waitForAccApfsInit determine it.
-	/*numAccApfs, err := queryNumAccApfsInIMCConfig()
-
-	if err != nil {
-		log.Errorf("Error->%v, from queryNumAccApfsInIMCConfig", err)
-		return false
-	}
-
-	if numAccApfs != ApfNumber {
-		log.Errorf("Not enough APFs %v, expected->%v", numAccApfs, ApfNumber)
-		return false
-	}*/
 
 	if err := waitForAccApfsInit(); err != nil {
 		return false
