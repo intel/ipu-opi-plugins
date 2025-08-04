@@ -138,7 +138,7 @@ type ExecutableHandler interface {
 	validate() bool
 	nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error
 	SetupAccApfs() error
-	AddAccApfsToGroupOne() error
+	//AddAccApfsToGroupOne() error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -1196,10 +1196,11 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		} else {
 			log.Info("not forcing state")
 		}
-		if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
-			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
-			return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
-		}
+		/*
+			if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
+				log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
+				return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
+			}*/
 		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
 			log.Errorf("error from  SetupAccApfs %v", err)
 			return nil, fmt.Errorf("error from  SetupAccApfs %v", err)
