@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
 
-FROM registry.access.redhat.com/ubi9/ubi:9.3-1610
+FROM registry.access.redhat.com/ubi9/ubi:9.6
 
 ARG P4_NAME
 ENV P4_NAME $P4_NAME
