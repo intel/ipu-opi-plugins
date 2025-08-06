@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"k8s.io/client-go/rest"
 )
@@ -146,6 +147,28 @@ func (infrapodMgr *InfrapodMgrOcImpl) StartMgr() error {
 	}
 	return nil
 }
+// RemoveDsFinalizer removes a specific finalizer from vsp-p4 DS.
+func (infrapodMgr *InfrapodMgrOcImpl) RemoveDsFinalizer() error {
+	obj := client.ObjectKey{Namespace: infrapodMgr.vspP4Template.Namespace, Name: "vsp-p4"}
+	ds := &appsv1.DaemonSet{}
+
+	if err := infrapodMgr.mgr.GetClient().Get(context.TODO(), obj, ds); err != nil {
+		return fmt.Errorf("failed to get DS '%s/%s': %w", infrapodMgr.vspP4Template.Namespace, "vsp-p4", err)
+	}
+	finalizerName := "intel.com/waitForP4Deletion"
+	updated := controllerutil.RemoveFinalizer(ds, finalizerName)
+	if updated {
+		if err := infrapodMgr.mgr.GetClient().Update(context.TODO(), ds); err != nil {
+			return fmt.Errorf("failed to update DS vsp-p4 to remove finalizer '%s': %w", finalizerName, err)
+		}
+		fmt.Printf("Successfully removed finalizer '%s' from DS vsp-p4 \n", finalizerName)
+	} else {
+		fmt.Printf("Finalizer '%s' not found on Pod vsp-p4\n", finalizerName)
+	}
+
+	return nil
+}
+
 
 /*
 * Get PV and PVC. It returns false if it is not present and true if it does
@@ -216,7 +239,13 @@ rolebindings
 service for p4runtime
 P4 pod
 */
-func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
+func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs(ignoreFinalizer bool) error {
+	if err := infrapodMgr.RemoveDsFinalizer(); err != nil {
+		infrapodMgr.log.Error(err, "unable to Delete Finalizer from vsp-p4 pod : %v", err)
+		if !ignoreFinalizer {
+			return err
+		}
+	}
 	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
 		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
 		nil, infrapodMgr.mgr.GetScheme(), true)
