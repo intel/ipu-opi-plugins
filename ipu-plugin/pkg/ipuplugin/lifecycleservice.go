@@ -1102,9 +1102,11 @@ func (e *ExecutableHandlerImpl) validate() bool {
 		return false
 	}*/
 
-	if err := waitForAccApfsInit(); err != nil {
-		return false
-	}
+	/*
+		if err := waitForAccApfsInit(); err != nil {
+			return false
+		}
+	*/
 
 	if noReboot, infoStr := skipIMCReboot(); !noReboot {
 		fmt.Printf("IMC reboot required : %v\n", infoStr)
@@ -1282,10 +1284,11 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 		} else {
 			log.Info("not forcing state")
 		}
-		if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
-			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
-			return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
-		}
+		/*
+			if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
+				log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
+				return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
+			}*/
 		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
 			log.Errorf("error from  SetupAccApfs %v", err)
 			return nil, fmt.Errorf("error from  SetupAccApfs %v", err)
