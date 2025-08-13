@@ -19,7 +19,7 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.39.0
 	google.golang.org/grpc v1.73.0
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.7
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.2
