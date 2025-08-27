@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0
 	github.com/onsi/ginkgo/v2 v2.25.1
-	github.com/onsi/gomega v1.38.0
+	github.com/onsi/gomega v1.38.2
 	github.com/openshift/dpu-operator/api v0.0.0-20250219232844-d9d4ba9f399c
 	github.com/openshift/dpu-operator/dpu-api v0.0.0-20241023094403-a185e0f16e84
 	github.com/opiproject/opi-api v0.0.0-20240808163627-6cd218088dda
@@ -28,7 +28,7 @@ require (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1 // indirect
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -75,6 +75,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
