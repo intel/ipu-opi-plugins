@@ -80,9 +80,10 @@ type P4RTClient interface {
 
 type InfrapodMgr interface {
 	StartMgr() error
+	RemoveDsFinalizer() error
 	CreateCrs() error
 	CreatePvCrs() error
-	DeleteCrs() error
+	DeleteCrs(ignoreFinalizer bool) error
 	WaitForPodDelete(timeout time.Duration) error
 	WaitForPodReady(timeout time.Duration) error
 }

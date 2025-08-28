@@ -3,6 +3,8 @@ kind: DaemonSet
 metadata:
   name: vsp-p4
   namespace: {{.Namespace}}
+  finalizers:
+  - intel.com/waitForP4Deletion
 spec:
   selector:
     matchLabels:
@@ -14,7 +16,7 @@ spec:
     spec:
       nodeSelector:
         dpu: "true"
-      serviceAccountName: vsp-p4-sa
+      serviceAccountName: vsp-sa
       containers:
       - name: p4-container
         image: {{.ImageName}}
