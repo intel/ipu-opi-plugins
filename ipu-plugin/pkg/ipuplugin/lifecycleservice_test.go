@@ -267,6 +267,9 @@ func (m *MockExecutableHandlerImpl) SetupAccApfs() error {
 func (e *MockExecutableHandlerImpl) nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error {
 	return fmt.Errorf("Method added for test purposes")
 }
+func (m *MockExecutableHandlerImpl) AddAccApfsToGroupOne() error {
+	return nil
+}
 
 type MockFXPHandlerImpl struct{}
 

@@ -54,7 +54,7 @@ const (
 	deviceId            = "0x1452"
 	vendorId            = "0x8086"
 	imcAddress          = "192.168.0.1:22"
-	ApfNumber           = 16
+	ApfNumber           = 48
 	last_byte_mac_range = 239
 )
 
@@ -121,6 +121,7 @@ type ExecutableHandler interface {
 	validate() bool
 	nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error
 	SetupAccApfs() error
+	AddAccApfsToGroupOne() error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -1019,6 +1020,67 @@ func (e *ExecutableHandlerImpl) SetupAccApfs() error {
 	return nil
 }
 
+func (e *ExecutableHandlerImpl) AddAccApfsToGroupOne() error {
+	vsiList, err := utils.GetAvailableAccVsiList()
+	if err != nil {
+		log.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
+		return fmt.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
+	}
+	if len(vsiList) == 0 {
+		log.Errorf("no APFs initialized on ACC")
+		return fmt.Errorf("no APFs initialized on ACC")
+	}
+	log.Infof("AddAccApfsToGroupOne, vsiList->%v", vsiList)
+	/*  Steps from script(for reference)
+	VSI_GROUP_INIT=$(printf  "0x%x" $((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+	VSI_GROUP_WRITE=$(printf "0x%x" $((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+	devmem 0x20292002a0 64 ${VSI_GROUP_INIT}
+	devmem 0x2029200388 64 0x1
+	devmem 0x20292002a0 64 ${VSI_GROUP_WRITE}
+	*/
+	for i := 0; i < len(vsiList); i++ {
+		log.Infof("Add to VSI Group 1, vsi->%v", vsiList[i])
+		hexStr := vsiList[i]
+		// skip "0x" prefix
+		hexStr = hexStr[2:]
+
+		// Convert to hex value
+		hexVal, err := strconv.ParseInt(hexStr, 16, 64)
+		if err != nil {
+			log.Errorf("error decoding hex: %v", err)
+			return fmt.Errorf("error decoding hex: %v", err)
+		}
+
+		// Check bounds before converting to uint64
+		if hexVal < 0 {
+			log.Errorf("hex value out of range: %v", hexVal)
+			return fmt.Errorf("hex value out of range: %v", hexVal)
+		}
+
+		var vsiGroupInit, vsiGroupWrite uint64
+
+		vsiGroupInit = 0x8000050000000000 + uint64(hexVal)
+		vsiGroupWrite = 0xA000050000000000 + uint64(hexVal)
+
+		vsiGroupInitString := fmt.Sprintf("0x%X", vsiGroupInit)
+		vsiGroupWriteString := fmt.Sprintf("0x%X", vsiGroupWrite)
+
+		devMemCmd1 := "devmem 0x20292002a0 64 " + vsiGroupInitString
+		devMemCmd2 := "devmem 0x2029200388 64 0x1"
+		devMemCmd3 := "devmem 0x20292002a0 64 " + vsiGroupWriteString
+
+		devMemCmd := devMemCmd1 + "; " + devMemCmd2 + "; " + devMemCmd3 + "; "
+		log.Infof("devMemCmd->%v", devMemCmd)
+
+		_, err = utils.ExecuteScript(fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "%s"`, devMemCmd))
+		if err != nil {
+			log.Errorf("err exec devMemCmd->%v", err)
+			return fmt.Errorf("err exec devMemCmd->%v", err)
+		}
+	}
+	return nil
+}
+
 // If ipu-plugin's Init function gets invoked on ACC, prior to getting invoked
 // on x86, then host VFs will not be setup yet. In that case, peer2peer rules
 // will get added in CreateBridgePort or CreateNetworkFunction.
@@ -1094,6 +1156,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			}
 		} else {
 			log.Info("not forcing state")
+		}
+		if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
+			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
+			return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
 		}
 		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
 			log.Errorf("error from  SetupAccApfs %v", err)

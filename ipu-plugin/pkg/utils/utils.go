@@ -191,6 +191,27 @@ func ImcQueryfindVsiGivenMacAddr(mode string, mac string) (string, error) {
 	return outputStr, err
 }
 
+// skips ACC interfaces D0 to D3, which are used internally. So, not available for other usages.
+// $2 == 4 is to get ACC entries, and $10 check is to make sure, we skip rows that has vportIDs from D0 to D3.
+func GetAvailableAccVsiList() ([]string, error) {
+	// reach out to the IMC
+	cliCmd := `set -o pipefail && cli_client -cq `
+	subCmd := ` | awk '{if(($2 == "0x4") && ($10 != "0x0") && ($10 != "0x1") && ($10 != "0x2") && ($10 != "0x3")) {print $8}}'`
+	outputBytes, err := RunCliCmdOnImc(cliCmd, subCmd)
+
+	var outputStr []string
+	//Handle case where command ran without error, but empty output, due to config issue.
+	if (err != nil) || (len(outputBytes) == 0) {
+		log.Errorf("GetAvailableAccVsiList: Error %v, from RunCmdOnImc (OR) empty (output)-%v", err, len(outputBytes))
+		return outputStr, fmt.Errorf("GetAvailableAccVsiList: Error %v, from RunCmdOnImc (OR) empty (output)-%v", err, len(outputBytes))
+	}
+
+	outputStr = strings.Split(strings.TrimSpace(string(outputBytes)), "\n")
+	log.Infof("GetAvailableAccVsiList: %s, len(output)-%v", outputStr, len(outputStr))
+
+	return outputStr, err
+}
+
 // Note: Added retry logic, since ipumgmtd is single-threaded, so concurrent usage,
 // of cli-client errors out.
 // we retry 5 times, with sleep(0.5s) between retries. If it exceeds max
