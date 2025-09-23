@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	kh "golang.org/x/crypto/ssh/knownhosts"
-
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/p4rtclient"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/utils"
@@ -140,6 +138,7 @@ type ExecutableHandler interface {
 	validate() bool
 	nmcliSetupIpAddress(link netlink.Link, ipStr string, ipAddr *netlink.Addr) error
 	SetupAccApfs() error
+	AddAccApfsToGroupOne() error
 }
 
 type ExecutableHandlerImpl struct{}
@@ -1000,76 +999,6 @@ func skipIMCReboot() (bool, string) {
 
 }
 
-// Note: To evaluate, if we really need this api, since it
-// can break, if the format of config changes in cp_init.cfg
-// this api queries the param->acc_apf in /etc/dpcp/cp_init.cfg.
-// The param(acc_apf) appears in 3 lines in that file, and we run
-// the command to fetch the value in the second line.
-func queryNumAccApfsInIMCConfig() (int, error) {
-
-	log.Infof("queryNumAccApfsInIMCConfig")
-	//remove duplicate entries, and ensure host-key(ssh-keyscan) is present.
-	sshCmds := "ssh-keygen -R 192.168.0.1; ssh-keyscan 192.168.0.1 >> /root/.ssh/known_hosts"
-
-	_, err := utils.ExecuteScript(sshCmds)
-	if err != nil {
-		log.Errorf("error->%v, for ssh key commands->%v", err, sshCmds)
-		return 0, fmt.Errorf("error->%v, for ssh key commands->%v", err, sshCmds)
-	}
-
-	hostKeyCallback, err := kh.New("/root/.ssh/known_hosts")
-	if err != nil {
-		log.Errorf("error->%v, unable to create hostkeycallback function: ", err)
-		return 0, fmt.Errorf("error->%v, unable to create hostkeycallback function: ", err)
-	}
-
-	config := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
-		},
-		HostKeyCallback: hostKeyCallback,
-	}
-
-	// Connect to the remote server.
-	client, err := ssh.Dial("tcp", imcAddress, config)
-	if err != nil {
-		return 0, fmt.Errorf("failed to dial remote server: %s", err)
-	}
-	defer client.Close()
-
-	// Start a session.
-	session, err := client.NewSession()
-	if err != nil {
-		return 0, fmt.Errorf("failed to create session: %s", err)
-	}
-	defer session.Close()
-
-	commands := `grep "acc_apf = "  /etc/dpcp/cp_init.cfg | sed -n 2p | awk '/acc_apf = / {print $3}'`
-
-	// Run a command on the remote server and capture the output.
-	outputBytes, err := session.CombinedOutput(commands)
-	if err != nil {
-		log.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
-		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: error from command->%v", err)
-	}
-
-	outputStr := strings.TrimSuffix(string(outputBytes), "\n")
-	//to skip the semicolon, for example, if output is-> 48;
-	outputStr = outputStr[:len(outputStr)-1]
-
-	numAccApfs, err := strconv.Atoi(outputStr)
-
-	if err != nil {
-		log.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
-		return 0, fmt.Errorf("queryNumAccApfsInIMCConfig: Error converting string to int: %v", err)
-	}
-	log.Infof("queryNumAccApfsInIMCConfig ->%v", numAccApfs)
-
-	return numAccApfs, nil
-
-}
-
 func (e *ExecutableHandlerImpl) validate() bool {
 
 	if noReboot, infoStr := skipIMCReboot(); !noReboot {
@@ -1078,6 +1007,67 @@ func (e *ExecutableHandlerImpl) validate() bool {
 	}
 
 	return true
+}
+
+func (e *ExecutableHandlerImpl) AddAccApfsToGroupOne() error {
+	vsiList, err := utils.GetAvailableAccVsiList()
+	if err != nil {
+		log.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
+		return fmt.Errorf("AddAccApfsToGroupOne: unable to reach the IMC %v", err)
+	}
+	if len(vsiList) == 0 {
+		log.Errorf("no APFs initialized on ACC")
+		return fmt.Errorf("no APFs initialized on ACC")
+	}
+	log.Infof("AddAccApfsToGroupOne, vsiList->%v", vsiList)
+	/*  Steps from script(for reference)
+	VSI_GROUP_INIT=$(printf  "0x%x" $((0x8000050000000000 + IDPF_VPORT_VSI_HEX)))
+		VSI_GROUP_WRITE=$(printf "0x%x" $((0xA000050000000000 + IDPF_VPORT_VSI_HEX)))
+			devmem 0x20292002a0 64 ${VSI_GROUP_INIT}
+				devmem 0x2029200388 64 0x1
+					devmem 0x20292002a0 64 ${VSI_GROUP_WRITE}
+	*/
+	for i := 0; i < len(vsiList); i++ {
+		log.Infof("Add to VSI Group 1, vsi->%v", vsiList[i])
+		hexStr := vsiList[i]
+		// skip "0x" prefix
+		hexStr = hexStr[2:]
+
+		// Convert to hex value
+		hexVal, err := strconv.ParseInt(hexStr, 16, 64)
+		if err != nil {
+			log.Errorf("error decoding hex: %v", err)
+			return fmt.Errorf("error decoding hex: %v", err)
+		}
+
+		// Check bounds before converting to uint64
+		if hexVal < 0 {
+			log.Errorf("hex value out of range: %v", hexVal)
+			return fmt.Errorf("hex value out of range: %v", hexVal)
+		}
+
+		var vsiGroupInit, vsiGroupWrite uint64
+
+		vsiGroupInit = 0x8000050000000000 + uint64(hexVal)
+		vsiGroupWrite = 0xA000050000000000 + uint64(hexVal)
+
+		vsiGroupInitString := fmt.Sprintf("0x%X", vsiGroupInit)
+		vsiGroupWriteString := fmt.Sprintf("0x%X", vsiGroupWrite)
+
+		devMemCmd1 := "devmem 0x20292002a0 64 " + vsiGroupInitString
+		devMemCmd2 := "devmem 0x2029200388 64 0x1"
+		devMemCmd3 := "devmem 0x20292002a0 64 " + vsiGroupWriteString
+
+		devMemCmd := devMemCmd1 + "; " + devMemCmd2 + "; " + devMemCmd3 + "; "
+		log.Infof("devMemCmd->%v", devMemCmd)
+
+		_, err = utils.ExecuteScript(fmt.Sprintf(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@192.168.0.1 "%s"`, devMemCmd))
+		if err != nil {
+			log.Errorf("err exec devMemCmd->%v", err)
+			return fmt.Errorf("err exec devMemCmd->%v", err)
+		}
+	}
+	return nil
 }
 
 func (e *ExecutableHandlerImpl) SetupAccApfs() error {
@@ -1186,6 +1176,10 @@ func (s *LifeCycleServiceServer) Init(ctx context.Context, in *pb.InitRequest) (
 			}
 		} else {
 			log.Info("not forcing state")
+		}
+		if err := ExecutableHandlerGlobal.AddAccApfsToGroupOne(); err != nil {
+			log.Fatalf("error from->AddAccApfsToGroupOne: %v", err)
+			return nil, fmt.Errorf("error from->AddAccApfsToGroupOne: %v", err)
 		}
 		if err := ExecutableHandlerGlobal.SetupAccApfs(); err != nil {
 			log.Errorf("error from  SetupAccApfs %v", err)
