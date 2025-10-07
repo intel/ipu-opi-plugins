@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2024 Intel Corporation
-FROM golang:1.25.0-alpine@sha256:72a77777b4d52d80820a9b5828c06cca1cd3c24721b6ca25b0269b5f6fb00daa AS builder
+FROM golang:1.25.2-alpine@sha256:6104e2bbe9f6a07a009159692fe0df1a97b77f5b7409ad804b17d6916c635ae5 AS builder
 RUN apk add --no-cache git
 ARG TARGETOS
 ARG TARGETARCH
