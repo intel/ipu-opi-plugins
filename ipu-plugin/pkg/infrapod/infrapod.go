@@ -2,7 +2,6 @@ package infrapod
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"os"
 	"strconv"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/bombsimon/logrusr/v4"
 	"github.com/go-logr/logr"
-	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/k8s/render"
 	"github.com/intel/ipu-opi-plugins/ipu-plugin/pkg/types"
 	logrus "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,8 +27,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-//go:embed bindata/*
-var binData embed.FS
 var (
 	scheme = runtime.NewScheme()
 )
@@ -162,69 +158,6 @@ func (infrapodMgr *InfrapodMgrOcImpl) getPvCrs() (error, bool) {
 		return nil, false
 	}
 	return err, false
-}
-
-/*
-Create p4 pvc This will create ->
-persistentvolumes
-persistentvolumeclaims
-*/
-func (infrapodMgr *InfrapodMgrOcImpl) CreatePvCrs() error {
-	err, isPresent := infrapodMgr.getPvCrs()
-	if err != nil {
-		infrapodMgr.log.Error(err, "failed to start PV")
-		return fmt.Errorf("failed to get PV due to: %v", err)
-	}
-	if isPresent {
-		infrapodMgr.log.Error(err, "PV already present")
-		return nil
-	}
-	err = render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4-pvc",
-		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
-		nil, infrapodMgr.mgr.GetScheme(), false)
-	if err != nil {
-		infrapodMgr.log.Error(err, "failed to start PV")
-		return fmt.Errorf("failed to start PV due to: %v", err)
-	}
-	return nil
-}
-
-/*
-Create p4 pod This will create ->
-ServiceAccount
-role
-rolebindings
-service for p4runtime
-P4 pod
-*/
-func (infrapodMgr *InfrapodMgrOcImpl) CreateCrs() error {
-	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
-		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
-		nil, infrapodMgr.mgr.GetScheme(), false)
-	if err != nil {
-		infrapodMgr.log.Error(err, "failed to start vsp-p4")
-		return fmt.Errorf("failed to start vsp-p4 (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
-	}
-	return nil
-}
-
-/*
-Delete p4 pod This will delete ->
-ServiceAccount
-role
-rolebindings
-service for p4runtime
-P4 pod
-*/
-func (infrapodMgr *InfrapodMgrOcImpl) DeleteCrs() error {
-	err := render.OperateAllFromBinData(infrapodMgr.log, "vsp-p4",
-		infrapodMgr.vspP4Template.ToMap(), binData, infrapodMgr.mgr.GetClient(),
-		nil, infrapodMgr.mgr.GetScheme(), true)
-	if err != nil {
-		infrapodMgr.log.Error(err, "failed to delete vsp-p4")
-		return fmt.Errorf("failed to delete vsp-p4 (p4Image:%s) due to: %v", infrapodMgr.vspP4Template.ImageName, err)
-	}
-	return nil
 }
 
 func (infrapodMgr *InfrapodMgrOcImpl) WaitForPodDelete(timeout time.Duration) error {

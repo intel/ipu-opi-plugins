@@ -82,9 +82,6 @@ type P4RTClient interface {
 
 type InfrapodMgr interface {
 	StartMgr() error
-	CreateCrs() error
-	CreatePvCrs() error
-	DeleteCrs() error
 	WaitForPodDelete(timeout time.Duration) error
 	WaitForPodReady(timeout time.Duration) error
 }
